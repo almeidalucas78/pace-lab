@@ -22,4 +22,4 @@ activities*
 *.db-shm
 *.sqlite
 *.log
-.claude/
+.claude/settings.local.json

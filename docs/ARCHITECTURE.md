@@ -1,0 +1,76 @@
+# Arquitetura
+
+Visão de como o sistema é montado hoje e como ele cresce. As decisões por trás de cada escolha estão em [decisions/](decisions/README.md).
+
+## Camadas
+
+```
+            interfaces (só chamam services)
+  ┌──────────┬──────────┬──────────┬──────────┬────────────┐
+  │ CLI      │ API      │ agendador│ MCP      │ chat (IA)  │
+  │ cli.py   │ api/     │scheduler │ ia/mcp_  │ ia/chat.py │
+  │          │          │   .py    │ server.py│ provedores │
+  └────┬─────┴────┬─────┴────┬─────┴────┬─────┴─────┬──────┘
+       └──────────┴──────────┼──────────┴───────────┘
+                             ▼
+                 services.py  (regras e consultas)
+                 ▲           │            ▲
+     ingest/ ────┘           ▼            └──── core/
+  (adaptadores de fonte)   db/ (SQLAlchemy)   (cálculo puro)
+```
+
+| Pacote | Papel | Pode depender de |
+|---|---|---|
+| `core/` | Parciais, limpeza de FC, zonas, TRIMP, fitness/fadiga/forma | nada do projeto além de `ingest.files.Point` |
+| `ingest/` | Ler fontes e gravar treinos: export do Strava, HC Webhook | `core`, `db` |
+| `db/` | Modelos, sessão, `init_db()` com Alembic | `config` |
+| `services.py` | Única camada de regras e consultas | `core`, `db`, `ingest` |
+| `ia/` | Ferramentas da IA, servidor MCP, provedores, chat | `services` |
+| `api/`, `cli.py`, `scheduler.py` | Interfaces | `services`, `ia` |
+
+O painel web (fase 5) é um app separado que fala só com a API.
+
+## Fluxo dos dados
+
+**Histórico (Strava):** `treino importar-strava export.zip` → `ingest/strava_export.py` lê o `activities.csv` (`strava_csv.py`) e cada arquivo (`files.py`: GPX, TCX, FIT, com ou sem .gz) → `streams_store.save_streams()` → `core/streams.process_points()` limpa e gera amostras e parciais → banco → `services.recompute()`.
+
+**Treinos novos (Health Connect):** agendador ou `treino sincronizar` → `services.sync_health_connect()` → `ingest/hc_client.py` faz `GET /?start=&end=` no celular → `ingest/health_connect.py` converte (cálculo puro) → `ingest/hc_import.py` grava (idempotente pelo id do Health Connect) → `recompute()` → notificação dos treinos novos que não são duplicata.
+
+**Recálculo (`services.recompute`)**, sempre depois de importar: marca duplicatas (Strava prevalece), resolve a FC máxima (configurada ou estimada), calcula zonas e TRIMP por treino e refaz a série diária de fitness, fadiga e forma.
+
+**Chat:** `POST /chat` ou `treino chat` → `ia/chat.conversar()` → provedor (Claude Agent SDK ou Gemini) → a IA chama ferramentas de `ia/ferramentas.py` → `services` → fichas resumidas voltam para a IA → resposta gravada em `chat_messages`.
+
+## Banco
+
+| Tabela | O que guarda | Recalculável? |
+|---|---|---|
+| `activities` | Um treino por fonte (`source`, `source_id`), totais, métricas, duplicata | sim, reimportando |
+| `samples` | Leituras ao longo do treino (1/s) | sim |
+| `splits` | Parciais por km | sim |
+| `daily_load` | Carga diária, fitness, fadiga, forma | sim, `treino recalcular` |
+| `sync_state` | Última sincronização por fonte | não |
+| `sensations` | Como o usuário se sentiu (via chat) | **não** |
+| `conversations`, `chat_messages` | Histórico do chat | **não** |
+
+Tabelas marcadas "não" têm dados que nenhum export recupera: nunca apagar, e fazer backup antes de migração arriscada.
+
+Datas sempre em UTC com fuso (`UTCDateTime`); o fuso local (`TIMEZONE`) só é usado para agrupar por dia e semana e para mostrar.
+
+## Configuração
+
+Tudo em `.env` (modelo em `.env.example`), lido por `config.Settings`. O `.env` e o SQLite relativo são resolvidos pela raiz do projeto (`config.ROOT`), então os comandos funcionam de qualquer pasta.
+
+## Como escalar
+
+| Hoje (PC) | Ao hospedar |
+|---|---|
+| SQLite em `data/` | Postgres, trocando `DATABASE_URL` (migrações do Alembic já servem) |
+| PC puxa do celular (`hc_client`) | HC Webhook envia webhook para a API (endpoint novo em `api/`) |
+| `treino servico` aberto à mão | Docker Compose; o agendador continua dentro do processo |
+| MCP por stdio | MCP via HTTP com autenticação, como conector customizado no claude.ai |
+| Claude com login da assinatura | Claude com chave de API |
+| Celular via Tailscale | Domínio público com HTTPS |
+
+Pontos de atenção quando o volume crescer:
+- `recompute()` refaz tudo a cada importação; com muitos anos de dados, passar a recalcular a partir do dia mais antigo alterado.
+- `services.py` deve virar pacote `services/` quando passar de umas 800 linhas.

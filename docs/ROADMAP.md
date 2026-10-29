@@ -1,0 +1,46 @@
+# Roadmap
+
+Cada fase tem um plano em `docs/fases/fase-N.md`, escrito com `/planejar-fase N` e aprovado antes de codar, e é fechada com `/fechar-fase N`.
+
+Status: ⬜ não iniciada · 📝 planejada · 🚧 em andamento · ✅ concluída · ⏸️ aguardando o usuário
+
+| Fase | Objetivo | Status |
+|---|---|---|
+| 1 | Importar o histórico do Strava e calcular métricas | ✅ |
+| 2 | Puxar treinos do celular (Health Connect) com agendador e deduplicação | ✅ (validação com o celular ⏸️) |
+| 3 | Servidor MCP e chat com Claude e Gemini | ✅ (backend e CLI; interface na fase 5) |
+| 4 | Planos de treino salvos pelo chat e aderência planejado x executado | ⬜ |
+| 5 | Painel web desktop (React) com gráficos e chat | ⬜ |
+| 6 | Painel no celular (responsivo + PWA, via Tailscale) | ⬜ |
+| 7 | Hospedagem e musculação (Hevy) | ⬜ |
+
+## Fase 1: histórico do Strava ✅
+Importador do export (pasta ou .zip, idempotente; GPX, TCX, FIT, JSON); parciais por km; limpeza de FC; alerta de FC colada na cadência; zonas por % da FC máxima; TRIMP de Edwards; fitness (42 dias), fadiga (7 dias) e forma; duplicatas; CLI e API com token. Validado com o export real (359 atividades).
+
+## Fase 2: Health Connect ✅
+Cliente do servidor local do HC Webhook; conversor do JSON (escrito pela documentação); sincronização desde o último sucesso menos 48 h; tabela `sync_state`; Strava prevalece nas duplicatas; agendador no serviço; notificação do Windows; `iniciar-treino.bat`; Alembic. Teste de ponta a ponta com servidor falso.
+
+## Fase 3: MCP e chat ✅
+Registro único de 9 ferramentas; `treino mcp` (stdio e HTTP); provedores Claude (Agent SDK, login do PC) e Gemini; conversas e sensações no banco; `treino chat`, `POST /chat`. Teste real com Claude em 28/10/2026.
+
+## Fase 4: planos e aderência ⬜
+Ideia inicial (detalhar com `/planejar-fase 4`): a IA monta o plano conversando e salva com `salvar_plano`; o sistema casa cada sessão planejada com o treino executado e calcula aderência (fez ou não, distância, tempo, intensidade); ferramentas para a IA consultar o plano e a aderência.
+
+## Fase 5: painel web desktop ⬜
+React + TypeScript + Vite consumindo só a API: visão geral, carga (fitness/fadiga/forma), semanas, detalhe do treino com mapa e gráficos, plano e aderência, chat embutido.
+
+## Fase 6: celular ⬜
+Painel responsivo, PWA, acesso pelo Tailscale com o PC ligado.
+
+## Fase 7: hospedagem e musculação ⬜
+Docker Compose, Postgres, webhook do HC Webhook, MCP remoto com autenticação, Claude por chave de API. Musculação do Hevy (JSON já guardado em `extra`).
+
+## Pendências de validação
+
+- [ ] **Celular:** ver um JSON real do HC Webhook (`GET /?days=2` depois de uma corrida) e ajustar `ingest/health_connect.py`: valores de `type`, se `metadata` vem na sessão, resolução da FC, granularidade da distância, se existe rota/GPS. (Usuário deixou para depois.)
+- [ ] **Celular:** a documentação do app se contradiz sobre token no servidor local (`local-http.md` tem Bearer; `usage.md` diz que não tem autenticação). Conferir no app.
+- [ ] **Strava:** reavaliar a decisão [0001](decisions/0001-sem-api-do-strava.md) junto com o teste do Health Connect.
+- [ ] **Gemini:** testar de verdade quando o usuário criar a `GEMINI_API_KEY` (modelo padrão `gemini-3.8-flash`).
+- [ ] **agy:** conferir se o arquivo de MCP é `~/.gemini/config/mcp_config.json` (fontes citam também `~/.gemini/antigravity-cli/mcp_config.json`).
+- [ ] **Musculação (fase 7):** peso do Hevy em kg? Valores de 2 a 180. Decidir como guardar os sets.
+- [x] TCX do Watch 7, leitor de FIT e notificação do Windows validados (27/10/2026).

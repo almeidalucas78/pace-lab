@@ -123,6 +123,13 @@ treino/
 tests/             testes com dados sintéticos (`pytest`)
 ```
 
+## Documentação do projeto
+
+- [docs/ROADMAP.md](docs/ROADMAP.md): fases, status e pendências
+- [docs/ARCHITECTURE.md](docs/ARCHITECTURE.md): camadas, fluxos de dados, tabelas e como escalar
+- [docs/decisions/](docs/decisions/README.md): decisões e por que foram tomadas
+- [CHANGELOG.md](CHANGELOG.md): o que mudou em cada versão
+
 ## Próximas fases
 
 4. Planos de treino e aderência
