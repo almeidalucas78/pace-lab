@@ -35,6 +35,8 @@ class Settings(BaseSettings):
     claude_esforco: str = ""            # low, medium, high, xhigh, max (vazio = padrão do modelo)
     gemini_api_key: str = ""            # chave gratuita do Google AI Studio
     gemini_modelo: str = "gemini-3.8-flash"
+    gemini_modelo_reserva: str = "gemini-3.6-flash"  # usado se o principal estiver sobrecarregado (503/504)
+    gemini_timeout_s: float = 90
     chat_max_turnos: int = 12           # chamadas de ferramenta por resposta
 
     @field_validator("fc_max", "fc_repouso", mode="before")

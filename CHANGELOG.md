@@ -4,6 +4,9 @@ O que mudou em cada fase, escrito para o usuário. Formato inspirado no [Keep a 
 
 ## [Não lançado]
 
+### Corrigido
+- Gemini: a chamada agora tem tempo limite (antes podia ficar presa vários minutos) e, quando o modelo principal está sobrecarregado (erro 503/504 do Google), a resposta usa o modelo de reserva (`GEMINI_MODELO_RESERVA`). A troca só acontece se nenhuma ferramenta já rodou, para não gravar nada duas vezes.
+
 ## [0.4.0] - 2026-10-28 (fase 4)
 
 ### Adicionado

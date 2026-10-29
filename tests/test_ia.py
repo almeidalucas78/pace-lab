@@ -187,3 +187,32 @@ def test_plano_criado_no_chat_fica_ligado_a_conversa(db):
 
     r = asyncio.run(conversar("pode salvar", provedor="claude", fabrica=lambda n, s: CriaPlano()))
     assert executar("plano_atual", {})["conversa_id"] == r["conversa_id"]
+
+
+class GeminiSobrecarregado(GeminiFalso):
+    """O modelo principal responde 503; os outros funcionam como o GeminiFalso."""
+
+    def __init__(self, falha_depois_de_ferramenta=False):
+        super().__init__()
+        self.modelos, self.falha_depois = [], falha_depois_de_ferramenta
+
+    async def generate_content(self, model, contents, config):
+        from google.genai import errors
+        self.modelos.append(model)
+        if model == "principal" and (not self.falha_depois or len(self.modelos) > 1):
+            raise errors.ServerError(503, {"error": {"code": 503, "message": "high demand", "status": "UNAVAILABLE"}})
+        return await super().generate_content(model, contents, config)
+
+
+def test_gemini_usa_modelo_de_reserva_quando_o_principal_esta_sobrecarregado(db):
+    settings = get_settings().model_copy(update={"gemini_modelo": "principal", "gemini_modelo_reserva": "reserva"})
+    falso = GeminiSobrecarregado()
+    r = asyncio.run(Gemini(settings, client=falso).responder("e aí?", [], None))
+    assert falso.modelos == ["principal", "reserva", "reserva"] and r.meta["modelo"] == "reserva"
+    assert r.meta["reserva_por"] == "principal: 503" and r.ferramentas == ["ultimo_treino"]
+
+    # depois de uma ferramenta já ter rodado, não repete a resposta em outro modelo
+    falso = GeminiSobrecarregado(falha_depois_de_ferramenta=True)
+    with pytest.raises(ErroIA, match="503"):
+        asyncio.run(Gemini(settings, client=falso).responder("e aí?", [], None))
+    assert falso.modelos == ["principal", "principal"]

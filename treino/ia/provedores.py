@@ -102,6 +102,8 @@ class Claude:
 
 # ---------- Gemini (google-genai, chave do AI Studio) ----------
 
+SOBRECARGA = {500, 503, 504}   # erros do lado do Google em que vale tentar o modelo de reserva
+
 class Gemini:
     """Gemini com laço manual de ferramentas. O histórico vem do nosso banco a cada mensagem."""
     nome = "gemini"
@@ -112,7 +114,9 @@ class Gemini:
             if not settings.gemini_api_key:
                 raise ErroIA("GEMINI_API_KEY vazio no .env (crie a chave gratuita em https://aistudio.google.com/apikey)")
             from google import genai
-            client = genai.Client(api_key=settings.gemini_api_key)
+            from google.genai import types
+            client = genai.Client(api_key=settings.gemini_api_key,
+                                  http_options=types.HttpOptions(timeout=int(settings.gemini_timeout_s * 1000)))
         self.client = client
 
     def _config(self):
@@ -126,35 +130,49 @@ class Gemini:
         )
 
     async def responder(self, mensagem, historico, sessao):
-        from google.genai import errors, types
+        from google.genai import errors
+
+        principal, reserva = self.settings.gemini_modelo, self.settings.gemini_modelo_reserva
+        usadas: list[str] = []
+        try:
+            return await self._rodar(principal, mensagem, historico, usadas)
+        except errors.APIError as e:
+            # Sobrecarga do modelo principal: tenta o de reserva, mas só se nenhuma ferramenta rodou
+            # (repetir a resposta depois de um salvar_plano gravaria duas vezes).
+            if usadas or e.code not in SOBRECARGA or not reserva or reserva == principal:
+                raise ErroIA(f"Gemini: {e.code} {e.message}") from e
+            try:
+                return await self._rodar(reserva, mensagem, historico, usadas, aviso=f"{principal}: {e.code}")
+            except errors.APIError as e2:
+                raise ErroIA(f"Gemini: {e2.code} {e2.message} (modelo principal: {e.code})") from e2
+
+    async def _rodar(self, modelo, mensagem, historico, usadas, aviso=None):
+        from google.genai import types
 
         contents = [types.Content(role="user" if papel == "user" else "model", parts=[types.Part(text=texto)])
                     for papel, texto in historico]
         contents.append(types.Content(role="user", parts=[types.Part(text=com_data(mensagem, self.settings))]))
-        config, usadas = self._config(), []
-        try:
-            for _ in range(self.settings.chat_max_turnos):
-                resp = await self.client.aio.models.generate_content(
-                    model=self.settings.gemini_modelo, contents=contents, config=config)
-                chamadas = resp.function_calls or []
-                if not chamadas:
-                    return Resposta(texto=resp.text or "", ferramentas=usadas,
-                                    meta={"modelo": self.settings.gemini_modelo,
-                                          "uso": resp.usage_metadata.model_dump(exclude_none=True)
-                                          if resp.usage_metadata else None})
-                # devolve o conteúdo do modelo inteiro (inclui as assinaturas de raciocínio do Gemini 3)
-                contents.append(resp.candidates[0].content)
-                partes = []
-                for fc in chamadas:
-                    usadas.append(fc.name)
-                    res = await asyncio.to_thread(executar, fc.name, dict(fc.args or {}))
-                    parte = types.Part.from_function_response(name=fc.name, response={"resultado": res})
-                    if fc.id:
-                        parte.function_response.id = fc.id
-                    partes.append(parte)
-                contents.append(types.Content(role="user", parts=partes))
-        except errors.APIError as e:
-            raise ErroIA(f"Gemini: {e.code} {e.message}") from e
+        config = self._config()
+        for _ in range(self.settings.chat_max_turnos):
+            resp = await self.client.aio.models.generate_content(model=modelo, contents=contents, config=config)
+            chamadas = resp.function_calls or []
+            if not chamadas:
+                meta = {"modelo": modelo, "uso": resp.usage_metadata.model_dump(exclude_none=True)
+                        if resp.usage_metadata else None}
+                if aviso:
+                    meta["reserva_por"] = aviso
+                return Resposta(texto=resp.text or "", ferramentas=usadas, meta=meta)
+            # devolve o conteúdo do modelo inteiro (inclui as assinaturas de raciocínio do Gemini 3)
+            contents.append(resp.candidates[0].content)
+            partes = []
+            for fc in chamadas:
+                usadas.append(fc.name)
+                res = await asyncio.to_thread(executar, fc.name, dict(fc.args or {}))
+                parte = types.Part.from_function_response(name=fc.name, response={"resultado": res})
+                if fc.id:
+                    parte.function_response.id = fc.id
+                partes.append(parte)
+            contents.append(types.Content(role="user", parts=partes))
         raise ErroIA("limite de chamadas de ferramenta atingido nesta resposta")
 
 

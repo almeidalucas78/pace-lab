@@ -10,7 +10,7 @@ Status: ⬜ não iniciada · 📝 planejada · 🚧 em andamento · ✅ concluí
 | 2 | Puxar treinos do celular (Health Connect) com agendador e deduplicação | ✅ (validação com o celular ⏸️) |
 | 3 | Servidor MCP e chat com Claude e Gemini | ✅ (backend e CLI; interface na fase 5) |
 | 4 | Planos de treino salvos pelo chat e aderência planejado x executado | ✅ ([plano](fases/fase-4.md)) |
-| 5 | Painel web desktop (React) com gráficos e chat | ⬜ |
+| 5 | Painel web desktop (React) com gráficos e chat | 📝 ([plano](fases/fase-5.md)) |
 | 6 | Painel no celular (responsivo + PWA, via Tailscale) | ⬜ |
 | 7 | Hospedagem e musculação (Hevy) | ⬜ |
 
@@ -26,8 +26,8 @@ Registro único de 9 ferramentas; `treino mcp` (stdio e HTTP); provedores Claude
 ## Fase 4: planos e aderência ✅
 Planos montados no chat e salvos com confirmação; aderência calculada na hora (mesmo dia ou dia vizinho, metas, extras, resumo semanal); 7 ferramentas novas, `treino plano`, rotas `/planos`. Detalhes em [fases/fase-4.md](fases/fase-4.md).
 
-## Fase 5: painel web desktop ⬜
-React + TypeScript + Vite consumindo só a API: visão geral, carga (fitness/fadiga/forma), semanas, detalhe do treino com mapa e gráficos, plano e aderência, chat embutido.
+## Fase 5: painel web desktop 📝
+Plano em [fases/fase-5.md](fases/fase-5.md). React + TypeScript + Vite consumindo só a API: visão geral, carga (fitness/fadiga/forma), semanas, detalhe do treino com mapa e gráficos, plano e aderência, chat embutido.
 
 ## Fase 6: celular ⬜
 Painel responsivo, PWA, acesso pelo Tailscale com o PC ligado.
@@ -40,7 +40,7 @@ Docker Compose, Postgres, webhook do HC Webhook, MCP remoto com autenticação, 
 - [ ] **Celular:** ver um JSON real do HC Webhook (`GET /?days=2` depois de uma corrida) e ajustar `ingest/health_connect.py`: valores de `type`, se `metadata` vem na sessão, resolução da FC, granularidade da distância, se existe rota/GPS. (Usuário deixou para depois.)
 - [ ] **Celular:** a documentação do app se contradiz sobre token no servidor local (`local-http.md` tem Bearer; `usage.md` diz que não tem autenticação). Conferir no app.
 - [ ] **Strava:** reavaliar a decisão [0001](decisions/0001-sem-api-do-strava.md) junto com o teste do Health Connect.
-- [ ] **Gemini:** testar de verdade quando o usuário criar a `GEMINI_API_KEY` (modelo padrão `gemini-3.8-flash`).
+- [x] **Gemini:** testado com a chave real em 28/10/2026 (último treino e aderência). Nesse dia o `gemini-3.8-flash` estava sobrecarregado (503/504, até 2 min por resposta); o `gemini-3.6-flash` respondeu em cerca de 3 s e virou reserva automática.
 - [ ] **agy:** conferir se o arquivo de MCP é `~/.gemini/config/mcp_config.json` (fontes citam também `~/.gemini/antigravity-cli/mcp_config.json`).
 - [ ] **Plano de teste:** "Teste de aderencia" (id 1) ficou ativo no banco real; arquivar ou substituir pelo primeiro plano de verdade.
 - [ ] **Musculação (fase 7):** peso do Hevy em kg? Valores de 2 a 180. Decidir como guardar os sets.

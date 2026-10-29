@@ -66,7 +66,7 @@ O chat usa ferramentas que consultam o banco e devolvem fichas resumidas: últim
 
 - Terminal: `treino chat`. API: `POST /chat` com `{"mensagem": "...", "conversa_id": null, "provedor": "claude"}`; conversas em `GET /chat/conversas`.
 - **Claude** (`IA_PROVEDOR=claude`): usa o Claude Code embutido no pacote `claude-agent-sdk`. Sem `ANTHROPIC_API_KEY` no ambiente, ele usa o login do Claude Code que já existe neste PC e consome os limites da sua assinatura. O modelo fica em `CLAUDE_MODELO`. O Claude do chat não tem acesso a arquivos nem a comandos: só às ferramentas de treino.
-- **Gemini** (`IA_PROVEDOR=gemini`): precisa de `GEMINI_API_KEY` (chave gratuita do [Google AI Studio](https://aistudio.google.com/apikey)). No plano gratuito, o Google pode usar as requisições para melhorar os produtos; os limites aparecem no painel do AI Studio.
+- **Gemini** (`IA_PROVEDOR=gemini`): se o modelo principal (`GEMINI_MODELO`) estiver sobrecarregado, a resposta usa `GEMINI_MODELO_RESERVA`. Precisa de `GEMINI_API_KEY` (chave gratuita do [Google AI Studio](https://aistudio.google.com/apikey)). No plano gratuito, o Google pode usar as requisições para melhorar os produtos; os limites aparecem no painel do AI Studio.
 - Cada conversa fica com o provedor em que começou. As mensagens ficam no banco (`conversations`, `chat_messages`).
 - Quando você conta como se sentiu ("pernas pesadas hoje"), a IA registra em `sensations` e passa a considerar nas próximas respostas.
 

@@ -17,3 +17,5 @@ O chat do painel e os clientes MCP (Claude Desktop/Code, agy) precisam das mesma
 ## Consequências
 - A documentação oficial do Agent SDK (conferida em 28/10/2026) só descreve chave de API e diz que, salvo aprovação, desenvolvedores não podem oferecer login do claude.ai ou limites de assinatura em produtos. O uso aqui é do próprio assinante no próprio PC, caso que a documentação não trata explicitamente. Nunca expor o chat com login de assinatura para outras pessoas.
 - Cada conversa fica presa ao provedor em que começou.
+- A assinatura Google AI Pro não dá cota de API (conferido em 28/10/2026); ela inclui US$ 10/mês em créditos do Google Cloud, mas a página oficial não confirma o uso deles na API do Gemini. Usamos a chave gratuita.
+- Gemini com tempo limite e modelo de reserva para erros 503/504 do Google (28/10/2026).
