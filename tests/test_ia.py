@@ -137,15 +137,15 @@ def test_api_de_chat(db, monkeypatch):
     from treino.api.app import app
     with TestClient(app) as c:
         h = {"Authorization": "Bearer teste"}
-        r = c.post("/chat", json={"mensagem": "oi"}, headers=h)
+        r = c.post("/api/chat", json={"mensagem": "oi"}, headers=h)
         assert r.status_code == 200 and r.json()["resposta"] == "resposta 1"
-        assert c.get("/chat/conversas", headers=h).json()[0]["titulo"] == "oi"
-        assert c.post("/chat", json={"mensagem": "oi"}).status_code == 401
+        assert c.get("/api/chat/conversas", headers=h).json()[0]["titulo"] == "oi"
+        assert c.post("/api/chat", json={"mensagem": "oi"}).status_code == 401
 
         def falha(n, s):
             raise ErroIA("sem cota")
         monkeypatch.setattr(chat_mod, "criar_provedor", falha)
-        r = c.post("/chat", json={"mensagem": "oi"}, headers=h)
+        r = c.post("/api/chat", json={"mensagem": "oi"}, headers=h)
         assert r.status_code == 502 and r.json()["detail"] == "sem cota"
 
 
@@ -216,3 +216,13 @@ def test_gemini_usa_modelo_de_reserva_quando_o_principal_esta_sobrecarregado(db)
     with pytest.raises(ErroIA, match="503"):
         asyncio.run(Gemini(settings, client=falso).responder("e aí?", [], None))
     assert falso.modelos == ["principal", "principal"]
+
+
+def test_contexto_do_painel_vai_para_a_ia_mas_nao_fica_gravado(db):
+    falso = ProvedorFalso()
+    r = asyncio.run(conversar("o que achou?", provedor="claude", fabrica=lambda n, s: falso,
+                              contexto="o usuário está vendo o treino #1"))
+    assert falso.chamadas[0][0] == "[Contexto do painel: o usuário está vendo o treino #1]\n\no que achou?"
+    with session_scope() as s:
+        conv = services.conversation_detail(s, get_settings(), r["conversa_id"])
+    assert conv["mensagens"][0]["texto"] == "o que achou?" and conv["titulo"] == "o que achou?"

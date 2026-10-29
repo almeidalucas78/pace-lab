@@ -6,7 +6,7 @@ data/
 .pytest_cache/
 
 # dados pessoais (nunca versionar)
-activities*
+/activities*
 *.zip
 *.gpx
 *.gpx.gz
@@ -23,3 +23,7 @@ activities*
 *.sqlite
 *.log
 .claude/settings.local.json
+
+# painel web
+node_modules/
+web/dist/

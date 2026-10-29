@@ -218,29 +218,62 @@ def mcp(http: bool = typer.Option(False, help="Serve por HTTP em vez de stdio"),
         servidor.run()
 
 
+def _porta_ocupada(host: str, porta: int) -> str | None:
+    """Explica quem está na porta, ou None se ela está livre."""
+    import socket
+
+    import httpx
+    with socket.socket() as s:
+        s.settimeout(1)
+        if s.connect_ex((host, porta)) != 0:
+            return None
+    base = f"http://{host}:{porta}"
+    try:
+        if httpx.get(f"{base}/api/health", timeout=2).status_code == 200:
+            return "o Treino já está aberto nessa porta (outra janela ou processo)."
+        if httpx.get(f"{base}/health", timeout=2).status_code == 200:
+            return "um Treino de versão antiga (de antes do painel) está rodando nessa porta."
+    except httpx.HTTPError:
+        pass
+    return "outro programa está usando essa porta."
+
+
 def _serve(host: str, porta: int, agendador: bool) -> None:
     import logging
     import os
 
     import uvicorn
-    from .api.app import SCHEDULER_ENV
+    from .api.app import PAINEL, SCHEDULER_ENV
+    ocupada = _porta_ocupada(host, porta)
+    if ocupada:
+        typer.secho(f"Não dá para abrir em http://{host}:{porta}: {ocupada}\n"
+                    "Feche a outra janela do Treino ou encerre o processo (Gerenciador de Tarefas > Detalhes, "
+                    f"ou no PowerShell: Get-NetTCPConnection -LocalPort {porta} -State Listen | "
+                    "ForEach-Object { Stop-Process -Id $_.OwningProcess }). Ou use outra porta: --porta 8002.",
+                    fg=typer.colors.RED)
+        raise typer.Exit(code=1)
     logging.basicConfig(level=logging.INFO, format="%(asctime)s %(levelname)s %(message)s", datefmt="%H:%M:%S")
     for noisy in ("alembic", "httpx"):
         logging.getLogger(noisy).setLevel(logging.WARNING)
     init_db()
     os.environ[SCHEDULER_ENV] = "1" if agendador else "0"
+    if (PAINEL / "index.html").exists():
+        typer.secho(f"Painel: http://{host}:{porta}  (API em /api, documentação em /api/docs)", fg=typer.colors.GREEN)
+    else:
+        typer.secho("Painel não compilado: rode `npm install` e `npm run build` na pasta web. "
+                    f"Por enquanto só a API, em http://{host}:{porta}/api/docs", fg=typer.colors.YELLOW)
     uvicorn.run("treino.api.app:app", host=host, port=porta)
 
 
 @app.command()
 def api(host: str = "127.0.0.1", porta: int = 8000):
-    """Sobe a API local sem sincronização automática."""
+    """Sobe a API e o painel sem sincronização automática."""
     _serve(host, porta, agendador=False)
 
 
 @app.command()
 def servico(host: str = "127.0.0.1", porta: int = 8000):
-    """Sobe a API com a sincronização automática do celular (deixe a janela aberta)."""
+    """Sobe o painel, a API e a sincronização automática do celular (deixe a janela aberta)."""
     _serve(host, porta, agendador=True)
 
 

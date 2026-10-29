@@ -12,7 +12,9 @@ from .provedores import ErroIA, Provedor, criar_provedor
 
 async def conversar(mensagem: str, conversa_id: int | None = None, provedor: str | None = None,
                     settings: Settings | None = None,
-                    fabrica: Callable[[str, Settings], Provedor] | None = None) -> dict:
+                    fabrica: Callable[[str, Settings], Provedor] | None = None,
+                    contexto: str | None = None) -> dict:
+    """`contexto` (ex.: "o usuário está vendo o treino #356") vai para a IA, mas não fica gravado na conversa."""
     settings = settings or get_settings()
     fabrica = fabrica or criar_provedor
     mensagem = mensagem.strip()
@@ -32,7 +34,8 @@ async def conversar(mensagem: str, conversa_id: int | None = None, provedor: str
             conversa_id = services.create_conversation(s, nome, title=mensagem[:80]).id
 
     inicio = datetime.now(timezone.utc)
-    resposta = await fabrica(nome, settings).responder(mensagem, historico, sessao)
+    para_ia = f"[Contexto do painel: {contexto.strip()}]\n\n{mensagem}" if contexto and contexto.strip() else mensagem
+    resposta = await fabrica(nome, settings).responder(para_ia, historico, sessao)
 
     with session_scope() as s:
         c = s.get(Conversation, conversa_id)

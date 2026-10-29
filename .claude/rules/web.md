@@ -1,0 +1,16 @@
+---
+paths:
+  - "web/**"
+---
+
+# Painel web (React)
+
+- O painel fala só com a API (`/api/...`), via `web/src/api/cliente.ts`. Nada de importar dados de outro jeito.
+- Tipos das respostas em `web/src/api/tipos.ts`, escritos à mão a partir dos dicts de `treino/services.py`: ao mudar uma resposta no Python, atualize o tipo e o teste de fumaça (`web/src/paginas/paginas.test.tsx`).
+- Consultas em `web/src/api/consultas.ts` (TanStack Query). Chaves começam pelo recurso (`treinos`, `planos`, `carga`, `conversas`) para invalidar em grupo; o chat invalida `planos` e `treinos` depois de ferramentas que gravam.
+- Textos da tela em português do Brasil, sem travessão. Formatação de números, ritmo e datas só por `web/src/util/formato.ts`.
+- Datas chegam da API já no fuso local (`2026-10-20T07:52-03:00`); não converter com `new Date()` para exibir.
+- Cores só pelas variáveis CSS de `estilo.css` (tema claro e escuro).
+- Mapa: tiles do OpenStreetMap com atribuição visível, sem pré-carregar áreas nem uso offline (ADR 0011).
+- Antes de dizer que está pronto: `npm run build` (inclui checagem de tipos) e `npm test` na pasta `web`, além do `pytest`.
+- Bibliotecas novas: conferir versão e `peerDependencies` no npm antes de instalar.

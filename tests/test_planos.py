@@ -99,12 +99,12 @@ def test_api_e_cli_de_planos(db):
 
     h = {"Authorization": "Bearer teste"}
     with TestClient(app) as c:
-        assert c.get("/planos/ativo", headers=h).status_code == 404
+        assert c.get("/api/planos/ativo", headers=h).status_code == 404
         with session_scope() as s:
             pid = criar(s)["id"]
-        assert c.get("/planos", headers=h).json()[0]["id"] == pid
-        assert len(c.get("/planos/ativo", headers=h).json()["sessoes"]) == 3
-        assert "resumo" in c.get(f"/planos/{pid}/aderencia", headers=h).json()
-        assert c.get("/planos/999", headers=h).status_code == 404
+        assert c.get("/api/planos", headers=h).json()[0]["id"] == pid
+        assert len(c.get("/api/planos/ativo", headers=h).json()["sessoes"]) == 3
+        assert "resumo" in c.get(f"/api/planos/{pid}/aderencia", headers=h).json()
+        assert c.get("/api/planos/999", headers=h).status_code == 404
     out = CliRunner().invoke(cli, ["plano"])
     assert out.exit_code == 0 and "Teste (2026-10-19 a 2026-10-25, ativo)" in out.output

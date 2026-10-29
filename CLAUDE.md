@@ -9,7 +9,7 @@ Projeto Treino (repositório pace-lab): sistema pessoal para analisar corridas (
 - Nunca afirme como uma ferramenta, API ou plugin funciona sem checar a documentação oficial ou a web. Se não conseguir verificar, diga.
 - Testes só com dados sintéticos. Nunca colocar os arquivos reais do usuário (têm GPS de onde ele mora) no repositório ou nos testes.
 - Antes de decisões caras de desfazer (mudar esquema do banco, trocar biblioteca, apagar dados), pergunte.
-- Rode os testes (`pytest`) antes de dizer que algo está pronto.
+- Rode os testes (`pytest`; e, se mexeu em `web/`, `npm run build` e `npm test` lá) antes de dizer que algo está pronto.
 - Decisões com status "aceita" em `docs/decisions/` não são reabertas sem perguntar. Decisão nova vira ADR na hora.
 - Commit e push só com o ok do usuário.
 
@@ -24,7 +24,7 @@ Projeto Treino (repositório pace-lab): sistema pessoal para analisar corridas (
 | Fatos sobre os dados reais do usuário | `docs/dados.md` |
 | O que mudou em cada versão | `CHANGELOG.md` |
 | Uso para o usuário (instalar, comandos, MCP) | `README.md` |
-| Regras por pasta (banco, ingest, IA) | `.claude/rules/` (carregam sozinhas) |
+| Regras por pasta (banco, ingest, IA, painel) | `.claude/rules/` (carregam sozinhas) |
 
 ## Fluxo de cada fase
 
@@ -43,11 +43,12 @@ treino/
   migrations/    versões do Alembic
   services.py    única camada de regras e consultas
   ia/            ferramentas (registro único), MCP, provedores Claude e Gemini, chat
-  api/           FastAPI com token
+  api/           FastAPI com token: rotas em /api, painel compilado (web/dist) na raiz
   scheduler.py   sincronização periódica dentro do serviço
   notify.py      notificação do Windows
   cli.py         comandos `treino ...`
 tests/           pytest com dados sintéticos
+web/             painel React + TypeScript + Vite (só fala com a API)
 ```
 
 ## Ambiente do usuário
@@ -64,8 +65,9 @@ tests/           pytest com dados sintéticos
 .\.venv\Scripts\python.exe -m pytest -q
 .\.venv\Scripts\treino.exe resumo
 .\.venv\Scripts\treino.exe importar-strava "D:\dados\strava\export_<número>.zip"
-.\.venv\Scripts\treino.exe servico      # API + sincronização (iniciar-treino.bat)
+.\.venv\Scripts\treino.exe servico      # painel + API + sincronização (iniciar-treino.bat)
 .\.venv\Scripts\treino.exe sincronizar
 .\.venv\Scripts\treino.exe chat         # --provedor gemini, --conversa N
 .\.venv\Scripts\treino.exe mcp          # --http para 127.0.0.1:8001/mcp
+cd web; npm run build; npm test         # painel (desenvolvimento: npm run dev, em :5173)
 ```

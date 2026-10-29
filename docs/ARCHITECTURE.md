@@ -28,7 +28,16 @@ Visão de como o sistema é montado hoje e como ele cresce. As decisões por tr�
 | `ia/` | Ferramentas da IA, servidor MCP, provedores, chat | `services` |
 | `api/`, `cli.py`, `scheduler.py` | Interfaces | `services`, `ia` |
 
-O painel web (fase 5) é um app separado que fala só com a API.
+O painel web (`web/`, ADR 0011) é um app React separado que fala só com a API, por HTTP:
+
+| Pasta | Papel |
+|---|---|
+| `web/src/api/` | `cliente.ts` (token no navegador, prefixo `/api`, 401 volta para a tela do token), `tipos.ts` (tipos das respostas, escritos à mão), `consultas.ts` (TanStack Query) |
+| `web/src/paginas/` | Visão geral, Treinos, Treino, Plano, Token |
+| `web/src/componentes/` | gráficos (Recharts), mapa (Leaflet + OpenStreetMap), semanas do plano, chat lateral |
+| `web/src/contexto.tsx` | o que está aberto na tela; o chat manda como `contexto` para a IA |
+
+Em uso normal, `treino servico` serve o build (`web/dist`) na raiz e a API em `/api` (documentação em `/api/docs`), no mesmo processo. No desenvolvimento, `npm run dev` (porta 5173) repassa `/api` para o backend.
 
 ## Fluxo dos dados
 
@@ -40,7 +49,7 @@ O painel web (fase 5) é um app separado que fala só com a API.
 
 **Planos e aderência (ADR 0010):** a IA mostra o plano, o usuário confirma e ela chama `salvar_plano` → `services.create_plan()` grava `training_plans` e `planned_sessions` (o ativo anterior vira `substituido`). Na consulta, `services.plan_adherence()` busca os treinos sem duplicata de um dia antes a um dia depois do plano e chama `core/aderencia.py`, que casa sessão e treino (mesmo esporte no mesmo dia, senão dia vizinho), compara com as metas e monta o resumo por semana. O casamento não é gravado: é refeito a cada consulta.
 
-**Chat:** `POST /chat` ou `treino chat` → `ia/chat.conversar()` → provedor (Claude Agent SDK ou Gemini) → a IA chama ferramentas de `ia/ferramentas.py` → `services` → fichas resumidas voltam para a IA → resposta gravada em `chat_messages`.
+**Chat:** `POST /api/chat` (painel) ou `treino chat` → `ia/chat.conversar()` → provedor (Claude Agent SDK ou Gemini) → a IA chama ferramentas de `ia/ferramentas.py` → `services` → fichas resumidas voltam para a IA → resposta gravada em `chat_messages`. O `contexto` enviado pelo painel (ex.: "o usuário está vendo o treino #356") vai para a IA, mas não é gravado na conversa.
 
 ## Banco
 

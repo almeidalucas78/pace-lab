@@ -1,6 +1,6 @@
-# Treino
+# Pace Lab
 
-Painel pessoal de corrida. Importa o histórico do Strava, puxa os treinos novos do celular (Health Connect), calcula métricas, expõe uma API e conversa com você sobre os treinos (Claude ou Gemini, no chat ou via MCP).
+Painel pessoal de corrida. Importa o histórico do Strava, puxa os treinos novos do celular (Health Connect), calcula métricas, mostra tudo num painel web com gráficos e mapa, e conversa com você sobre os treinos (Claude ou Gemini, no painel, no terminal ou via MCP).
 
 ## Instalar no Windows
 
@@ -19,6 +19,31 @@ Se o PowerShell bloquear o `Activate.ps1`, rode uma vez:
 `Set-ExecutionPolicy -Scope CurrentUser RemoteSigned`.
 
 Depois edite o `.env`: troque o `API_TOKEN` e, se souber, preencha `FC_MAX` e `FC_REPOUSO`.
+
+### Painel web (uma vez, e de novo quando o front mudar)
+
+Pré-requisito: Node.js 18 ou mais novo ([nodejs.org](https://nodejs.org/)).
+
+```powershell
+cd web
+npm install
+npm run build
+```
+
+## Usar no dia a dia
+
+Dois cliques em `iniciar-treino.bat`. Ele sobe o serviço e abre o painel em http://127.0.0.1:8000. Na primeira vez o painel pede o `API_TOKEN` do `.env` (fica salvo no navegador). Feche a janela do serviço para parar.
+
+- **Visão geral:** fitness, fadiga e forma; gráfico de 90 dias; volume semanal; última corrida; semana do plano.
+- **Treinos:** lista por esporte e, em cada treino, mapa, gráficos de FC, ritmo e altitude, parciais, zonas e sensações.
+- **Plano:** sessões por semana com a situação de cada uma (feita, perdida, no alvo) e histórico de planos.
+- **Treinador (chat):** abre ao lado de qualquer página. Se você estiver num treino ou no plano, a IA já sabe do que se trata.
+
+O mapa usa as imagens do OpenStreetMap: o traçado do GPS não sai do PC, mas o navegador baixa as imagens da região exibida.
+
+### Mexer no painel (desenvolvimento)
+
+Dois terminais: `.\.venv\Scripts\treino.exe api` e, na pasta `web`, `npm run dev`. Abra http://localhost:5173: o painel recarrega a cada alteração e repassa `/api` para o backend. Testes do front: `npm test`; o `npm run build` também confere os tipos.
 
 ## Importar o histórico do Strava
 
@@ -39,8 +64,8 @@ Pode rodar de novo quando quiser: atualiza o que já existe, sem duplicar.
 | `treino atividade 356` | Detalhe de um treino: parciais por km, zonas de FC, qualidade dos dados |
 | `treino fc` | FC máxima usada nos cálculos e se é configurada ou estimada |
 | `treino recalcular` | Refaz zonas, carga e duplicatas (rode após mudar o `.env`) |
-| `treino servico` | Sobe a API com a sincronização automática do celular (é o que o `iniciar-treino.bat` roda) |
-| `treino api` | Sobe a API em http://127.0.0.1:8000 sem sincronização (documentação em `/docs`) |
+| `treino servico` | Sobe o painel, a API e a sincronização automática do celular (é o que o `iniciar-treino.bat` roda) |
+| `treino api` | Sobe o painel e a API em http://127.0.0.1:8000 sem sincronização (documentação da API em `/api/docs`) |
 | `treino sincronizar` | Puxa agora os treinos do celular |
 | `treino status-sync` | Última sincronização com o celular e último erro |
 | `treino plano` | Plano ativo com a situação de cada sessão (`treino plano 3`, `--listar` para o histórico) |
@@ -64,7 +89,7 @@ Detalhes:
 
 O chat usa ferramentas que consultam o banco e devolvem fichas resumidas: último treino, detalhe de um treino, lista, resumo por semana, carga atual, perfil (FC máxima e zonas), sensações, status da sincronização e planos de treino (salvar, consultar, ajustar, aderência). A IA interpreta e propõe; os números vêm sempre do Python.
 
-- Terminal: `treino chat`. API: `POST /chat` com `{"mensagem": "...", "conversa_id": null, "provedor": "claude"}`; conversas em `GET /chat/conversas`.
+- Terminal: `treino chat`. Painel: botão "Treinador (chat)". API: `POST /api/chat` com `{"mensagem": "...", "conversa_id": null, "provedor": "claude", "contexto": null}`; conversas em `GET /api/chat/conversas`.
 - **Claude** (`IA_PROVEDOR=claude`): usa o Claude Code embutido no pacote `claude-agent-sdk`. Sem `ANTHROPIC_API_KEY` no ambiente, ele usa o login do Claude Code que já existe neste PC e consome os limites da sua assinatura. O modelo fica em `CLAUDE_MODELO`. O Claude do chat não tem acesso a arquivos nem a comandos: só às ferramentas de treino.
 - **Gemini** (`IA_PROVEDOR=gemini`): se o modelo principal (`GEMINI_MODELO`) estiver sobrecarregado, a resposta usa `GEMINI_MODELO_RESERVA`. Precisa de `GEMINI_API_KEY` (chave gratuita do [Google AI Studio](https://aistudio.google.com/apikey)). No plano gratuito, o Google pode usar as requisições para melhorar os produtos; os limites aparecem no painel do AI Studio.
 - Cada conversa fica com o provedor em que começou. As mensagens ficam no banco (`conversations`, `chat_messages`).
@@ -76,7 +101,7 @@ Peça no chat, por exemplo: "Quero correr 10 km em 50 min em dezembro, posso tre
 
 - "Como estou indo no plano?": a IA consulta a aderência. Cada sessão aparece como feita, feita em dia vizinho, perdida, futura ou cancelada, comparada com as metas; treinos fora do plano aparecem como extras.
 - Ajustes pequenos ("passa o longão para domingo") editam a sessão; mudanças grandes criam um plano novo, e o anterior fica no histórico.
-- No terminal: `treino plano`. Na API: `GET /planos`, `GET /planos/ativo`, `GET /planos/{id}`, `GET /planos/{id}/aderencia`.
+- No terminal: `treino plano`. No painel: página Plano. Na API: `GET /api/planos`, `GET /api/planos/ativo`, `GET /api/planos/{id}`, `GET /api/planos/{id}/aderencia`.
 - Treinos que chegam depois (celular ou novo export do Strava) entram na aderência sozinhos.
 
 ## Ferramentas via MCP (Claude Desktop, Claude Code, agy)
@@ -128,9 +153,13 @@ treino/
   ia/              ferramentas da IA (registro único), servidor MCP, provedores Claude e Gemini, chat
   scheduler.py     sincronização periódica dentro do serviço
   notify.py        notificações do Windows (só log em servidor)
-  api/             FastAPI com token
+  api/             FastAPI com token (rotas em /api) e o painel compilado na raiz
   cli.py           comandos `treino ...`
 tests/             testes com dados sintéticos (`pytest`)
+web/               painel React + TypeScript + Vite (só fala com a API)
+  src/api/         cliente com o token, tipos das respostas, consultas
+  src/paginas/     Visão geral, Treinos, Treino, Plano
+  src/componentes/ gráficos, mapa, semanas do plano, chat lateral
 ```
 
 ## Documentação do projeto
