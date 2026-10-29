@@ -43,6 +43,7 @@ Pode rodar de novo quando quiser: atualiza o que já existe, sem duplicar.
 | `treino api` | Sobe a API em http://127.0.0.1:8000 sem sincronização (documentação em `/docs`) |
 | `treino sincronizar` | Puxa agora os treinos do celular |
 | `treino status-sync` | Última sincronização com o celular e último erro |
+| `treino plano` | Plano ativo com a situação de cada sessão (`treino plano 3`, `--listar` para o histórico) |
 | `treino chat` | Conversa com o treinador no terminal (`--provedor gemini`, `--conversa 3` para continuar) |
 | `treino mcp` | Servidor MCP por stdio (para Claude Desktop, Claude Code e agy); `--http` serve em http://127.0.0.1:8001/mcp |
 
@@ -61,13 +62,22 @@ Detalhes:
 
 ## Chat com o treinador (IA)
 
-O chat usa ferramentas que consultam o banco e devolvem fichas resumidas: último treino, detalhe de um treino, lista, resumo por semana, carga atual, perfil (FC máxima e zonas), sensações e status da sincronização. A IA interpreta e propõe; os números vêm sempre do Python.
+O chat usa ferramentas que consultam o banco e devolvem fichas resumidas: último treino, detalhe de um treino, lista, resumo por semana, carga atual, perfil (FC máxima e zonas), sensações, status da sincronização e planos de treino (salvar, consultar, ajustar, aderência). A IA interpreta e propõe; os números vêm sempre do Python.
 
 - Terminal: `treino chat`. API: `POST /chat` com `{"mensagem": "...", "conversa_id": null, "provedor": "claude"}`; conversas em `GET /chat/conversas`.
 - **Claude** (`IA_PROVEDOR=claude`): usa o Claude Code embutido no pacote `claude-agent-sdk`. Sem `ANTHROPIC_API_KEY` no ambiente, ele usa o login do Claude Code que já existe neste PC e consome os limites da sua assinatura. O modelo fica em `CLAUDE_MODELO`. O Claude do chat não tem acesso a arquivos nem a comandos: só às ferramentas de treino.
 - **Gemini** (`IA_PROVEDOR=gemini`): precisa de `GEMINI_API_KEY` (chave gratuita do [Google AI Studio](https://aistudio.google.com/apikey)). No plano gratuito, o Google pode usar as requisições para melhorar os produtos; os limites aparecem no painel do AI Studio.
 - Cada conversa fica com o provedor em que começou. As mensagens ficam no banco (`conversations`, `chat_messages`).
 - Quando você conta como se sentiu ("pernas pesadas hoje"), a IA registra em `sensations` e passa a considerar nas próximas respostas.
+
+## Planos de treino
+
+Peça no chat, por exemplo: "Quero correr 10 km em 50 min em dezembro, posso treinar segunda, quarta e sábado". O treinador pergunta o que faltar, mostra o plano dia a dia e **só salva depois que você confirmar**. Cada sessão pode ter metas opcionais (distância, duração, faixa de ritmo, zona de FC, esforço).
+
+- "Como estou indo no plano?": a IA consulta a aderência. Cada sessão aparece como feita, feita em dia vizinho, perdida, futura ou cancelada, comparada com as metas; treinos fora do plano aparecem como extras.
+- Ajustes pequenos ("passa o longão para domingo") editam a sessão; mudanças grandes criam um plano novo, e o anterior fica no histórico.
+- No terminal: `treino plano`. Na API: `GET /planos`, `GET /planos/ativo`, `GET /planos/{id}`, `GET /planos/{id}/aderencia`.
+- Treinos que chegam depois (celular ou novo export do Strava) entram na aderência sozinhos.
 
 ## Ferramentas via MCP (Claude Desktop, Claude Code, agy)
 

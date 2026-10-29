@@ -1,6 +1,7 @@
 """Uma troca de mensagens no chat: carrega a conversa, chama o provedor e grava pergunta e resposta."""
 from __future__ import annotations
 
+from datetime import datetime, timezone
 from typing import Callable
 
 from .. import services
@@ -30,6 +31,7 @@ async def conversar(mensagem: str, conversa_id: int | None = None, provedor: str
             nome, sessao, historico = provedor or settings.ia_provedor, None, []
             conversa_id = services.create_conversation(s, nome, title=mensagem[:80]).id
 
+    inicio = datetime.now(timezone.utc)
     resposta = await fabrica(nome, settings).responder(mensagem, historico, sessao)
 
     with session_scope() as s:
@@ -39,5 +41,6 @@ async def conversar(mensagem: str, conversa_id: int | None = None, provedor: str
                                   {"ferramentas": resposta.ferramentas, **resposta.meta})
         if resposta.sessao:
             c.provider_session_id = resposta.sessao
+        services.link_plans_to_conversation(s, conversa_id, inicio)
     return {"conversa_id": conversa_id, "provedor": nome, "resposta": resposta.texto,
             "ferramentas": resposta.ferramentas}

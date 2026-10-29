@@ -129,6 +129,50 @@ def status_sync():
         _print(services.sync_status(s, get_settings()))
 
 
+STATUS_SESSAO = {"feita": "ok", "feita_outro_dia": "ok*", "perdida": "X", "futura": "..", "pendente_hoje": "hoje",
+                 "cancelada": "cancel", "descanso": "desc"}
+
+
+@app.command()
+def plano(id: int = typer.Argument(None, help="id do plano (padrão: o ativo)"),
+          listar: bool = typer.Option(False, "--listar", help="Mostra o histórico de planos")):
+    """Plano de treino com a situação de cada sessão (ok* = feita em dia vizinho, X = perdida)."""
+    init_db()
+    settings = get_settings()
+    with session_scope() as s:
+        if listar:
+            for p in services.list_plans(s, settings):
+                typer.echo(f"#{p['id']:<3} {p['inicio']} a {p['fim']}  {p['status']:<11} {p['titulo']}")
+            return
+        try:
+            rep = services.plan_adherence(s, settings, id)
+            metas = {x["id"]: x for x in services.plan_dict(services.get_plan(s, id), settings)["sessoes"]}
+        except ValueError as e:
+            typer.secho(str(e), fg=typer.colors.YELLOW)
+            raise typer.Exit(code=1)
+    p, r = rep["plano"], rep["resumo"]
+    typer.echo(f"{p['titulo']} ({p['inicio']} a {p['fim']}, {p['status']})")
+    if p.get("objetivo"):
+        typer.echo(f"Objetivo: {p['objetivo']}")
+    for l in rep["sessoes"]:
+        m = metas[l["sessao_id"]]
+        alvo = ", ".join(str(v) for v in (f"{m['distancia_km']} km" if m.get("distancia_km") else None,
+                                           f"{m['duracao_min']:.0f} min" if m.get("duracao_min") else None,
+                                           m.get("ritmo"), m.get("zona_fc")) if v)
+        feito = ""
+        if "treino_id" in l:
+            feito = f"  -> treino #{l['treino_id']}" + ("" if l.get("no_alvo") is None else
+                                                          (" no alvo" if l["no_alvo"] else " fora do alvo"))
+        typer.echo(f"  {l['dia']} {m['dia_semana']}  {STATUS_SESSAO[l['status']]:<6} {l['tipo']:<12} {alvo}{feito}")
+    for e in rep["extras"]:
+        typer.echo(f"  {e['dia']}      extra  {e['esporte']:<12} treino #{e['treino_id']} {e.get('nome') or ''}")
+    if r["sessoes_vencidas"]:
+        typer.echo(f"\nFeitas {r['feitas']} de {r['sessoes_vencidas']} ({r['pct_feitas']}%), "
+                   f"{r['feitas_no_alvo']} no alvo; {r['futuras']} por vir; {r['extras']} extra(s).")
+    if rep.get("observacao"):
+        typer.secho(rep["observacao"], dim=True)
+
+
 @app.command()
 def chat(provedor: str = typer.Option(None, help="claude ou gemini (padrão: IA_PROVEDOR do .env)"),
          conversa: int = typer.Option(None, help="id de uma conversa para continuar")):

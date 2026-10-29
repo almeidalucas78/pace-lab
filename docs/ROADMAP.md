@@ -9,7 +9,7 @@ Status: ⬜ não iniciada · 📝 planejada · 🚧 em andamento · ✅ concluí
 | 1 | Importar o histórico do Strava e calcular métricas | ✅ |
 | 2 | Puxar treinos do celular (Health Connect) com agendador e deduplicação | ✅ (validação com o celular ⏸️) |
 | 3 | Servidor MCP e chat com Claude e Gemini | ✅ (backend e CLI; interface na fase 5) |
-| 4 | Planos de treino salvos pelo chat e aderência planejado x executado | ⬜ |
+| 4 | Planos de treino salvos pelo chat e aderência planejado x executado | ✅ ([plano](fases/fase-4.md)) |
 | 5 | Painel web desktop (React) com gráficos e chat | ⬜ |
 | 6 | Painel no celular (responsivo + PWA, via Tailscale) | ⬜ |
 | 7 | Hospedagem e musculação (Hevy) | ⬜ |
@@ -23,8 +23,8 @@ Cliente do servidor local do HC Webhook; conversor do JSON (escrito pela documen
 ## Fase 3: MCP e chat ✅
 Registro único de 9 ferramentas; `treino mcp` (stdio e HTTP); provedores Claude (Agent SDK, login do PC) e Gemini; conversas e sensações no banco; `treino chat`, `POST /chat`. Teste real com Claude em 28/10/2026.
 
-## Fase 4: planos e aderência ⬜
-Ideia inicial (detalhar com `/planejar-fase 4`): a IA monta o plano conversando e salva com `salvar_plano`; o sistema casa cada sessão planejada com o treino executado e calcula aderência (fez ou não, distância, tempo, intensidade); ferramentas para a IA consultar o plano e a aderência.
+## Fase 4: planos e aderência ✅
+Planos montados no chat e salvos com confirmação; aderência calculada na hora (mesmo dia ou dia vizinho, metas, extras, resumo semanal); 7 ferramentas novas, `treino plano`, rotas `/planos`. Detalhes em [fases/fase-4.md](fases/fase-4.md).
 
 ## Fase 5: painel web desktop ⬜
 React + TypeScript + Vite consumindo só a API: visão geral, carga (fitness/fadiga/forma), semanas, detalhe do treino com mapa e gráficos, plano e aderência, chat embutido.
@@ -42,5 +42,6 @@ Docker Compose, Postgres, webhook do HC Webhook, MCP remoto com autenticação, 
 - [ ] **Strava:** reavaliar a decisão [0001](decisions/0001-sem-api-do-strava.md) junto com o teste do Health Connect.
 - [ ] **Gemini:** testar de verdade quando o usuário criar a `GEMINI_API_KEY` (modelo padrão `gemini-3.8-flash`).
 - [ ] **agy:** conferir se o arquivo de MCP é `~/.gemini/config/mcp_config.json` (fontes citam também `~/.gemini/antigravity-cli/mcp_config.json`).
+- [ ] **Plano de teste:** "Teste de aderencia" (id 1) ficou ativo no banco real; arquivar ou substituir pelo primeiro plano de verdade.
 - [ ] **Musculação (fase 7):** peso do Hevy em kg? Valores de 2 a 180. Decidir como guardar os sets.
 - [x] TCX do Watch 7, leitor de FIT e notificação do Windows validados (27/10/2026).

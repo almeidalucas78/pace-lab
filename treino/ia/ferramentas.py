@@ -9,9 +9,9 @@ import inspect
 import typing
 from dataclasses import dataclass
 from datetime import date
-from typing import Annotated, Any, Callable
+from typing import Annotated, Any, Callable, Literal
 
-from pydantic import Field, ValidationError, create_model
+from pydantic import BaseModel, Field, ValidationError, create_model
 
 from .. import services
 from ..config import get_settings
@@ -40,7 +40,9 @@ class Ferramenta:
 
     @property
     def schema(self) -> dict:
-        return _sem_titulos(self.modelo.model_json_schema())
+        schema = self.modelo.model_json_schema()
+        defs = schema.pop("$defs", {})
+        return _sem_titulos(_expandir_refs(schema, defs))
 
 
 REGISTRO: list[Ferramenta] = []
@@ -58,6 +60,17 @@ def _sem_titulos(schema: Any) -> Any:
         return {k: _sem_titulos(v) for k, v in schema.items() if k != "title"}
     if isinstance(schema, list):
         return [_sem_titulos(v) for v in schema]
+    return schema
+
+
+def _expandir_refs(schema: Any, defs: dict) -> Any:
+    """Troca {"$ref": "#/$defs/X"} pela definição (nem todo provedor aceita $ref)."""
+    if isinstance(schema, dict):
+        if "$ref" in schema:
+            return _expandir_refs(defs[schema["$ref"].rsplit("/", 1)[-1]], defs)
+        return {k: _expandir_refs(v, defs) for k, v in schema.items()}
+    if isinstance(schema, list):
+        return [_expandir_refs(v, defs) for v in schema]
     return schema
 
 
@@ -157,3 +170,111 @@ def ver_sensacoes(dias: Annotated[int, Field(ge=1, le=365, description="quantos 
 def status_sincronizacao() -> dict:
     with session_scope() as s:
         return services.sync_status(s, get_settings())
+
+
+# ---------- planos de treino (ADR 0010) ----------
+
+DataObrig = Annotated[str, Field(description="data no formato AAAA-MM-DD", pattern=r"^\d{4}-\d{2}-\d{2}$")]
+Ritmo = Annotated[str | None, Field(description="ritmo em min:seg por km, ex.: 5:30", pattern=r"^\d{1,2}:\d{2}$")]
+EsportePlano = Literal["run", "walk", "ride", "strength", "workout", "rest"]
+TipoSessao = Literal["rodagem", "longao", "intervalado", "ritmo", "regenerativo", "descanso", "musculacao", "outro"]
+Zona = Literal["z1", "z2", "z3", "z4", "z5"]
+PlanoId = Annotated[int | None, Field(description="id do plano; vazio = plano ativo")]
+
+
+class SessaoIn(BaseModel):
+    """Uma sessão do plano. Todas as metas são opcionais: use só as que fazem sentido."""
+    dia: DataObrig
+    esporte: Annotated[EsportePlano, Field(description="rest = descanso")]
+    tipo: TipoSessao
+    descricao: Annotated[str | None, Field(description="o que fazer, ex.: 6x800 m com 2 min de trote")] = None
+    distancia_km: Annotated[float | None, Field(gt=0, le=100)] = None
+    duracao_min: Annotated[float | None, Field(gt=0, le=600)] = None
+    ritmo_min: Annotated[Ritmo, Field(description="ritmo mais rápido aceito, ex.: 5:30")] = None
+    ritmo_max: Annotated[Ritmo, Field(description="ritmo mais lento aceito, ex.: 5:50")] = None
+    zona_fc: Annotated[Zona | None, Field(description="zona de FC alvo")] = None
+    esforco: Annotated[float | None, Field(ge=1, le=10, description="percepção de esforço alvo, 1 a 10")] = None
+    notas: str | None = None
+
+
+def _sessao_para_servico(x: SessaoIn | dict) -> dict:
+    x = x.model_dump() if isinstance(x, BaseModel) else x
+    return {"day": date.fromisoformat(x["dia"]), "sport": x["esporte"], "kind": x["tipo"],
+            "description": x.get("descricao"), "target_distance_km": x.get("distancia_km"),
+            "target_duration_min": x.get("duracao_min"),
+            "target_pace_min_s_km": services.parse_pace(x.get("ritmo_min")),
+            "target_pace_max_s_km": services.parse_pace(x.get("ritmo_max")),
+            "target_hr_zone": x.get("zona_fc"), "target_rpe": x.get("esforco"), "notes": x.get("notas")}
+
+
+@ferramenta("Salva um plano de treino NOVO e o torna o plano ativo (o ativo anterior fica como substituído, no "
+            "histórico). Só chame depois de mostrar o plano ao usuário e ele confirmar. Inclua todas as sessões, "
+            "inclusive descansos. Para ajustes pequenos num plano existente, use alterar_sessao ou adicionar_sessao.",
+            somente_leitura=False)
+def salvar_plano(titulo: Annotated[str, Field(min_length=1, max_length=200)],
+                 inicio: DataObrig, fim: DataObrig,
+                 sessoes: Annotated[list[SessaoIn], Field(min_length=1, max_length=400)],
+                 objetivo: Annotated[str | None, Field(description="objetivo do plano, ex.: 10 km em 50 min")] = None,
+                 notas: str | None = None) -> dict:
+    with session_scope() as s:
+        return services.create_plan(s, get_settings(), titulo, date.fromisoformat(inicio), date.fromisoformat(fim),
+                                    [_sessao_para_servico(x) for x in sessoes], objetivo, notas)
+
+
+@ferramenta("Plano de treino ativo (ou outro, pelo id) com todas as sessões e metas.")
+def plano_atual(plano_id: PlanoId = None) -> dict:
+    with session_scope() as s:
+        return services.plan_dict(services.get_plan(s, plano_id), get_settings())
+
+
+@ferramenta("Aderência ao plano: para cada sessão, se foi feita (no dia ou em dia vizinho), perdida, futura ou "
+            "cancelada, comparando distância, duração, ritmo e zona de FC com as metas; treinos extras; resumo "
+            "por semana.")
+def aderencia_plano(plano_id: PlanoId = None) -> dict:
+    with session_scope() as s:
+        return services.plan_adherence(s, get_settings(), plano_id)
+
+
+@ferramenta("Ajuste pontual numa sessão existente: mover de dia, mudar metas, cancelar ou reativar. Só os campos "
+            "informados mudam; para apagar uma meta, ponha o nome do campo em 'limpar'.", somente_leitura=False)
+def alterar_sessao(sessao_id: Annotated[int, Field(description="id da sessão (veja plano_atual)")],
+                   dia: Data = None, tipo: TipoSessao | None = None, descricao: str | None = None,
+                   distancia_km: Annotated[float | None, Field(gt=0, le=100)] = None,
+                   duracao_min: Annotated[float | None, Field(gt=0, le=600)] = None,
+                   ritmo_min: Ritmo = None, ritmo_max: Ritmo = None, zona_fc: Zona | None = None,
+                   esforco: Annotated[float | None, Field(ge=1, le=10)] = None, notas: str | None = None,
+                   limpar: Annotated[list[Literal["distancia_km", "duracao_min", "ritmo_min", "ritmo_max", "zona_fc",
+                                                  "esforco", "descricao", "notas"]] | None,
+                                     Field(description="metas a apagar")] = None,
+                   cancelar: bool = False, reativar: bool = False) -> dict:
+    campos = {"day": date.fromisoformat(dia) if dia else None, "kind": tipo, "description": descricao,
+              "target_distance_km": distancia_km, "target_duration_min": duracao_min,
+              "target_pace_min_s_km": services.parse_pace(ritmo_min),
+              "target_pace_max_s_km": services.parse_pace(ritmo_max),
+              "target_hr_zone": zona_fc, "target_rpe": esforco, "notes": notas}
+    mudancas = {k: v for k, v in campos.items() if v is not None}
+    nomes = {"distancia_km": "target_distance_km", "duracao_min": "target_duration_min",
+             "ritmo_min": "target_pace_min_s_km", "ritmo_max": "target_pace_max_s_km", "zona_fc": "target_hr_zone",
+             "esforco": "target_rpe", "descricao": "description", "notas": "notes"}
+    mudancas.update({nomes[c]: None for c in limpar or []})
+    with session_scope() as s:
+        return services.update_session(s, get_settings(), sessao_id, mudancas, cancel=cancelar, reactivate=reativar)
+
+
+@ferramenta("Acrescenta uma sessão a um plano existente (por padrão, o ativo).", somente_leitura=False)
+def adicionar_sessao(sessao: SessaoIn, plano_id: PlanoId = None) -> dict:
+    with session_scope() as s:
+        return services.add_session(s, get_settings(), plano_id, _sessao_para_servico(sessao))
+
+
+@ferramenta("Encerra um plano sem apagar (fica no histórico como arquivado); depois não há plano ativo até salvar "
+            "outro. Só chame se o usuário pedir para encerrar ou descartar o plano.", somente_leitura=False)
+def arquivar_plano(plano_id: PlanoId = None) -> dict:
+    with session_scope() as s:
+        return services.archive_plan(s, get_settings(), plano_id)
+
+
+@ferramenta("Histórico de planos (ativo, substituídos e arquivados), sem as sessões.")
+def listar_planos(limite: Annotated[int, Field(ge=1, le=50)] = 10) -> list[dict]:
+    with session_scope() as s:
+        return services.list_plans(s, get_settings(), limite)

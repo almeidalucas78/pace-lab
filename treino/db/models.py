@@ -162,6 +162,48 @@ class ChatMessage(Base):
     conversation: Mapped[Conversation] = relationship(back_populates="messages")
 
 
+class TrainingPlan(Base):
+    """Plano de treino montado na conversa com a IA. Só um com status "ativo" por vez."""
+    __tablename__ = "training_plans"
+
+    id: Mapped[int] = mapped_column(primary_key=True)
+    created_utc: Mapped[datetime] = mapped_column(UTCDateTime)
+    updated_utc: Mapped[datetime] = mapped_column(UTCDateTime)
+    title: Mapped[str] = mapped_column(String(200))
+    goal: Mapped[str | None] = mapped_column(Text)                # objetivo em texto (prova, ritmo, volume)
+    start_date: Mapped[date] = mapped_column(Date)
+    end_date: Mapped[date] = mapped_column(Date)
+    status: Mapped[str] = mapped_column(String(20), index=True)   # ativo, arquivado, substituido
+    replaced_by: Mapped[int | None] = mapped_column(ForeignKey("training_plans.id", ondelete="SET NULL"))
+    conversation_id: Mapped[int | None] = mapped_column(ForeignKey("conversations.id", ondelete="SET NULL"))
+    notes: Mapped[str | None] = mapped_column(Text)
+
+    sessions: Mapped[list["PlannedSession"]] = relationship(back_populates="plan", cascade="all, delete-orphan",
+                                                            order_by="PlannedSession.day, PlannedSession.id")
+
+
+class PlannedSession(Base):
+    """Uma sessão do plano. Todas as metas são opcionais; o casamento com o treino feito é calculado na hora."""
+    __tablename__ = "planned_sessions"
+
+    id: Mapped[int] = mapped_column(primary_key=True)
+    plan_id: Mapped[int] = mapped_column(ForeignKey("training_plans.id", ondelete="CASCADE"), index=True)
+    day: Mapped[date] = mapped_column(Date, index=True)
+    sport: Mapped[str] = mapped_column(String(20))                # run, walk, ride, strength, workout, rest
+    kind: Mapped[str] = mapped_column(String(20))                 # rodagem, longao, intervalado, ritmo, ...
+    description: Mapped[str | None] = mapped_column(Text)
+    target_distance_km: Mapped[float | None] = mapped_column(Float)
+    target_duration_min: Mapped[float | None] = mapped_column(Float)
+    target_pace_min_s_km: Mapped[float | None] = mapped_column(Float)  # ritmo mais rápido aceito (s/km)
+    target_pace_max_s_km: Mapped[float | None] = mapped_column(Float)  # ritmo mais lento aceito (s/km)
+    target_hr_zone: Mapped[str | None] = mapped_column(String(5))      # z1 a z5
+    target_rpe: Mapped[float | None] = mapped_column(Float)            # 1 a 10
+    status: Mapped[str] = mapped_column(String(20), default="planejada")  # planejada, cancelada
+    notes: Mapped[str | None] = mapped_column(Text)
+
+    plan: Mapped[TrainingPlan] = relationship(back_populates="sessions")
+
+
 class DailyLoad(Base):
     __tablename__ = "daily_load"
 

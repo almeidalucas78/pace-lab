@@ -4,7 +4,13 @@ O que mudou em cada fase, escrito para o usuário. Formato inspirado no [Keep a 
 
 ## [Não lançado]
 
+## [0.4.0] - 2026-10-28 (fase 4)
+
 ### Adicionado
+- Planos de treino montados no chat: o treinador mostra, você confirma e ele salva. Ajustes pontuais e planos novos que substituem o anterior.
+- Aderência ao plano: sessão feita, feita em dia vizinho, perdida, futura ou cancelada, comparada com distância, duração, ritmo e zona de FC; treinos extras; resumo por semana.
+- Comando `treino plano` e rotas `/planos` na API.
+- 7 ferramentas novas para a IA (também no MCP): `salvar_plano`, `plano_atual`, `aderencia_plano`, `alterar_sessao`, `adicionar_sessao`, `arquivar_plano`, `listar_planos`.
 - Documentação do projeto: `docs/ARCHITECTURE.md`, `docs/ROADMAP.md`, `docs/dados.md` e decisões em `docs/decisions/`.
 - Skills `/planejar-fase` e `/fechar-fase` para o ritual de cada fase.
 - Regras do Claude Code por pasta em `.claude/rules/`.

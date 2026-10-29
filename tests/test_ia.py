@@ -147,3 +147,43 @@ def test_api_de_chat(db, monkeypatch):
         monkeypatch.setattr(chat_mod, "criar_provedor", falha)
         r = c.post("/chat", json={"mensagem": "oi"}, headers=h)
         assert r.status_code == 502 and r.json()["detail"] == "sem cota"
+
+
+def test_ferramentas_de_plano(db):
+    plano = executar("salvar_plano", {
+        "titulo": "Base 10 km", "inicio": "2026-10-19", "fim": "2026-10-25", "objetivo": "10 km",
+        "sessoes": [
+            {"dia": "2026-10-20", "esporte": "run", "tipo": "rodagem", "distancia_km": 2, "ritmo_min": "5:30",
+             "ritmo_max": "6:00"},
+            {"dia": "2026-10-21", "esporte": "rest", "tipo": "descanso"},
+            {"dia": "2026-10-23", "esporte": "run", "tipo": "intervalado", "duracao_min": 40, "esforco": 8},
+        ]})
+    assert plano["status"] == "ativo" and plano["sessoes"][0]["ritmo"] == "5:30/km a 6:00/km"
+    sid = plano["sessoes"][0]["id"]
+
+    alterada = executar("alterar_sessao", {"sessao_id": sid, "distancia_km": 3, "limpar": ["ritmo_max"]})
+    assert alterada["distancia_km"] == 3 and alterada["ritmo"] == "5:30/km a -"
+    assert executar("adicionar_sessao", {"sessao": {"dia": "2026-10-25", "esporte": "run", "tipo": "longao",
+                                                    "distancia_km": 12}})["tipo"] == "longao"
+    assert len(executar("plano_atual", {})["sessoes"]) == 4
+
+    rep = executar("aderencia_plano", {})
+    assert rep["plano"]["titulo"] == "Base 10 km"
+    assert {l["sessao_id"]: l["status"] for l in rep["sessoes"]}[sid] == "feita"
+    assert executar("listar_planos", {})[0]["titulo"] == "Base 10 km"
+
+    assert "erro" in executar("salvar_plano", {"titulo": "x", "inicio": "2026-10-19", "fim": "2026-10-25",
+                                               "sessoes": [{"dia": "2026-11-01", "esporte": "run", "tipo": "rodagem"}]})
+    assert "erro" in executar("alterar_sessao", {"sessao_id": sid, "ritmo_min": "530"})
+    assert "erro" in executar("adicionar_sessao", {"sessao": {"dia": "2026-10-24", "esporte": "run", "tipo": "fartlek"}})
+
+
+def test_plano_criado_no_chat_fica_ligado_a_conversa(db):
+    class CriaPlano(ProvedorFalso):
+        async def responder(self, mensagem, historico, sessao):
+            executar("salvar_plano", {"titulo": "Do chat", "inicio": "2026-10-19", "fim": "2026-10-25",
+                                      "sessoes": [{"dia": "2026-10-20", "esporte": "run", "tipo": "rodagem"}]})
+            return await super().responder(mensagem, historico, sessao)
+
+    r = asyncio.run(conversar("pode salvar", provedor="claude", fabrica=lambda n, s: CriaPlano()))
+    assert executar("plano_atual", {})["conversa_id"] == r["conversa_id"]

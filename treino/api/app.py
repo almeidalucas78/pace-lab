@@ -132,3 +132,37 @@ def conversa(conversa_id: int, settings: Settings = Depends(auth)):
 def sensacoes(dias: int = Query(30, le=3650), settings: Settings = Depends(auth)):
     with session_scope() as s:
         return services.list_sensations(s, settings, days=dias)
+
+
+def _plano(fn):
+    try:
+        with session_scope() as s:
+            return fn(s)
+    except ValueError as e:
+        raise HTTPException(404, str(e))
+
+
+@app.get("/planos")
+def planos(limit: int = Query(20, le=200), settings: Settings = Depends(auth)):
+    with session_scope() as s:
+        return services.list_plans(s, settings, limit)
+
+
+@app.get("/planos/ativo")
+def plano_ativo(settings: Settings = Depends(auth)):
+    return _plano(lambda s: services.plan_dict(services.get_plan(s, None), settings))
+
+
+@app.get("/planos/ativo/aderencia")
+def aderencia_ativo(settings: Settings = Depends(auth)):
+    return _plano(lambda s: services.plan_adherence(s, settings, None))
+
+
+@app.get("/planos/{plano_id}")
+def plano(plano_id: int, settings: Settings = Depends(auth)):
+    return _plano(lambda s: services.plan_dict(services.get_plan(s, plano_id), settings))
+
+
+@app.get("/planos/{plano_id}/aderencia")
+def aderencia(plano_id: int, settings: Settings = Depends(auth)):
+    return _plano(lambda s: services.plan_adherence(s, settings, plano_id))

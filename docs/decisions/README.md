@@ -15,6 +15,7 @@ Regra do projeto: decisão com status **aceita** não é reaberta sem perguntar 
 | [0007](0007-migracoes-alembic.md) | Migrações com Alembic | aceita |
 | [0008](0008-chat-e-provedores-de-ia.md) | Ferramentas compartilhadas e provedores de IA intercambiáveis | aceita |
 | [0009](0009-mcp-e-hospedagem.md) | MCP local agora, remoto ao hospedar; Tailscale antes disso | aceita |
+| [0010](0010-planos-e-aderencia.md) | Planos de treino e aderência | aceita |
 
 ## Modelo
 

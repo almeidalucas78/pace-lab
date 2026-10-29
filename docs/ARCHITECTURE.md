@@ -21,7 +21,7 @@ Visão de como o sistema é montado hoje e como ele cresce. As decisões por tr�
 
 | Pacote | Papel | Pode depender de |
 |---|---|---|
-| `core/` | Parciais, limpeza de FC, zonas, TRIMP, fitness/fadiga/forma | nada do projeto além de `ingest.files.Point` |
+| `core/` | Parciais, limpeza de FC, zonas, TRIMP, fitness/fadiga/forma, aderência ao plano | nada do projeto além de `ingest.files.Point` |
 | `ingest/` | Ler fontes e gravar treinos: export do Strava, HC Webhook | `core`, `db` |
 | `db/` | Modelos, sessão, `init_db()` com Alembic | `config` |
 | `services.py` | Única camada de regras e consultas | `core`, `db`, `ingest` |
@@ -38,6 +38,8 @@ O painel web (fase 5) é um app separado que fala só com a API.
 
 **Recálculo (`services.recompute`)**, sempre depois de importar: marca duplicatas (Strava prevalece), resolve a FC máxima (configurada ou estimada), calcula zonas e TRIMP por treino e refaz a série diária de fitness, fadiga e forma.
 
+**Planos e aderência (ADR 0010):** a IA mostra o plano, o usuário confirma e ela chama `salvar_plano` → `services.create_plan()` grava `training_plans` e `planned_sessions` (o ativo anterior vira `substituido`). Na consulta, `services.plan_adherence()` busca os treinos sem duplicata de um dia antes a um dia depois do plano e chama `core/aderencia.py`, que casa sessão e treino (mesmo esporte no mesmo dia, senão dia vizinho), compara com as metas e monta o resumo por semana. O casamento não é gravado: é refeito a cada consulta.
+
 **Chat:** `POST /chat` ou `treino chat` → `ia/chat.conversar()` → provedor (Claude Agent SDK ou Gemini) → a IA chama ferramentas de `ia/ferramentas.py` → `services` → fichas resumidas voltam para a IA → resposta gravada em `chat_messages`.
 
 ## Banco
@@ -51,6 +53,7 @@ O painel web (fase 5) é um app separado que fala só com a API.
 | `sync_state` | Última sincronização por fonte | não |
 | `sensations` | Como o usuário se sentiu (via chat) | **não** |
 | `conversations`, `chat_messages` | Histórico do chat | **não** |
+| `training_plans`, `planned_sessions` | Planos e sessões com metas (o casamento com treinos é calculado) | **não** |
 
 Tabelas marcadas "não" têm dados que nenhum export recupera: nunca apagar, e fazer backup antes de migração arriscada.
 

@@ -8,9 +8,12 @@ from sqlalchemy import delete, func, insert, select
 from sqlalchemy.orm import Session, selectinload
 
 from .config import Settings
+from .core.formato import pace_str
 from .core.load import (ENDURANCE_SPORTS, ZONES, daily_series, estimate_fc_max, trimp_from_average,
                         trimp_from_zones, zones_from_samples)
-from .db.models import Activity, ChatMessage, Conversation, DailyLoad, Sample, Sensation, Split, SyncState
+from .core.aderencia import Sessao, Treino, aderencia
+from .db.models import (Activity, ChatMessage, Conversation, DailyLoad, PlannedSession, Sample, Sensation, Split,
+                        SyncState, TrainingPlan)
 from .ingest.hc_client import HCUnavailable
 from .ingest.hc_import import import_payload
 from .ingest.health_connect import parse_payload
@@ -92,13 +95,6 @@ def _local(dt: datetime, settings: Settings) -> str:
     if dt.tzinfo is None:
         dt = dt.replace(tzinfo=timezone.utc)
     return dt.astimezone(settings.tz).isoformat(timespec="minutes")
-
-
-def pace_str(seconds_per_km: float | None) -> str | None:
-    if not seconds_per_km:
-        return None
-    m, s = divmod(round(seconds_per_km), 60)
-    return f"{m}:{s:02d}/km"
 
 
 def activity_summary(a: Activity, settings: Settings) -> dict:
@@ -388,3 +384,185 @@ def conversation_detail(session: Session, settings: Settings, conversation_id: i
     return {"id": c.id, "titulo": c.title, "provedor": c.provider, "criada": _local(c.created_utc, settings),
             "mensagens": [{"papel": m.role, "texto": m.content, "quando": _local(m.created_utc, settings),
                            "ferramentas": (m.meta or {}).get("ferramentas")} for m in c.messages]}
+
+
+# ---------- planos de treino e aderência (ADR 0010) ----------
+
+PLAN_SPORTS = {"run", "walk", "ride", "strength", "workout", "rest"}
+PLAN_KINDS = {"rodagem", "longao", "intervalado", "ritmo", "regenerativo", "descanso", "musculacao", "outro"}
+HR_ZONES = {"z1", "z2", "z3", "z4", "z5"}
+SESSION_FIELDS = ("day", "sport", "kind", "description", "target_distance_km", "target_duration_min",
+                  "target_pace_min_s_km", "target_pace_max_s_km", "target_hr_zone", "target_rpe", "notes")
+WEEKDAYS = ["seg", "ter", "qua", "qui", "sex", "sáb", "dom"]
+
+
+def parse_pace(value: str | float | None) -> float | None:
+    """'5:30' ou '5:30/km' viram 330 s/km. Número já em s/km passa direto."""
+    if value in (None, ""):
+        return None
+    if isinstance(value, (int, float)):
+        return float(value)
+    txt = str(value).strip().removesuffix("/km").strip()
+    try:
+        m, s = txt.split(":")
+        secs = int(m) * 60 + int(s)
+    except ValueError:
+        raise ValueError(f"ritmo inválido: {value!r} (use m:ss, ex.: 5:30)")
+    if not 120 <= secs <= 1200:
+        raise ValueError(f"ritmo fora do razoável: {value!r}")
+    return float(secs)
+
+
+def _check_session(s: PlannedSession, plan: TrainingPlan) -> None:
+    if not plan.start_date <= s.day <= plan.end_date:
+        raise ValueError(f"sessão em {s.day} fora do plano ({plan.start_date} a {plan.end_date})")
+    if s.sport not in PLAN_SPORTS:
+        raise ValueError(f"esporte inválido: {s.sport} (use {', '.join(sorted(PLAN_SPORTS))})")
+    if s.sport == "rest":
+        s.kind = "descanso"
+    if s.kind not in PLAN_KINDS:
+        raise ValueError(f"tipo inválido: {s.kind} (use {', '.join(sorted(PLAN_KINDS))})")
+    if s.target_hr_zone and s.target_hr_zone not in HR_ZONES:
+        raise ValueError(f"zona inválida: {s.target_hr_zone} (use z1 a z5)")
+    if s.target_rpe is not None and not 1 <= s.target_rpe <= 10:
+        raise ValueError("esforço alvo vai de 1 a 10")
+    lo, hi = s.target_pace_min_s_km, s.target_pace_max_s_km
+    if lo and hi and lo > hi:
+        raise ValueError("faixa de ritmo invertida: o mínimo (mais rápido) deve ser menor que o máximo")
+
+
+def _session_dict(s: PlannedSession) -> dict:
+    d = {"id": s.id, "dia": s.day.isoformat(), "dia_semana": WEEKDAYS[s.day.weekday()], "esporte": s.sport,
+         "tipo": s.kind, "descricao": s.description, "distancia_km": s.target_distance_km,
+         "duracao_min": s.target_duration_min,
+         "ritmo": (f"{pace_str(s.target_pace_min_s_km) or '-'} a {pace_str(s.target_pace_max_s_km) or '-'}"
+                   if s.target_pace_min_s_km or s.target_pace_max_s_km else None),
+         "zona_fc": s.target_hr_zone, "esforco": s.target_rpe, "notas": s.notes,
+         "status": s.status if s.status != "planejada" else None}
+    return {k: v for k, v in d.items() if v is not None}
+
+
+def plan_dict(plan: TrainingPlan, settings: Settings, with_sessions: bool = True) -> dict:
+    d = {"id": plan.id, "titulo": plan.title, "objetivo": plan.goal, "inicio": plan.start_date.isoformat(),
+         "fim": plan.end_date.isoformat(), "status": plan.status, "substituido_por": plan.replaced_by,
+         "conversa_id": plan.conversation_id, "notas": plan.notes, "criado": _local(plan.created_utc, settings)}
+    d = {k: v for k, v in d.items() if v is not None}
+    if with_sessions:
+        d["sessoes"] = [_session_dict(s) for s in plan.sessions]
+    return d
+
+
+def create_plan(session: Session, settings: Settings, title: str, start: date, end: date, sessions: list[dict],
+                goal: str | None = None, notes: str | None = None, conversation_id: int | None = None) -> dict:
+    """Cria o plano e o torna o ativo; o ativo anterior fica "substituido" apontando para este."""
+    if end < start:
+        raise ValueError("o fim do plano é antes do início")
+    if (end - start).days > 366:
+        raise ValueError("plano com mais de um ano; divida em blocos")
+    if not sessions:
+        raise ValueError("plano sem sessões")
+    now = datetime.now(timezone.utc)
+    plan = TrainingPlan(created_utc=now, updated_utc=now, title=title.strip()[:200], goal=goal, start_date=start,
+                        end_date=end, status="ativo", notes=notes, conversation_id=conversation_id)
+    for raw in sessions:
+        s = PlannedSession(status="planejada", **{k: raw.get(k) for k in SESSION_FIELDS})
+        _check_session(s, plan)
+        plan.sessions.append(s)
+    previous = session.scalars(select(TrainingPlan).where(TrainingPlan.status == "ativo")).all()
+    session.add(plan)
+    session.flush()
+    for p in previous:
+        p.status, p.replaced_by, p.updated_utc = "substituido", plan.id, now
+    session.flush()
+    return plan_dict(plan, settings)
+
+
+def active_plan(session: Session) -> TrainingPlan | None:
+    return session.scalar(select(TrainingPlan).where(TrainingPlan.status == "ativo")
+                          .order_by(TrainingPlan.id.desc()).limit(1))
+
+
+def get_plan(session: Session, plan_id: int | None) -> TrainingPlan:
+    """Plano pelo id, ou o ativo quando plan_id é None."""
+    plan = active_plan(session) if plan_id is None else session.get(TrainingPlan, plan_id)
+    if plan is None:
+        raise ValueError("nenhum plano ativo" if plan_id is None else f"plano {plan_id} não existe")
+    return plan
+
+
+def list_plans(session: Session, settings: Settings, limit: int = 20) -> list[dict]:
+    q = select(TrainingPlan).order_by(TrainingPlan.id.desc()).limit(limit)
+    return [plan_dict(p, settings, with_sessions=False) for p in session.scalars(q)]
+
+
+def add_session(session: Session, settings: Settings, plan_id: int | None, data: dict) -> dict:
+    plan = get_plan(session, plan_id)
+    s = PlannedSession(status="planejada", **{k: data.get(k) for k in SESSION_FIELDS})
+    _check_session(s, plan)
+    plan.sessions.append(s)
+    plan.updated_utc = datetime.now(timezone.utc)
+    session.flush()
+    return _session_dict(s)
+
+
+def update_session(session: Session, settings: Settings, session_id: int, changes: dict,
+                   cancel: bool = False, reactivate: bool = False) -> dict:
+    """Ajuste pontual: muda só os campos presentes em `changes` (valor None limpa a meta)."""
+    s = session.get(PlannedSession, session_id)
+    if s is None:
+        raise ValueError(f"sessão {session_id} não existe")
+    for k, v in changes.items():
+        if k not in SESSION_FIELDS:
+            raise ValueError(f"campo desconhecido: {k}")
+        setattr(s, k, v)
+    if cancel:
+        s.status = "cancelada"
+    elif reactivate:
+        s.status = "planejada"
+    _check_session(s, s.plan)
+    s.plan.updated_utc = datetime.now(timezone.utc)
+    session.flush()
+    return _session_dict(s)
+
+
+def archive_plan(session: Session, settings: Settings, plan_id: int | None) -> dict:
+    """Encerra o plano sem apagar (fica no histórico). Sem plano ativo até salvar outro."""
+    plan = get_plan(session, plan_id)
+    plan.status, plan.updated_utc = "arquivado", datetime.now(timezone.utc)
+    session.flush()
+    return plan_dict(plan, settings, with_sessions=False)
+
+
+def link_plans_to_conversation(session: Session, conversation_id: int, since: datetime) -> None:
+    """Planos criados durante uma resposta do chat ficam ligados à conversa em que nasceram."""
+    for p in session.scalars(select(TrainingPlan).where(TrainingPlan.conversation_id.is_(None),
+                                                        TrainingPlan.created_utc >= since)):
+        p.conversation_id = conversation_id
+
+
+def plan_adherence(session: Session, settings: Settings, plan_id: int | None = None,
+                   today: date | None = None) -> dict:
+    plan = get_plan(session, plan_id)
+    tz = settings.tz
+    lo = datetime.combine(plan.start_date - timedelta(days=1), datetime.min.time(), tzinfo=tz)
+    hi = datetime.combine(plan.end_date + timedelta(days=2), datetime.min.time(), tzinfo=tz)
+    acts = session.scalars(select(Activity).where(Activity.start_utc >= lo, Activity.start_utc < hi,
+                                                  Activity.possible_duplicate_of.is_(None))).all()
+    treinos = []
+    for a in acts:
+        km = a.distance_m / 1000 if a.distance_m else None
+        treinos.append(Treino(
+            id=a.id, day=a.start_utc.astimezone(tz).date(), sport=a.sport, name=a.name, distance_km=km,
+            duration_min=a.moving_s / 60 if a.moving_s else None,
+            pace_s_km=a.moving_s / km if km and a.moving_s and a.sport in ("run", "walk") else None,
+            zones_s=a.hr_zones_s or {}, rpe=a.rpe))
+    sessoes = [Sessao(id=s.id, day=s.day, sport=s.sport, kind=s.kind, status=s.status, description=s.description,
+                      target_distance_km=s.target_distance_km, target_duration_min=s.target_duration_min,
+                      target_pace_min_s_km=s.target_pace_min_s_km, target_pace_max_s_km=s.target_pace_max_s_km,
+                      target_hr_zone=s.target_hr_zone, target_rpe=s.target_rpe) for s in plan.sessions]
+    rep = aderencia(sessoes, treinos, plan.start_date, plan.end_date, today or datetime.now(tz).date())
+    _, origem = resolve_fc_max(session, settings)
+    out = {"plano": plan_dict(plan, settings, with_sessions=False), **rep}
+    if origem == "estimada":
+        out["observacao"] = "zonas de FC calculadas com FC máxima ESTIMADA"
+    return out

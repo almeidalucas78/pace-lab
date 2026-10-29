@@ -37,7 +37,7 @@ Projeto Treino (repositório pace-lab): sistema pessoal para analisar corridas (
 ```
 treino/
   config.py      .env (resolvido pela raiz do projeto, config.ROOT)
-  core/          cálculo puro: parciais, limpeza de FC, zonas, TRIMP, fitness/fadiga/forma
+  core/          cálculo puro: parciais, limpeza de FC, zonas, TRIMP, fitness/fadiga/forma, aderência ao plano
   ingest/        export do Strava, HC Webhook (cliente, conversor, gravação), streams_store
   db/            modelos SQLAlchemy, sessão, init_db() com Alembic
   migrations/    versões do Alembic
