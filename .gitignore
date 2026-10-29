@@ -1,0 +1,25 @@
+.venv/
+__pycache__/
+*.egg-info/
+.env
+data/
+.pytest_cache/
+
+# dados pessoais (nunca versionar)
+activities*
+*.zip
+*.gpx
+*.gpx.gz
+*.tcx
+*.tcx.gz
+*.fit
+*.fit.gz
+*.json.gz
+
+# banco e arquivos locais
+*.db
+*.db-wal
+*.db-shm
+*.sqlite
+*.log
+.claude/

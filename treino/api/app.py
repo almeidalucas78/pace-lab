@@ -1,0 +1,134 @@
+"""API HTTP. Única porta de entrada para painel, chat e (no futuro) app no celular."""
+from __future__ import annotations
+
+import os
+import secrets
+from contextlib import asynccontextmanager
+
+from fastapi import Depends, FastAPI, HTTPException, Query, Request
+from fastapi.concurrency import run_in_threadpool
+from fastapi.security import HTTPAuthorizationCredentials, HTTPBearer
+from pydantic import BaseModel, Field
+
+from .. import services
+from ..config import Settings, get_settings
+from ..db import session_scope
+from ..ia.chat import conversar
+from ..ia.provedores import ErroIA
+from ..scheduler import SyncScheduler
+
+# `treino servico` liga o agendador; `treino api` e os testes não.
+SCHEDULER_ENV = "TREINO_AGENDADOR"
+
+
+@asynccontextmanager
+async def lifespan(app: FastAPI):
+    app.state.scheduler = SyncScheduler(get_settings())
+    if os.environ.get(SCHEDULER_ENV) == "1":
+        app.state.scheduler.start()
+    yield
+    app.state.scheduler.stop()
+
+
+app = FastAPI(title="Treino API", version="0.2.0", lifespan=lifespan)
+bearer = HTTPBearer(auto_error=False)
+
+
+def auth(creds: HTTPAuthorizationCredentials | None = Depends(bearer),
+         settings: Settings = Depends(get_settings)) -> Settings:
+    if creds is None or not secrets.compare_digest(creds.credentials, settings.api_token):
+        raise HTTPException(status_code=401, detail="token inválido")
+    return settings
+
+
+@app.get("/health")
+def health():
+    return {"status": "ok"}
+
+
+@app.get("/overview")
+def overview(settings: Settings = Depends(auth)):
+    with session_scope() as s:
+        return services.overview(s)
+
+
+@app.get("/activities")
+def activities(sport: str | None = None, limit: int = Query(20, le=200), offset: int = 0,
+               settings: Settings = Depends(auth)):
+    with session_scope() as s:
+        return services.list_activities(s, settings, sport, limit, offset)
+
+
+@app.get("/activities/{activity_id}")
+def activity(activity_id: int, settings: Settings = Depends(auth)):
+    with session_scope() as s:
+        d = services.activity_detail(s, settings, activity_id)
+    if d is None:
+        raise HTTPException(404, "treino não encontrado")
+    return d
+
+
+@app.get("/activities/{activity_id}/samples")
+def samples(activity_id: int, every_s: float = Query(5, ge=1), settings: Settings = Depends(auth)):
+    with session_scope() as s:
+        return services.activity_samples(s, activity_id, every_s)
+
+
+@app.get("/weeks")
+def weeks(n: int = Query(12, le=104), sport: str = "run", settings: Settings = Depends(auth)):
+    with session_scope() as s:
+        return services.weekly_summary(s, settings, n, sport)
+
+
+@app.get("/load")
+def load(days: int = Query(90, le=3650), settings: Settings = Depends(auth)):
+    with session_scope() as s:
+        return services.load_series(s, days)
+
+
+@app.get("/sync/status")
+def sync_status(settings: Settings = Depends(auth)):
+    with session_scope() as s:
+        return services.sync_status(s, settings)
+
+
+@app.post("/sync")
+async def sync_now(request: Request, settings: Settings = Depends(auth)):
+    if not settings.hc_url:
+        raise HTTPException(400, "HC_URL não configurado no .env")
+    return await run_in_threadpool(request.app.state.scheduler.run_now)
+
+
+class ChatIn(BaseModel):
+    mensagem: str = Field(min_length=1, max_length=20000)
+    conversa_id: int | None = None
+    provedor: str | None = Field(None, description="claude ou gemini; só vale ao começar conversa")
+
+
+@app.post("/chat")
+async def chat(body: ChatIn, settings: Settings = Depends(auth)):
+    try:
+        return await conversar(body.mensagem, body.conversa_id, body.provedor, settings)
+    except ErroIA as e:
+        raise HTTPException(502, str(e))
+
+
+@app.get("/chat/conversas")
+def conversas(limit: int = Query(30, le=200), settings: Settings = Depends(auth)):
+    with session_scope() as s:
+        return services.list_conversations(s, settings, limit)
+
+
+@app.get("/chat/conversas/{conversa_id}")
+def conversa(conversa_id: int, settings: Settings = Depends(auth)):
+    with session_scope() as s:
+        d = services.conversation_detail(s, settings, conversa_id)
+    if d is None:
+        raise HTTPException(404, "conversa não encontrada")
+    return d
+
+
+@app.get("/sensacoes")
+def sensacoes(dias: int = Query(30, le=3650), settings: Settings = Depends(auth)):
+    with session_scope() as s:
+        return services.list_sensations(s, settings, days=dias)
