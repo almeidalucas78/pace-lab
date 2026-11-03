@@ -4,10 +4,13 @@ O que mudou em cada fase, escrito para o usuário. Formato inspirado no [Keep a 
 
 ## [Não lançado]
 
+## [0.5.0] - 2026-11-02 (fase 5)
+
 ### Adicionado
 - Painel web em http://127.0.0.1:8000 (o `iniciar-treino.bat` abre sozinho): visão geral com fitness, fadiga, forma, gráfico de 90 dias, volume semanal, última corrida e semana do plano; lista de treinos; cada treino com mapa, gráficos de FC, ritmo e altitude, parciais, zonas e sensações; plano por semanas com a situação de cada sessão e histórico.
 - Chat com o treinador ao lado de qualquer página, com Claude ou Gemini, histórico de conversas e o contexto da página (a IA sabe qual treino ou plano está aberto).
 - Rotas `/api/perfil` e `/api/carga/atual`; o detalhe do treino traz as sensações.
+- `treino servico` avisa quem está ocupando a porta, em vez do erro técnico.
 
 ### Alterado
 - A API passou para `/api/...` (documentação em `/api/docs`); a raiz agora é o painel.
