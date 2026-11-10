@@ -12,7 +12,8 @@ Status: ⬜ não iniciada · 📝 planejada · 🚧 em andamento · ✅ concluí
 | 4 | Planos de treino salvos pelo chat e aderência planejado x executado | ✅ ([plano](fases/fase-4.md)) |
 | 5 | Painel web desktop (React) com gráficos e chat | ✅ ([plano](fases/fase-5.md)) |
 | 6 | Painel no celular (responsivo + PWA, via Tailscale) | ✅ ([plano](fases/fase-6.md)) |
-| 7 | Hospedagem e musculação (Hevy) | ⬜ |
+| 7 | Pace Lab como app Android com sincronização direta do Health Connect | ⬜ |
+| 8 | Hospedagem e musculação (Hevy) | ⬜ |
 
 ## Fase 1: histórico do Strava ✅
 Importador do export (pasta ou .zip, idempotente; GPX, TCX, FIT, JSON); parciais por km; limpeza de FC; alerta de FC colada na cadência; zonas por % da FC máxima; TRIMP de Edwards; fitness (42 dias), fadiga (7 dias) e forma; duplicatas; CLI e API com token. Validado com o export real (359 atividades).
@@ -32,8 +33,11 @@ Painel em `web/` servido por `treino servico` em http://127.0.0.1:8000 (API em `
 ## Fase 6: celular ✅
 Painel no celular pelo Tailscale (`tailscale serve`), instalável como app, conectado por QR code, com layout próprio e dados guardados no aparelho para ver com o PC desligado. Detalhes em [fases/fase-6.md](fases/fase-6.md); guia em [celular.md](celular.md).
 
-## Fase 7: hospedagem e musculação ⬜
-Docker Compose, Postgres, webhook do HC Webhook, MCP remoto com autenticação, Claude por chave de API. Hospedagem preferida: Oracle Cloud Always Free (ver ADR 0009), com backup automático do banco. Musculação do Hevy (JSON já guardado em `extra`).
+## Fase 7: app Android e Health Connect ⬜
+Decidido com o usuário em 10/11/2026: treinos novos entrando sozinhos é o que mais falta, e ele quer um app só no celular (sem o HC Webhook). O painel (`web/`) vira app Android com Capacitor e um plugin do Health Connect: aparece nos apps conectados do Health Connect, lê exercícios, FC, distância e calorias (em segundo plano, com permissão própria; até 30 dias para trás) e envia para a API pelo Tailscale. Percurso com GPS de outro app só com o app aberto e autorização do usuário (docs do Android); não se sabe se o Samsung Health grava o percurso no Health Connect. Instalação fora da Play Store. Substitui as decisões 0002 (HC Webhook) e 0012 (app pelo navegador) quando planejada. Planejar com `/planejar-fase 7`.
+
+## Fase 8: hospedagem e musculação ⬜
+Docker Compose, Postgres, MCP remoto com autenticação, Claude por chave de API. Hospedagem preferida: Oracle Cloud Always Free (ver ADR 0009), com backup automático do banco. Musculação do Hevy (JSON já guardado em `extra`).
 
 ## Pendências de validação
 
