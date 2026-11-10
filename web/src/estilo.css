@@ -175,3 +175,42 @@ td.num, th.num { text-align: right; }
   .grade-4, .grade-3, .grade-2 { grid-template-columns: 1fr; }
   .semana-plano { grid-template-columns: repeat(2, minmax(0, 1fr)); }
 }
+
+/* ---------- celular e app instalado (fase 6, ADR 0012) ---------- */
+
+.topo-celular, .barra-inferior, .so-celular { display: none; }
+.aviso-conexao { display: flex; gap: 12px; align-items: center; justify-content: space-between; background: var(--alerta-suave); color: var(--alerta); padding: 10px 14px; border-radius: var(--raio); margin-bottom: 16px; }
+.aviso-conexao .pequeno { color: var(--texto-2); margin-top: 2px; }
+.aviso-versao { position: fixed; left: 50%; transform: translateX(-50%); bottom: 16px; z-index: 2000; display: flex; gap: 10px; align-items: center; background: var(--superficie); border: 1px solid var(--borda); box-shadow: 0 4px 16px rgb(0 0 0 / 18%); border-radius: var(--raio); padding: 10px 14px; }
+.chat.pagina { position: static; height: calc(100vh - 80px); border: 1px solid var(--borda); border-radius: var(--raio); }
+.lista-cartoes { flex-direction: column; gap: 10px; }
+.cartao-treino { display: flex; flex-direction: column; gap: 6px; padding: 12px; border: 1px solid var(--borda); border-radius: var(--raio); background: var(--superficie); color: var(--texto); }
+.cartao-treino:hover { text-decoration: none; background: var(--superficie-2); }
+
+@media (max-width: 720px) {
+  .menu { display: none; }
+  .so-desktop { display: none; }
+  .so-celular { display: flex; }
+  .conteudo { padding: 12px 12px calc(76px + env(safe-area-inset-bottom)); }
+  .topo-celular { display: flex; justify-content: space-between; align-items: center; margin-bottom: 12px; }
+  .topo-celular .marca { padding: 0; }
+  .barra-inferior {
+    display: grid; grid-template-columns: repeat(4, 1fr); position: fixed; left: 0; right: 0; bottom: 0; z-index: 1500;
+    background: var(--superficie); border-top: 1px solid var(--borda); padding-bottom: env(safe-area-inset-bottom);
+  }
+  .barra-inferior a { text-align: center; padding: 14px 4px; color: var(--texto-2); font-size: 0.85rem; }
+  .barra-inferior a.active { color: var(--destaque); font-weight: 600; }
+  .barra-inferior a:hover { text-decoration: none; }
+  .app.com-chat .chat:not(.pagina) { display: none; }
+  .chat.pagina { height: calc(100dvh - 76px - 60px - env(safe-area-inset-bottom)); border-radius: var(--raio); }
+  .chat.pagina .chat-msgs { padding: 10px; }
+  .semana-plano { grid-template-columns: 1fr; }
+  .coluna-vazia { display: none; }
+  .mapa { height: 260px; }
+  .aviso-conexao { flex-direction: column; align-items: stretch; }
+  .aviso-versao { left: 12px; right: 12px; transform: none; bottom: calc(70px + env(safe-area-inset-bottom)); flex-wrap: wrap; }
+  .botao, .botao-sec, .abas button { min-height: 40px; }
+  h1 { font-size: 1.3rem; }
+  .numero-grande { font-size: 1.5rem; }
+  .grade-4 { grid-template-columns: repeat(2, minmax(0, 1fr)); }
+}

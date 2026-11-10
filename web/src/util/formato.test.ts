@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest'
-import { dataCurta, duracao, esporte, hora, km, ritmo, variacao, velocidadeParaRitmo } from './formato'
+import { dataCurta, duracao, esporte, hora, km, momentoLocal, ritmo, variacao, velocidadeParaRitmo } from './formato'
 
 describe('formato', () => {
   it('ritmo em m:ss/km', () => {
@@ -37,5 +37,12 @@ describe('formato', () => {
   it('nomes dos esportes', () => {
     expect(esporte('run')).toBe('Corrida')
     expect(esporte('desconhecido')).toBe('desconhecido')
+  })
+})
+
+describe('momento local', () => {
+  it('formata o horário do aparelho', () => {
+    expect(momentoLocal(new Date(2026, 10, 9, 7, 5).getTime())).toBe('09/11 às 07:05')
+    expect(momentoLocal(null)).toBe('-')
   })
 })

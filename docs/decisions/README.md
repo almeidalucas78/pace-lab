@@ -17,6 +17,7 @@ Regra do projeto: decisão com status **aceita** não é reaberta sem perguntar 
 | [0009](0009-mcp-e-hospedagem.md) | MCP local agora, remoto ao hospedar; Tailscale antes disso | aceita |
 | [0010](0010-planos-e-aderencia.md) | Planos de treino e aderência | aceita |
 | [0011](0011-painel-web.md) | Painel web: estrutura, autenticação, chat, gráficos e mapa | aceita |
+| [0012](0012-celular-e-pwa.md) | Painel no celular: Tailscale, PWA, QR code e dados guardados | aceita |
 
 ## Modelo
 

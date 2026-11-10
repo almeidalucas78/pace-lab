@@ -1,12 +1,22 @@
-import { useEffect, useState } from 'react'
+import { useQueryClient } from '@tanstack/react-query'
+import { lazy, Suspense, useEffect, useState } from 'react'
 import { NavLink, Route, Routes } from 'react-router'
 import { lerToken, salvarToken } from './api/cliente'
-import { Chat } from './componentes/Chat'
-import { Plano } from './paginas/Plano'
+import { apagarDadosGuardados } from './api/persistencia'
+import { AvisoConexao, BotaoAtualizar } from './componentes/Conexao'
+import { ErroTela } from './componentes/ErroTela'
+import { VersaoNova } from './componentes/VersaoNova'
 import { Token } from './paginas/Token'
-import { Treino } from './paginas/Treino'
-import { Treinos } from './paginas/Treinos'
-import { VisaoGeral } from './paginas/VisaoGeral'
+
+// Cada página (e o chat) vira um arquivo separado: gráficos, mapa e markdown só carregam quando abertos.
+const VisaoGeral = lazy(() => import('./paginas/VisaoGeral').then((m) => ({ default: m.VisaoGeral })))
+const Treinos = lazy(() => import('./paginas/Treinos').then((m) => ({ default: m.Treinos })))
+const Treino = lazy(() => import('./paginas/Treino').then((m) => ({ default: m.Treino })))
+const Plano = lazy(() => import('./paginas/Plano').then((m) => ({ default: m.Plano })))
+const Conectar = lazy(() => import('./paginas/Conectar').then((m) => ({ default: m.Conectar })))
+const Chat = lazy(() => import('./componentes/Chat').then((m) => ({ default: m.Chat })))
+
+const carregando = <div className="carregando">Carregando...</div>
 
 function useToken() {
   const [token, setToken] = useState(lerToken)
@@ -20,8 +30,14 @@ function useToken() {
 
 export function App() {
   const token = useToken()
+  const qc = useQueryClient()
   const [chatAberto, setChatAberto] = useState(false)
   if (!token) return <Token />
+
+  async function sair() {
+    await apagarDadosGuardados(qc) // dados guardados neste aparelho também saem
+    salvarToken(null)
+  }
 
   return (
     <div className={`app ${chatAberto ? 'com-chat' : ''}`}>
@@ -30,24 +46,53 @@ export function App() {
         <NavLink to="/" end>Visão geral</NavLink>
         <NavLink to="/treinos">Treinos</NavLink>
         <NavLink to="/plano">Plano</NavLink>
+        <NavLink to="/conectar">Conectar celular</NavLink>
         <div className="rodape">
           <button className={chatAberto ? 'botao-sec' : 'botao'} onClick={() => setChatAberto(!chatAberto)}>
             {chatAberto ? 'Fechar chat' : 'Treinador (chat)'}
           </button>
-          <button className="botao-sec pequeno" onClick={() => salvarToken(null)}>Sair</button>
+          <button className="botao-sec pequeno" onClick={sair}>Sair</button>
         </div>
       </nav>
+
       <main className="conteudo">
-        <Routes>
-          <Route path="/" element={<VisaoGeral />} />
-          <Route path="/treinos" element={<Treinos />} />
-          <Route path="/treinos/:id" element={<Treino />} />
-          <Route path="/plano" element={<Plano />} />
-          <Route path="/plano/:id" element={<Plano />} />
-          <Route path="*" element={<div className="vazio">Página não encontrada.</div>} />
-        </Routes>
+        <div className="topo-celular">
+          <div className="marca"><img src="/favicon.svg" width={22} height={22} alt="" /> Pace Lab</div>
+          <div className="linha" style={{ gap: 6 }}>
+            <BotaoAtualizar />
+            <button className="botao-sec pequeno" onClick={sair}>Sair</button>
+          </div>
+        </div>
+        <AvisoConexao />
+        <ErroTela area="a página">
+        <Suspense fallback={carregando}>
+          <Routes>
+            <Route path="/" element={<VisaoGeral />} />
+            <Route path="/treinos" element={<Treinos />} />
+            <Route path="/treinos/:id" element={<Treino />} />
+            <Route path="/plano" element={<Plano />} />
+            <Route path="/plano/:id" element={<Plano />} />
+            <Route path="/chat" element={<Chat pagina />} />
+            <Route path="/conectar" element={<Conectar />} />
+            <Route path="*" element={<div className="vazio">Página não encontrada.</div>} />
+          </Routes>
+        </Suspense>
+        </ErroTela>
       </main>
-      {chatAberto && <Chat fechar={() => setChatAberto(false)} />}
+
+      {chatAberto && (
+        <ErroTela area="o chat">
+          <Suspense fallback={null}><Chat fechar={() => setChatAberto(false)} /></Suspense>
+        </ErroTela>
+      )}
+
+      <nav className="barra-inferior">
+        <NavLink to="/" end>Visão geral</NavLink>
+        <NavLink to="/treinos">Treinos</NavLink>
+        <NavLink to="/plano">Plano</NavLink>
+        <NavLink to="/chat">Chat</NavLink>
+      </nav>
+      <VersaoNova />
     </div>
   )
 }

@@ -11,7 +11,7 @@ Status: ⬜ não iniciada · 📝 planejada · 🚧 em andamento · ✅ concluí
 | 3 | Servidor MCP e chat com Claude e Gemini | ✅ |
 | 4 | Planos de treino salvos pelo chat e aderência planejado x executado | ✅ ([plano](fases/fase-4.md)) |
 | 5 | Painel web desktop (React) com gráficos e chat | ✅ ([plano](fases/fase-5.md)) |
-| 6 | Painel no celular (responsivo + PWA, via Tailscale) | ⬜ |
+| 6 | Painel no celular (responsivo + PWA, via Tailscale) | ✅ ([plano](fases/fase-6.md)) |
 | 7 | Hospedagem e musculação (Hevy) | ⬜ |
 
 ## Fase 1: histórico do Strava ✅
@@ -29,11 +29,11 @@ Planos montados no chat e salvos com confirmação; aderência calculada na hora
 ## Fase 5: painel web desktop ✅
 Painel em `web/` servido por `treino servico` em http://127.0.0.1:8000 (API em `/api`): visão geral, treinos com mapa e gráficos, plano com aderência e chat lateral com o contexto da página. Detalhes em [fases/fase-5.md](fases/fase-5.md).
 
-## Fase 6: celular ⬜
-Painel responsivo, PWA, acesso pelo Tailscale com o PC ligado. Aproveitar para dividir o pacote do front (hoje cerca de 1 MB) e carregar mapa e gráficos só quando precisar.
+## Fase 6: celular ✅
+Painel no celular pelo Tailscale (`tailscale serve`), instalável como app, conectado por QR code, com layout próprio e dados guardados no aparelho para ver com o PC desligado. Detalhes em [fases/fase-6.md](fases/fase-6.md); guia em [celular.md](celular.md).
 
 ## Fase 7: hospedagem e musculação ⬜
-Docker Compose, Postgres, webhook do HC Webhook, MCP remoto com autenticação, Claude por chave de API. Musculação do Hevy (JSON já guardado em `extra`).
+Docker Compose, Postgres, webhook do HC Webhook, MCP remoto com autenticação, Claude por chave de API. Hospedagem preferida: Oracle Cloud Always Free (ver ADR 0009), com backup automático do banco. Musculação do Hevy (JSON já guardado em `extra`).
 
 ## Pendências de validação
 

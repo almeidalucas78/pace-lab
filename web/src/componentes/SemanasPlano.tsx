@@ -78,7 +78,8 @@ export function SemanasPlano({ sessoes, aderencia, soSemanaDe }: {
                 const doDia = porDia.get(dia) ?? []
                 const extras = extrasPorDia.get(dia) ?? []
                 return (
-                  <div key={dia} className="pilha" style={{ gap: 6 }}>
+                  <div key={dia} className={`pilha coluna-dia${doDia.length === 0 && extras.length === 0 ? ' coluna-vazia' : ''}`}
+                       style={{ gap: 6 }}>
                     <div className="rotulo">{DIAS[i]} {dataCurta(dia, false)}</div>
                     {doDia.length === 0 && extras.length === 0 && <div className="dia-plano vazio-dia" />}
                     {doDia.map((s) => <Sessao key={s.id} s={s} linha={porSessao.get(s.id)} />)}

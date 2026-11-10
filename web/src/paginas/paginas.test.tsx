@@ -48,6 +48,7 @@ const ROTAS: [RegExp, unknown][] = [
   [/\/api\/planos\/ativo/, plano],
   [/\/api\/planos$/, [plano]],
   [/\/api\/chat\/conversas$/, []],
+  [/\/api\/painel\/config/, { url_celular: 'https://pacelab.teste.ts.net' }],
 ]
 
 beforeAll(() => {
@@ -77,7 +78,10 @@ async function renderizar(caminho: string): Promise<string> {
       </QueryClientProvider>,
     )
   })
-  for (let i = 0; i < 5; i++) await act(async () => { await new Promise((r) => setTimeout(r, 20)) })
+  // páginas carregam sob demanda: espera sumir o "Carregando..." (até ~5 s)
+  for (let i = 0; i < 100 && (i < 5 || (div.textContent ?? '').includes('Carregando')); i++) {
+    await act(async () => { await new Promise((r) => setTimeout(r, 50)) })
+  }
   return div.textContent ?? ''
 }
 
@@ -101,6 +105,26 @@ describe('páginas', () => {
     expect(txt).toContain('5:27/km')
     expect(txt).toContain('pernas pesadas')
     expect(txt).toContain('128 a 149 bpm')
+  })
+
+  it('chat em página própria (celular)', async () => {
+    const txt = await renderizar('/chat')
+    expect(txt).toContain('Pergunte sobre seus treinos')
+    expect(txt).toContain('Enviar')
+  })
+
+  it('conectar celular mostra o endereço e o botão do QR code', async () => {
+    const txt = await renderizar('/conectar')
+    expect(txt).toContain('https://pacelab.teste.ts.net')
+    expect(txt).toContain('Mostrar QR code')
+    expect(txt).toContain('Não compartilhe')
+  })
+
+  it('treinos têm cartões para o celular e tabela para o PC', async () => {
+    await renderizar('/treinos')
+    expect(document.querySelectorAll('.cartao-treino').length).toBe(1)
+    expect(document.querySelector('table.so-desktop')).not.toBeNull()
+    expect(document.querySelectorAll('.barra-inferior a').length).toBe(4)
   })
 
   it('plano com aderência', async () => {

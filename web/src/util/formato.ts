@@ -76,3 +76,11 @@ export function variacao(valor: number | null | undefined, casas = 1): string {
   const txt = numero(Math.abs(valor), casas)
   return valor > 0 ? `+${txt}` : valor < 0 ? `-${txt}` : txt
 }
+
+/** Momento registrado no próprio aparelho (ms desde a época) em "09/11 às 07:52". */
+export function momentoLocal(ms: number | null | undefined): string {
+  if (!ms) return '-'
+  const d = new Date(ms)
+  const p = (n: number) => String(n).padStart(2, '0')
+  return `${p(d.getDate())}/${p(d.getMonth() + 1)} às ${p(d.getHours())}:${p(d.getMinutes())}`
+}

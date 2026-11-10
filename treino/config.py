@@ -39,6 +39,9 @@ class Settings(BaseSettings):
     gemini_timeout_s: float = 90
     chat_max_turnos: int = 12           # chamadas de ferramenta por resposta
 
+    # Painel no celular (ADR 0012): endereço do `tailscale serve`, usado no QR code do "Conectar celular"
+    painel_url_celular: str = ""       # ex.: https://pacelab.nome-da-rede.ts.net
+
     @field_validator("fc_max", "fc_repouso", mode="before")
     @classmethod
     def empty_to_none(cls, v):

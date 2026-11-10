@@ -4,7 +4,7 @@ import Markdown from 'react-markdown'
 import remarkGfm from 'remark-gfm'
 import { api } from '../api/cliente'
 import { useConversa, useConversas } from '../api/consultas'
-import type { MensagemChat, RespostaChat } from '../api/tipos'
+import type { Conversa, MensagemChat, RespostaChat } from '../api/tipos'
 import { useContextoPagina } from '../contexto'
 
 // Ferramentas que gravam algo: depois delas, os dados da tela são recarregados.
@@ -29,7 +29,8 @@ function Mensagem({ m }: { m: Pick<MensagemChat, 'papel' | 'texto' | 'ferramenta
   )
 }
 
-export function Chat({ fechar }: { fechar: () => void }) {
+/** No PC abre ao lado (com `fechar`); no celular é a página /chat (`pagina`). */
+export function Chat({ fechar, pagina }: { fechar?: () => void; pagina?: boolean }) {
   const qc = useQueryClient()
   const { descricao } = useContextoPagina()
   const [conversaId, setConversaId] = useState<number | null>(null)
@@ -48,7 +49,17 @@ export function Chat({ fechar }: { fechar: () => void }) {
         contexto: usarContexto ? descricao : null,
       }),
     }),
-    onSuccess: async (r) => {
+    onSuccess: async (r, mensagem) => {
+      // Mostra pergunta e resposta na hora, sem esperar buscar a conversa de novo (no celular isso demora
+      // e a tela ficava vazia). A busca logo abaixo confirma com o que ficou gravado no PC.
+      qc.setQueryData<Conversa>(['conversas', r.conversa_id], (antes) => ({
+        ...(antes ?? { id: r.conversa_id, titulo: mensagem.slice(0, 80), provedor: r.provedor, atualizada: '', criada: '' }),
+        mensagens: [
+          ...(antes?.mensagens ?? []),
+          { papel: 'user', texto: mensagem, quando: '', ferramentas: null },
+          { papel: 'assistant', texto: r.resposta, quando: '', ferramentas: r.ferramentas },
+        ],
+      }))
       setConversaId(r.conversa_id)
       await qc.invalidateQueries({ queryKey: ['conversas'] })
       if (r.ferramentas.some((f) => GRAVAM.has(f))) {
@@ -58,7 +69,11 @@ export function Chat({ fechar }: { fechar: () => void }) {
   })
 
   const mensagens = conversa.data?.mensagens ?? []
-  useEffect(() => fim.current?.scrollIntoView({ behavior: 'smooth' }), [mensagens.length, enviar.isPending])
+  // Com chaves de propósito: o efeito não pode devolver nada. No Chrome scrollIntoView devolve uma Promise,
+  // e o React tentava chamá-la como função de limpeza ao enviar ("destroy is not a function").
+  useEffect(() => {
+    fim.current?.scrollIntoView?.({ behavior: 'smooth' })
+  }, [mensagens.length, enviar.isPending])
 
   function mandar() {
     const m = texto.trim()
@@ -77,7 +92,7 @@ export function Chat({ fechar }: { fechar: () => void }) {
   const provedorAtual = conversa.data?.provedor ?? provedor
 
   return (
-    <aside className="chat">
+    <aside className={`chat${pagina ? ' pagina' : ''}`}>
       <div className="chat-cab">
         <select className="campo" style={{ flex: 1, minWidth: 0 }} value={conversaId ?? ''}
                 onChange={(e) => setConversaId(e.target.value ? Number(e.target.value) : null)}>
@@ -86,7 +101,7 @@ export function Chat({ fechar }: { fechar: () => void }) {
             <option key={c.id} value={c.id}>{c.titulo ?? `Conversa ${c.id}`} ({c.provedor})</option>
           ))}
         </select>
-        <button className="botao-sec" onClick={fechar} title="Fechar o chat">fechar</button>
+        {fechar && <button className="botao-sec" onClick={fechar} title="Fechar o chat">fechar</button>}
       </div>
 
       <div className="chat-msgs">

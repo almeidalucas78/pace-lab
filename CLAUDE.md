@@ -23,7 +23,7 @@ Projeto Treino (repositório pace-lab): sistema pessoal para analisar corridas (
 | Camadas, fluxos, tabelas, como escalar | `docs/ARCHITECTURE.md` |
 | Fatos sobre os dados reais do usuário | `docs/dados.md` |
 | O que mudou em cada versão | `CHANGELOG.md` |
-| Uso para o usuário (instalar, comandos, MCP) | `README.md` |
+| Uso para o usuário (instalar, comandos, MCP) | `README.md` (celular: `docs/celular.md`) |
 | Regras por pasta (banco, ingest, IA, painel) | `.claude/rules/` (carregam sozinhas) |
 
 ## Fluxo de cada fase

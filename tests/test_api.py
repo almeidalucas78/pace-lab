@@ -50,3 +50,31 @@ def test_aviso_de_porta_ocupada():
         porta = s.getsockname()[1]
         assert _porta_ocupada("127.0.0.1", porta) == "outro programa está usando essa porta."
     assert _porta_ocupada("127.0.0.1", porta) is None
+
+
+def test_config_do_painel_para_o_celular(db, monkeypatch):
+    from treino.config import get_settings
+    monkeypatch.setenv("PAINEL_URL_CELULAR", "")  # independe do .env do usuário
+    get_settings.cache_clear()
+    with TestClient(app) as c:
+        assert c.get("/api/painel/config", headers=H).json() == {"url_celular": None}
+        assert c.get("/api/painel/config").status_code == 401
+    monkeypatch.setenv("PAINEL_URL_CELULAR", "https://pacelab.teste.ts.net/")
+    get_settings.cache_clear()
+    with TestClient(app) as c:
+        assert c.get("/api/painel/config", headers=H).json() == {"url_celular": "https://pacelab.teste.ts.net"}
+
+
+def test_arquivos_do_app_instalavel(tmp_path, monkeypatch):
+    dist = tmp_path / "dist"
+    dist.mkdir()
+    (dist / "index.html").write_text("<html>painel</html>", encoding="utf-8")
+    (dist / "manifest.webmanifest").write_text('{"name": "Pace Lab"}', encoding="utf-8")
+    (dist / "sw.js").write_text("self.x = 1", encoding="utf-8")
+    monkeypatch.setattr(app_mod, "PAINEL", dist)
+    with TestClient(app) as c:
+        m = c.get("/manifest.webmanifest")
+        assert m.headers["content-type"].startswith("application/manifest+json")
+        assert m.headers["cache-control"] == "no-cache"
+        sw = c.get("/sw.js")
+        assert sw.headers["content-type"].startswith("text/javascript") and sw.headers["cache-control"] == "no-cache"

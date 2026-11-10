@@ -41,6 +41,12 @@ Dois cliques em `iniciar-treino.bat`. Ele sobe o serviço e abre o painel em htt
 
 O mapa usa as imagens do OpenStreetMap: o traçado do GPS não sai do PC, mas o navegador baixa as imagens da região exibida.
 
+### No celular
+
+Com o Tailscale (grátis), o painel abre no celular de qualquer lugar, enquanto o PC estiver ligado, e pode ser instalado como app. O passo a passo está em [docs/celular.md](docs/celular.md): instalar o Tailscale no PC e no celular, ativar o HTTPS, rodar `tailscale serve --bg 8000`, preencher `PAINEL_URL_CELULAR` no `.env` e ler o QR code da página **Conectar celular**.
+
+No celular a navegação fica numa barra embaixo (Visão geral, Treinos, Plano, Chat). Os dados já vistos ficam guardados no aparelho por até 30 dias: com o PC desligado, o app mostra o que tinha com o aviso "PC fora do ar". **Sair** apaga tudo do aparelho.
+
 ### Mexer no painel (desenvolvimento)
 
 Dois terminais: `.\.venv\Scripts\treino.exe api` e, na pasta `web`, `npm run dev`. Abra http://localhost:5173: o painel recarrega a cada alteração e repassa `/api` para o backend. Testes do front: `npm test`; o `npm run build` também confere os tipos.

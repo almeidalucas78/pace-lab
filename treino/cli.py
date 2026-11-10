@@ -259,6 +259,9 @@ def _serve(host: str, porta: int, agendador: bool) -> None:
     os.environ[SCHEDULER_ENV] = "1" if agendador else "0"
     if (PAINEL / "index.html").exists():
         typer.secho(f"Painel: http://{host}:{porta}  (API em /api, documentação em /api/docs)", fg=typer.colors.GREEN)
+        url_celular = get_settings().painel_url_celular
+        if url_celular:
+            typer.secho(f"No celular (Tailscale): {url_celular}  (QR code em Conectar celular)", fg=typer.colors.GREEN)
     else:
         typer.secho("Painel não compilado: rode `npm install` e `npm run build` na pasta web. "
                     f"Por enquanto só a API, em http://{host}:{porta}/api/docs", fg=typer.colors.YELLOW)

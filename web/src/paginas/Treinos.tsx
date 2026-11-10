@@ -33,7 +33,32 @@ export function Treinos() {
       <div className="cartao">
         <Estado consulta={treinos} vazio="Nenhum treino.">
           {(lista) => (
-            <table>
+            <>
+            <div className="so-celular lista-cartoes">
+              {lista.map((t) => (
+                <Link key={t.id} to={`/treinos/${t.id}`} className="cartao-treino"
+                      style={{ opacity: t.possivel_duplicata_de ? 0.5 : 1 }}>
+                  <div className="linha entre">
+                    <strong>{t.nome ?? esporte(t.esporte)}</strong>
+                    <span className="fraco pequeno">{dataCurta(t.data)} {hora(t.data)}</span>
+                  </div>
+                  <div className="linha fraco pequeno" style={{ gap: 12 }}>
+                    {t.distancia_km ? <span>{km(t.distancia_km)}</span> : null}
+                    <span>{duracao(t.tempo_movimento_min)}</span>
+                    {t.ritmo && <span>{t.ritmo}</span>}
+                    {t.fc_media && <span>FC {numero(t.fc_media)}</span>}
+                    {t.carga && <span>carga {numero(t.carga)}</span>}
+                  </div>
+                  {(t.possivel_duplicata_de || t.qualidade_fc !== 'ok') && (
+                    <div className="linha" style={{ gap: 4 }}>
+                      {t.possivel_duplicata_de && <span className="etiqueta e-neutro">duplicata</span>}
+                      {t.qualidade_fc !== 'ok' && <EtiquetaQualidadeFc qualidade={t.qualidade_fc} />}
+                    </div>
+                  )}
+                </Link>
+              ))}
+            </div>
+            <table className="so-desktop">
               <thead>
                 <tr>
                   <th>Data</th><th>Treino</th><th className="num">Distância</th><th className="num">Tempo</th>
@@ -59,6 +84,7 @@ export function Treinos() {
                 ))}
               </tbody>
             </table>
+            </>
           )}
         </Estado>
         <div className="linha entre" style={{ marginTop: 12 }}>

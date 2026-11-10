@@ -39,6 +39,8 @@ O painel web (`web/`, ADR 0011) é um app React separado que fala só com a API,
 
 Em uso normal, `treino servico` serve o build (`web/dist`) na raiz e a API em `/api` (documentação em `/api/docs`), no mesmo processo. No desenvolvimento, `npm run dev` (porta 5173) repassa `/api` para o backend.
 
+**Celular (ADR 0012):** o `tailscale serve --bg 8000` repassa `https://<pc>.<rede>.ts.net` para o 127.0.0.1:8000, só dentro do tailnet. O painel é um app instalável (PWA, `vite-plugin-pwa`): o service worker guarda só as telas (nunca `/api` nem o mapa); os dados ficam no IndexedDB pelo cache persistente do TanStack Query (`web/src/api/persistencia.ts`, 30 dias, `VERSAO_DADOS` descarta o cache quando o formato das respostas muda). `web/src/api/cliente.ts` marca "PC fora do ar" quando a busca falha ou o Tailscale responde 502 sem o JSON do backend. As páginas carregam sob demanda (`React.lazy`): o arquivo inicial tem cerca de 300 kB.
+
 ## Fluxo dos dados
 
 **Histórico (Strava):** `treino importar-strava export.zip` → `ingest/strava_export.py` lê o `activities.csv` (`strava_csv.py`) e cada arquivo (`files.py`: GPX, TCX, FIT, com ou sem .gz) → `streams_store.save_streams()` → `core/streams.process_points()` limpa e gera amostras e parciais → banco → `services.recompute()`.

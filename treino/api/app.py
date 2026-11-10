@@ -186,12 +186,19 @@ def carga_atual(settings: Settings = Depends(auth)):
         return services.current_load(s, settings)
 
 
+@api.get("/painel/config")
+def painel_config(settings: Settings = Depends(auth)):
+    return {"url_celular": settings.painel_url_celular.rstrip("/") or None}
+
+
 app.include_router(api)
 
 
 # ---------- painel web (web/dist, gerado por `npm run build`) ----------
 
 PAINEL = ROOT / "web" / "dist"
+TIPOS_PAINEL = {".webmanifest": "application/manifest+json", ".js": "text/javascript"}
+SEM_CACHE = {"sw.js", "manifest.webmanifest", "registerSW.js"}
 
 
 @app.get("/{caminho:path}", include_in_schema=False)
@@ -204,5 +211,8 @@ def painel(caminho: str):
                              "api": "/api/docs"}, status_code=404)
     arquivo = (PAINEL / caminho).resolve()
     if caminho and arquivo.is_file() and PAINEL.resolve() in arquivo.parents:
-        return FileResponse(arquivo)
+        tipo = TIPOS_PAINEL.get(arquivo.suffix)
+        # service worker e manifest sempre conferidos de novo, para o celular pegar versões novas do painel
+        cache = {"Cache-Control": "no-cache"} if arquivo.name in SEM_CACHE else None
+        return FileResponse(arquivo, media_type=tipo, headers=cache)
     return FileResponse(PAINEL / "index.html", headers={"Cache-Control": "no-cache"})
