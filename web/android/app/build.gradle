@@ -2,6 +2,8 @@ apply plugin: 'com.android.application'
 apply plugin: 'kotlin-android'
 apply plugin: 'kotlin-parcelize'  // exigido pelo Samsung Health Data SDK
 
+def versaoApp = (int) ((System.currentTimeMillis() - 1767225600000L) / 60000)
+
 android {
     namespace = "app.pacelab"
     compileSdk = rootProject.ext.compileSdkVersion
@@ -9,8 +11,10 @@ android {
         applicationId "app.pacelab"
         minSdkVersion rootProject.ext.minSdkVersion
         targetSdkVersion rootProject.ext.targetSdkVersion
-        versionCode 1
-        versionName "1.0"
+        // a versão sobe sozinha a cada build (minutos desde 01/01/2026 UTC), para o app reconhecer a
+        // atualização publicada no PC com `treino publicar-app`
+        versionCode versaoApp
+        versionName "0.7." + versaoApp
         testInstrumentationRunner "androidx.test.runner.AndroidJUnitRunner"
         aaptOptions {
              // Files and dirs to omit from the packaged assets dir, modified to accommodate modern web apps.

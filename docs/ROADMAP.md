@@ -56,4 +56,5 @@ O usuário quer, um dia, um app "redondo" para amigos ou para a Play Store (10/1
 - [ ] **agy:** conferir se o arquivo de MCP é `~/.gemini/config/mcp_config.json` (fontes citam também `~/.gemini/antigravity-cli/mcp_config.json`).
 - [ ] **Plano de teste:** "Teste de aderencia" (id 1) ficou ativo no banco real; arquivar ou substituir pelo primeiro plano de verdade.
 - [ ] **Musculação (fase 7):** peso do Hevy em kg? Valores de 2 a 180. Decidir como guardar os sets.
+- [ ] **Play Protect (app Android):** na atualização pelo próprio app (11/11/2026) o Play Protect mostrou aviso de segurança e bloqueou, com opção de instalar mesmo assim; o usuário instalou e funcionou. Por enquanto não é problema. Verificar no futuro: registrar o app na conta gratuita de distribuição limitada do Google (verificação de desenvolvedor) e ver se o aviso some; obrigatório para o app ir a outras pessoas.
 - [x] TCX do Watch 7, leitor de FIT e notificação do Windows validados (27/10/2026).

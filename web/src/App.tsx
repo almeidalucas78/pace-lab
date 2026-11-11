@@ -5,6 +5,7 @@ import { lerToken, salvarToken } from './api/cliente'
 import { apagarDadosGuardados } from './api/persistencia'
 import { AvisoConexao, BotaoAtualizar } from './componentes/Conexao'
 import { ErroTela } from './componentes/ErroTela'
+import { AtualizacaoApp } from './componentes/AtualizacaoApp'
 import { Sincronizacao } from './componentes/Sincronizacao'
 import { VersaoNova } from './componentes/VersaoNova'
 import { AbrirApp } from './paginas/AbrirApp'
@@ -98,7 +99,7 @@ export function App() {
         <NavLink to="/plano">Plano</NavLink>
         <NavLink to="/chat">Chat</NavLink>
       </nav>
-      {!ehApp() && <VersaoNova /> /* no app os arquivos vêm no APK; atualização é pelo app */}
+      {ehApp() ? <AtualizacaoApp /> : <VersaoNova /> /* no app os arquivos vêm no APK; atualização baixa um APK novo do PC */}
     </div>
   )
 }

@@ -183,6 +183,20 @@ def aderencia(plano_id: int, settings: Settings = Depends(auth)):
     return _plano(lambda s: services.plan_adherence(s, settings, plano_id))
 
 
+@api.get("/app/versao")
+def app_versao(settings: Settings = Depends(auth)):
+    """Versão do app Android publicada no PC; `codigo` nulo quando nada foi publicado."""
+    return services.app_version(settings) or {"codigo": None}
+
+
+@api.get("/app/apk")
+def app_apk(settings: Settings = Depends(auth)):
+    caminho = services.app_apk_path(settings)
+    if caminho is None:
+        raise HTTPException(status_code=404, detail="nenhuma versão do app publicada; rode treino publicar-app")
+    return FileResponse(caminho, media_type="application/vnd.android.package-archive", filename=caminho.name)
+
+
 @api.get("/perfil")
 def perfil(settings: Settings = Depends(auth)):
     with session_scope() as s:

@@ -41,6 +41,8 @@ class Settings(BaseSettings):
 
     # Painel no celular (ADR 0012): endereço do `tailscale serve`, usado no QR code do "Conectar celular"
     painel_url_celular: str = ""       # ex.: https://pacelab.nome-da-rede.ts.net
+    # App Android (ADR 0013): APK publicado pelo PC com `treino publicar-app`, baixado pelo próprio app
+    pasta_app: str = "data/app"
 
     @field_validator("fc_max", "fc_repouso", mode="before")
     @classmethod
@@ -57,6 +59,11 @@ class Settings(BaseSettings):
             if not path.is_absolute():
                 return prefix + (ROOT / path).as_posix()
         return url
+
+    @property
+    def app_dir(self) -> Path:
+        p = Path(self.pasta_app)
+        return p if p.is_absolute() else ROOT / p
 
     @property
     def tz(self) -> ZoneInfo:

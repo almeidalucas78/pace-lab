@@ -121,6 +121,17 @@ def sincronizar():
         raise typer.Exit(code=1)
 
 
+@app.command("publicar-app")
+def publicar_app(pasta: Path = typer.Argument(
+        Path("web/android/app/build/outputs/apk/debug"), help="Pasta do build com o APK e o output-metadata.json")):
+    """Publica o APK compilado para o app no celular oferecer a atualização (fase 7)."""
+    try:
+        _print(services.publish_app(get_settings(), pasta))
+    except (FileNotFoundError, ValueError) as e:
+        typer.echo(f"Erro: {e}")
+        raise typer.Exit(1)
+
+
 @app.command("reprocessar-app")
 def reprocessar_app():
     """Refaz parciais, mapa e zonas dos treinos vindos do app (Samsung Health) com o conversor atual."""

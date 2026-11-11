@@ -1,8 +1,11 @@
 """Regras de negócio e consultas. CLI, API, agendador, MCP e chat chamam só daqui."""
 from __future__ import annotations
 
+import hashlib
+import json
 from collections import defaultdict
 from datetime import date, datetime, timedelta, timezone
+from pathlib import Path
 
 from sqlalchemy import delete, func, insert, select
 from sqlalchemy.orm import Session, selectinload
@@ -618,3 +621,46 @@ def reprocess_app_workouts(session: Session, settings: Settings) -> dict:
         feitos += 1
     rc = recompute(session, settings)
     return {"reprocessados": feitos, "fc_max": rc["fc_max"]}
+
+
+# --- App Android: atualização pelo próprio app (fase 7, etapa 4b) ---
+
+APK_NOME = "pace-lab.apk"
+
+
+def publish_app(settings: Settings, pasta_build: Path, now: datetime | None = None) -> dict:
+    """Copia o APK do build do Gradle para a pasta do app e grava a versão (lida do `output-metadata.json`,
+    que o Android Gradle Plugin escreve ao lado do APK). Não aceita versão menor que a já publicada."""
+    meta_path = Path(pasta_build) / "output-metadata.json"
+    if not meta_path.exists():
+        raise FileNotFoundError(f"{meta_path} não existe; compile o app antes (gradlew assembleDebug)")
+    meta = json.loads(meta_path.read_text(encoding="utf-8"))
+    if meta.get("applicationId") != "app.pacelab" or not meta.get("elements"):
+        raise ValueError("o build não é do app Pace Lab")
+    el = meta["elements"][0]
+    apk = Path(pasta_build) / el["outputFile"]
+    codigo = int(el["versionCode"])
+    atual = app_version(settings)
+    if atual and codigo < atual["codigo"]:
+        raise ValueError(f"versão {codigo} é menor que a publicada ({atual['codigo']})")
+    pasta = settings.app_dir
+    pasta.mkdir(parents=True, exist_ok=True)
+    dados = apk.read_bytes()
+    (pasta / APK_NOME).write_bytes(dados)
+    info = {"codigo": codigo, "nome": el.get("versionName"), "tamanho": len(dados),
+            "sha256": hashlib.sha256(dados).hexdigest(),
+            "publicado_em": (now or datetime.now(timezone.utc)).astimezone(settings.tz).isoformat(timespec="minutes")}
+    (pasta / "versao.json").write_text(json.dumps(info, ensure_ascii=False, indent=2), encoding="utf-8")
+    return info
+
+
+def app_version(settings: Settings) -> dict | None:
+    p = settings.app_dir / "versao.json"
+    if not p.exists() or not (settings.app_dir / APK_NOME).exists():
+        return None
+    return json.loads(p.read_text(encoding="utf-8"))
+
+
+def app_apk_path(settings: Settings) -> Path | None:
+    p = settings.app_dir / APK_NOME
+    return p if p.exists() else None
