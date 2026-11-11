@@ -30,3 +30,5 @@ O que foi observado nos dados reais. Os arquivos reais nunca entram no repositó
 - Corrida de 03/11/2026 (horários em UTC no SDK: 21:18Z = 18:18 em Brasília): `ExerciseSession` com `route` (5.326 pontos de GPS), `log` (10.904 registros com FC, velocidade e cadência), `distance` 17.027 m, `duration` 5.355 s, `meanHeartRate` 187, `maxHeartRate` 206, `meanCadence` 170 (já em passos por minuto, as duas pernas), `calories` 1.081, `altitudeGain` 31,8 m, `vo2Max` 47,48, `count` 15.199 passadas (`countType` STRIDE).
 - O Health Connect mostra a mesma corrida só com horário e duração (sem percurso).
 
+- Esteira (corridas de 28/10 e 09/11/2026) e musculação (`WEIGHT_MACHINE`) chegam com percurso em que todos os pontos são latitude 0 e longitude 0. O conversor ignora (0, 0) e, sem GPS, calcula a distância pela velocidade do `log` (`distancia_fonte` = `velocidade`), ajustada ao total do resumo.
+- Na primeira sincronização (40 treinos, 12/10 a 10/11/2026) apareceram sessões `OTHER` no mesmo horário de sessões de musculação, e natação em piscina (`POOL_SWIMMING`, hoje gravada como `other`).

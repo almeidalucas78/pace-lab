@@ -121,6 +121,14 @@ def sincronizar():
         raise typer.Exit(code=1)
 
 
+@app.command("reprocessar-app")
+def reprocessar_app():
+    """Refaz parciais, mapa e zonas dos treinos vindos do app (Samsung Health) com o conversor atual."""
+    init_db()
+    with session_scope() as s:
+        _print(services.reprocess_app_workouts(s, get_settings()))
+
+
 @app.command("status-sync")
 def status_sync():
     """Mostra quando foi a última sincronização com o celular e se deu erro."""

@@ -5,6 +5,7 @@ import { lerToken, salvarToken } from './api/cliente'
 import { apagarDadosGuardados } from './api/persistencia'
 import { AvisoConexao, BotaoAtualizar } from './componentes/Conexao'
 import { ErroTela } from './componentes/ErroTela'
+import { Sincronizacao } from './componentes/Sincronizacao'
 import { VersaoNova } from './componentes/VersaoNova'
 import { AbrirApp } from './paginas/AbrirApp'
 import { Token } from './paginas/Token'
@@ -67,6 +68,7 @@ export function App() {
             <button className="botao-sec pequeno" onClick={sair}>Sair</button>
           </div>
         </div>
+        {ehApp() && <Sincronizacao />}
         <AvisoConexao />
         <ErroTela area="a página">
         <Suspense fallback={carregando}>

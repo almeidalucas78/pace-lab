@@ -214,3 +214,7 @@ td.num, th.num { text-align: right; }
   .numero-grande { font-size: 1.5rem; }
   .grade-4 { grid-template-columns: repeat(2, minmax(0, 1fr)); }
 }
+
+/* sincronização do app Android (ADR 0013) */
+.sincronizacao { display: flex; gap: 10px; align-items: center; justify-content: space-between; background: var(--superficie); border: 1px solid var(--borda); border-radius: var(--raio); padding: 8px 12px; margin-bottom: 12px; }
+.erro-texto { color: var(--erro); }

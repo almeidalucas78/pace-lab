@@ -68,7 +68,20 @@ def _cumulative_distance(points: list[Point]) -> tuple[list[float | None], str]:
             prev = p
         out.append(total if prev is not None else None)
     has_gps = any(p.lat is not None for p in points)
-    return (out, "gps") if has_gps else ([None] * len(points), "nenhuma")
+    if has_gps:
+        return out, "gps"
+    # sem GPS (esteira, treino indoor): integra a velocidade, se o arquivo trouxer
+    if sum(1 for p in points if p.speed is not None) >= 0.5 * len(points):
+        out, total, prev = [], 0.0, None
+        for p in points:
+            if prev is not None and p.speed is not None:
+                dt = (p.time - prev.time).total_seconds()
+                if 0 < dt <= MAX_GAP_S:   # pausa ou falha de leitura não soma distância
+                    total += p.speed * dt
+            prev = p
+            out.append(total)
+        return out, "velocidade"
+    return [None] * len(points), "nenhuma"
 
 
 def _cadence_factor(points: list[Point], sport: str) -> float:

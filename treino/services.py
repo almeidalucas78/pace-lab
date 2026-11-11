@@ -17,9 +17,11 @@ from .db.models import (Activity, ChatMessage, Conversation, DailyLoad, PlannedS
 from .ingest.hc_client import HCUnavailable
 from .ingest.hc_import import import_payload
 from .ingest.health_connect import parse_payload
+from .ingest.treinos_app import converter as converter_treino_app, gravar as gravar_treinos_app
 
 DUPLICATE_WINDOW = timedelta(minutes=10)
-SOURCE_PRIORITY = {"strava": 0, "health_connect": 1}  # menor vence quando o mesmo treino vem das duas fontes
+# menor vence quando o mesmo treino vem de mais de uma fonte (ADR 0003): o Strava continua prevalecendo
+SOURCE_PRIORITY = {"strava": 0, "samsung_health": 1, "health_connect": 2}
 
 
 # ---------- recálculo ----------
@@ -566,3 +568,53 @@ def plan_adherence(session: Session, settings: Settings, plan_id: int | None = N
     if origem == "estimada":
         out["observacao"] = "zonas de FC calculadas com FC máxima ESTIMADA"
     return out
+
+
+# ---------- treinos enviados pelo app Android (ADR 0013) ----------
+
+def receive_app_workouts(session: Session, settings: Settings, fonte: str, treinos: list[dict],
+                         apagados: list[str] | None = None, now: datetime | None = None) -> dict:
+    """Grava os treinos lidos no celular, recalcula a carga e registra a sincronização da fonte.
+    Devolve os treinos novos que não são duplicata (para a notificação)."""
+    now = now or datetime.now(timezone.utc)
+    recebidos = [converter_treino_app(fonte, t) for t in treinos]
+    rep = gravar_treinos_app(session, recebidos, [(fonte, i) for i in apagados or []])
+    rc = recompute(session, settings)
+    novos = [activity_summary(a, settings) for a in
+             session.scalars(select(Activity).where(Activity.id.in_(rep["novos_ids"]),
+                                                    Activity.possible_duplicate_of.is_(None))
+                             .order_by(Activity.start_utc))]
+    result = {"status": "ok", "fonte": fonte, "recebidos": len(recebidos), "novos": len(rep["novos_ids"]),
+              "novos_duplicados": len(rep["novos_ids"]) - len(novos), "atualizados": rep["atualizados"],
+              "apagados": rep["apagados"], "fc_max": rc["fc_max"], "fc_max_origem": rc["fc_max_origem"]}
+    st = session.get(SyncState, fonte) or SyncState(source=fonte)
+    session.add(st)
+    st.last_attempt_utc = st.last_success_utc = now
+    st.last_error, st.last_result = None, result
+    return {**result, "treinos_novos": novos}
+
+
+def reprocess_app_workouts(session: Session, settings: Settings) -> dict:
+    """Refaz amostras, parciais e qualidade dos treinos vindos do app a partir das leituras guardadas
+    (ex.: depois de corrigir o conversor). Não precisa reenviar nada do celular."""
+    from .ingest.files import Point
+    from .ingest.streams_store import save_streams
+    from .ingest.treinos_app import FONTES, gps_valido
+
+    feitos = 0
+    for a in session.scalars(select(Activity).where(Activity.source.in_(FONTES))).all():
+        amostras = session.scalars(select(Sample).where(Sample.activity_id == a.id).order_by(Sample.t_s)).all()
+        if not amostras:
+            continue
+        pontos = [Point(time=a.start_utc + timedelta(seconds=s.t_s),
+                        lat=s.lat if gps_valido(s.lat, s.lon) else None,
+                        lon=s.lon if gps_valido(s.lat, s.lon) else None,
+                        ele=s.ele_m if gps_valido(s.lat, s.lon) else None,
+                        hr=s.hr_raw, cadence=s.cadence_spm, speed=s.speed_ms) for s in amostras]
+        save_streams(session, a, pontos, a.source)
+        extra = dict(a.extra or {})
+        extra["pontos_gps"] = sum(1 for p in pontos if p.lat is not None)
+        a.extra = extra
+        feitos += 1
+    rc = recompute(session, settings)
+    return {"reprocessados": feitos, "fc_max": rc["fc_max"]}

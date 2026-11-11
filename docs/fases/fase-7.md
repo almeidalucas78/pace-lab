@@ -57,10 +57,10 @@ Nenhuma. Os treinos do app entram como `source="health_connect"`, com o id do re
 ## Etapas
 1. [x] **Base do app**: Capacitor 8 no `web/` (`npx cap add android`), nome, ícone e id do app; o painel embutido abre no celular; instalação pelo cabo. Sem saúde ainda.
 2. [x] **App fala com o PC**: endereço da API configurável no cliente (no app: endereço do Tailscale; no navegador: o próprio site); CORS no backend só para a origem do app; QR com link `pacelab://conectar`; testes.
-3. [ ] **Backend recebe treinos**: `POST /api/saude/treinos` com formato próprio e simples (sessão, FC, distância, calorias, velocidade); conversor puro em `ingest/`, reaproveitando a gravação idempotente e a deduplicação com o Strava; `sync_state`; notificação do Windows; testes sintéticos.
-4. [ ] **App lê o Samsung Health**: "fonte de treinos" com formato próprio (no app e na rota do backend) e a primeira fonte: plugin próprio em Kotlin com o Samsung Health Data SDK (permissões, treinos com percurso e log), leitura desde a última marca guardada no aparelho, envio em lotes, ao abrir, ao voltar e no botão; situação da última sincronização na tela; testes do lado web com o plugin simulado.
+3. [x] **Backend recebe treinos**: `POST /api/saude/treinos` com formato próprio e simples (sessão, FC, distância, calorias, velocidade); conversor puro em `ingest/`, reaproveitando a gravação idempotente e a deduplicação com o Strava; `sync_state`; notificação do Windows; testes sintéticos.
+4. [x] **App lê o Samsung Health**: "fonte de treinos" com formato próprio (no app e na rota do backend) e a primeira fonte: plugin próprio em Kotlin com o Samsung Health Data SDK (permissões, treinos com percurso e log), leitura desde a última marca guardada no aparelho, envio em lotes, ao abrir, ao voltar e no botão; situação da última sincronização na tela; testes do lado web com o plugin simulado.
 4b. [ ] **Atualização do app**: versão publicada pelo PC, aviso de versão nova, download do APK e instalador do Android.
-5. [ ] **Validação com dados reais**: primeira sincronização (treinos de 27/10 em diante), conferência com o usuário, ajustes no conversor; anotar em `docs/dados.md` o que o Samsung Health realmente grava.
+5. [x] **Validação com dados reais**: primeira sincronização (treinos de 27/10 em diante), conferência com o usuário, ajustes no conversor; anotar em `docs/dados.md` o que o Samsung Health realmente grava. Feito em 11/11/2026: 40 treinos; esteira e musculação vinham com GPS (0, 0), corrigido no conversor (distância pela velocidade) e reprocessado com `treino reprocessar-app`.
 6. [ ] **Limpeza e docs**: remover o cliente do HC Webhook e o agendador (decisão 4); ADR 0013; ARCHITECTURE, README, `docs/celular.md`, CHANGELOG, regras.
 
 ## Critério de pronto

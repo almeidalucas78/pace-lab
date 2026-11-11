@@ -4,19 +4,21 @@ from __future__ import annotations
 import os
 import secrets
 from contextlib import asynccontextmanager
+from typing import Literal
 
 from fastapi import APIRouter, Depends, FastAPI, HTTPException, Query, Request
 from fastapi.concurrency import run_in_threadpool
 from fastapi.middleware.cors import CORSMiddleware
 from fastapi.responses import FileResponse, JSONResponse
 from fastapi.security import HTTPAuthorizationCredentials, HTTPBearer
-from pydantic import BaseModel, Field
+from pydantic import AwareDatetime, BaseModel, Field
 
 from .. import services
 from ..config import ROOT, Settings, get_settings
 from ..db import session_scope
 from ..ia.chat import conversar
 from ..ia.provedores import ErroIA
+from ..notify import describe_new, notify
 from ..scheduler import SyncScheduler
 
 # `treino servico` liga o agendador; `treino api` e os testes não.
@@ -191,6 +193,61 @@ def perfil(settings: Settings = Depends(auth)):
 def carga_atual(settings: Settings = Depends(auth)):
     with session_scope() as s:
         return services.current_load(s, settings)
+
+
+# ---------- treinos enviados pelo app Android (ADR 0013) ----------
+
+class RegistroIn(BaseModel):
+    t: int = Field(description="horário em ms desde 1970 (UTC)")
+    fc: float | None = Field(None, ge=0, le=260)
+    vel: float | None = Field(None, ge=0, le=30, description="m/s")
+    cad: float | None = Field(None, ge=0, le=400, description="passos ou pedaladas por minuto")
+    pot: float | None = Field(None, ge=0, le=3000, description="watts")
+
+
+class PercursoIn(BaseModel):
+    t: int
+    lat: float = Field(ge=-90, le=90)
+    lon: float = Field(ge=-180, le=180)
+    alt: float | None = Field(None, ge=-500, le=9000)
+
+
+class TreinoIn(BaseModel):
+    id: str = Field(min_length=1, max_length=64, description="id do treino na fonte (ex.: uid do Samsung Health)")
+    tipo: str = Field(min_length=1, max_length=40, description="tipo na fonte, ex.: RUNNING")
+    inicio: AwareDatetime
+    fim: AwareDatetime
+    duracao_s: float | None = Field(None, ge=0)
+    distancia_m: float | None = Field(None, ge=0)
+    calorias: float | None = Field(None, ge=0)
+    fc_media: float | None = Field(None, ge=0, le=260)
+    fc_max: float | None = Field(None, ge=0, le=260)
+    cadencia_media: float | None = Field(None, ge=0, le=400)
+    ganho_elevacao_m: float | None = Field(None, ge=0)
+    vo2max: float | None = Field(None, ge=0, le=100)
+    titulo: str | None = Field(None, max_length=200)
+    registros: list[RegistroIn] = Field(default_factory=list, max_length=200_000)
+    percurso: list[PercursoIn] = Field(default_factory=list, max_length=200_000)
+
+
+class LoteTreinos(BaseModel):
+    fonte: Literal["samsung_health", "health_connect"]
+    treinos: list[TreinoIn] = Field(default_factory=list, max_length=50)
+    apagados: list[str] = Field(default_factory=list, max_length=500, description="ids apagados na fonte")
+
+
+@api.post("/saude/treinos")
+def receber_treinos(lote: LoteTreinos, settings: Settings = Depends(auth)):
+    for t in lote.treinos:
+        if t.fim <= t.inicio:
+            raise HTTPException(422, f"treino {t.id}: fim antes do início")
+    with session_scope() as s:
+        rep = services.receive_app_workouts(s, settings, lote.fonte, [t.model_dump() for t in lote.treinos],
+                                            lote.apagados)
+    msg = describe_new(rep["treinos_novos"])
+    if msg:
+        notify(*msg, enabled=settings.notificacoes)
+    return {k: v for k, v in rep.items() if k != "treinos_novos"} | {"novos_ids": [t["id"] for t in rep["treinos_novos"]]}
 
 
 @api.get("/painel/config")
