@@ -1,6 +1,10 @@
 // Cliente da API: guarda o token no navegador e o envia em toda chamada (ADR 0011).
+// No app Android (ADR 0013) o painel roda em https://localhost e fala com o PC pelo endereço do Tailscale.
+
+import { ehApp } from '../plataforma'
 
 const CHAVE_TOKEN = 'pace-lab.token'
+const CHAVE_SERVIDOR = 'pace-lab.servidor'
 
 export class ErroApi extends Error {
   status: number
@@ -28,11 +32,56 @@ export function salvarToken(token: string | null): void {
   window.dispatchEvent(new Event('pace-lab:token'))
 }
 
+/** Endereço do PC (ex.: https://pacelab.rede.ts.net). Só usado no app; no navegador a API é o próprio site. */
+export function lerServidor(): string | null {
+  try {
+    return localStorage.getItem(CHAVE_SERVIDOR)
+  } catch {
+    return null
+  }
+}
+
+export function salvarServidor(url: string | null): void {
+  try {
+    if (url) localStorage.setItem(CHAVE_SERVIDOR, url.trim().replace(/\/+$/, ''))
+    else localStorage.removeItem(CHAVE_SERVIDOR)
+  } catch {
+    // sem armazenamento
+  }
+}
+
+/** Prefixo das chamadas: vazio no navegador (mesmo site); o endereço do PC no app. */
+export function baseApi(): string {
+  return ehApp() ? (lerServidor() ?? '') : ''
+}
+
+/**
+ * Link `pacelab://conectar?servidor=...&token=...` que abre o app (vem da página /abrir-app).
+ * Guarda endereço e token. Devolve true se o link era desse tipo e válido.
+ */
+export function conectarPorLink(url: string): boolean {
+  let u: URL
+  try {
+    u = new URL(url)
+  } catch {
+    return false
+  }
+  if (u.protocol !== 'pacelab:' || (u.hostname || u.pathname.replace(/^\/+/, '')) !== 'conectar') return false
+  const servidor = u.searchParams.get('servidor')
+  const token = u.searchParams.get('token')
+  if (!servidor || !token || !/^https:\/\//.test(servidor)) return false
+  salvarServidor(servidor)
+  salvarToken(token)
+  return true
+}
+
 /**
  * QR code do "Conectar celular" abre o painel com `#token=...` (o fragmento não vai ao servidor).
  * Salva o token e tira da barra de endereço. Devolve true se havia token.
+ * Na página /abrir-app o token é repassado ao app, então não é guardado no navegador.
  */
 export function lerTokenDaUrl(): boolean {
+  if (window.location.pathname === '/abrir-app') return false
   const m = window.location.hash.match(/(?:^#|&)token=([^&]+)/)
   if (!m) return false
   salvarToken(decodeURIComponent(m[1]))
@@ -93,7 +142,7 @@ export async function api<T>(caminho: string, init: RequestInit = {}): Promise<T
   if (init.body && !headers.has('Content-Type')) headers.set('Content-Type', 'application/json')
   let resp: Response
   try {
-    resp = await fetch(`/api${caminho}`, { ...init, headers })
+    resp = await fetch(`${baseApi()}/api${caminho}`, { ...init, headers })
   } catch {
     mudarConexao(false) // celular sem rede, Tailscale desligado ou PC desligado
     throw new ErroApi(0, 'PC fora do ar')
@@ -123,6 +172,6 @@ export async function api<T>(caminho: string, init: RequestInit = {}): Promise<T
 
 /** Confere um token chamando uma rota protegida, sem apagar o salvo se estiver errado. */
 export async function testarToken(token: string): Promise<boolean> {
-  const resp = await fetch('/api/perfil', { headers: { Authorization: `Bearer ${token}` } })
+  const resp = await fetch(`${baseApi()}/api/perfil`, { headers: { Authorization: `Bearer ${token}` } })
   return resp.ok
 }

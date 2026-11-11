@@ -25,3 +25,8 @@ O que foi observado nos dados reais. Os arquivos reais nunca entram no repositó
 - `FC_MAX` não está configurada; a estimativa automática deu **214** (maior média de 30 s nos treinos com FC "ok").
 - Não é um treino isolado: 10 corridas diferentes (2024 a 2025) têm pico sustentado de 30 s entre 207 e 214, coerente com a FC máxima do resumo do Strava.
 - Não tratar como erro sem evidência, e sempre deixar claro que é estimativa.
+
+## Samsung Health Data SDK (lido pelo DataViewer em 11/11/2026)
+- Corrida de 03/11/2026 (horários em UTC no SDK: 21:18Z = 18:18 em Brasília): `ExerciseSession` com `route` (5.326 pontos de GPS), `log` (10.904 registros com FC, velocidade e cadência), `distance` 17.027 m, `duration` 5.355 s, `meanHeartRate` 187, `maxHeartRate` 206, `meanCadence` 170 (já em passos por minuto, as duas pernas), `calories` 1.081, `altitudeGain` 31,8 m, `vo2Max` 47,48, `count` 15.199 passadas (`countType` STRIDE).
+- O Health Connect mostra a mesma corrida só com horário e duração (sem percurso).
+

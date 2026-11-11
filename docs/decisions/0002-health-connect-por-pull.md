@@ -1,6 +1,6 @@
 # 0002. Treinos novos do Health Connect, com o PC puxando do celular
 
-- Status: aceita
+- Status: substituída por 0013
 - Data: 2026-10-27
 
 ## Contexto

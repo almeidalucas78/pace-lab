@@ -6,7 +6,9 @@ import { apagarDadosGuardados } from './api/persistencia'
 import { AvisoConexao, BotaoAtualizar } from './componentes/Conexao'
 import { ErroTela } from './componentes/ErroTela'
 import { VersaoNova } from './componentes/VersaoNova'
+import { AbrirApp } from './paginas/AbrirApp'
 import { Token } from './paginas/Token'
+import { ehApp } from './plataforma'
 
 // Cada página (e o chat) vira um arquivo separado: gráficos, mapa e markdown só carregam quando abertos.
 const VisaoGeral = lazy(() => import('./paginas/VisaoGeral').then((m) => ({ default: m.VisaoGeral })))
@@ -32,6 +34,8 @@ export function App() {
   const token = useToken()
   const qc = useQueryClient()
   const [chatAberto, setChatAberto] = useState(false)
+  // página pública: leva endereço e token do navegador do celular para o app Android
+  if (window.location.pathname === '/abrir-app' && !ehApp()) return <AbrirApp />
   if (!token) return <Token />
 
   async function sair() {
@@ -92,7 +96,7 @@ export function App() {
         <NavLink to="/plano">Plano</NavLink>
         <NavLink to="/chat">Chat</NavLink>
       </nav>
-      <VersaoNova />
+      {!ehApp() && <VersaoNova /> /* no app os arquivos vêm no APK; atualização é pelo app */}
     </div>
   )
 }

@@ -78,14 +78,14 @@ async function renderizar(caminho: string): Promise<string> {
       </QueryClientProvider>,
     )
   })
-  // páginas carregam sob demanda: espera sumir o "Carregando..." (até ~5 s)
-  for (let i = 0; i < 100 && (i < 5 || (div.textContent ?? '').includes('Carregando')); i++) {
+  // páginas carregam sob demanda: espera sumir o "Carregando..." (até ~20 s, a 1ª carga é lenta com a suíte toda)
+  for (let i = 0; i < 400 && (i < 5 || (div.textContent ?? '').includes('Carregando')); i++) {
     await act(async () => { await new Promise((r) => setTimeout(r, 50)) })
   }
   return div.textContent ?? ''
 }
 
-describe('páginas', () => {
+describe('páginas', { timeout: 30_000 }, () => {
   it('visão geral', async () => {
     const txt = await renderizar('/')
     expect(txt).toContain('Fitness')
@@ -116,7 +116,8 @@ describe('páginas', () => {
   it('conectar celular mostra o endereço e o botão do QR code', async () => {
     const txt = await renderizar('/conectar')
     expect(txt).toContain('https://pacelab.teste.ts.net')
-    expect(txt).toContain('Mostrar QR code')
+    expect(txt).toContain('QR do app Android')
+    expect(txt).toContain('QR do navegador')
     expect(txt).toContain('Não compartilhe')
   })
 

@@ -12,7 +12,7 @@ Status: ⬜ não iniciada · 📝 planejada · 🚧 em andamento · ✅ concluí
 | 4 | Planos de treino salvos pelo chat e aderência planejado x executado | ✅ ([plano](fases/fase-4.md)) |
 | 5 | Painel web desktop (React) com gráficos e chat | ✅ ([plano](fases/fase-5.md)) |
 | 6 | Painel no celular (responsivo + PWA, via Tailscale) | ✅ ([plano](fases/fase-6.md)) |
-| 7 | Pace Lab como app Android com sincronização direta do Health Connect | ⬜ |
+| 7 | Pace Lab como app Android lendo o Samsung Health (com GPS) | 🚧 ([plano](fases/fase-7.md)) |
 | 8 | Hospedagem e musculação (Hevy) | ⬜ |
 
 ## Fase 1: histórico do Strava ✅
@@ -33,11 +33,19 @@ Painel em `web/` servido por `treino servico` em http://127.0.0.1:8000 (API em `
 ## Fase 6: celular ✅
 Painel no celular pelo Tailscale (`tailscale serve`), instalável como app, conectado por QR code, com layout próprio e dados guardados no aparelho para ver com o PC desligado. Detalhes em [fases/fase-6.md](fases/fase-6.md); guia em [celular.md](celular.md).
 
-## Fase 7: app Android e Health Connect ⬜
+## Fase 7: app Android e Samsung Health 🚧
 Decidido com o usuário em 10/11/2026: treinos novos entrando sozinhos é o que mais falta, e ele quer um app só no celular (sem o HC Webhook). O painel (`web/`) vira app Android com Capacitor e um plugin do Health Connect: aparece nos apps conectados do Health Connect, lê exercícios, FC, distância e calorias (em segundo plano, com permissão própria; até 30 dias para trás) e envia para a API pelo Tailscale. Percurso com GPS de outro app só com o app aberto e autorização do usuário (docs do Android); não se sabe se o Samsung Health grava o percurso no Health Connect. Instalação fora da Play Store. Substitui as decisões 0002 (HC Webhook) e 0012 (app pelo navegador) quando planejada. Planejar com `/planejar-fase 7`.
 
 ## Fase 8: hospedagem e musculação ⬜
 Docker Compose, Postgres, MCP remoto com autenticação, Claude por chave de API. Hospedagem preferida: Oracle Cloud Always Free (ver ADR 0009), com backup automático do banco. Musculação do Hevy (JSON já guardado em `extra`).
+
+## Direção futura: app para outras pessoas
+O usuário quer, um dia, um app "redondo" para amigos ou para a Play Store (10/11/2026). Ainda não é fase; exige revisar decisões aceitas:
+- **Contas de usuário:** hoje um usuário e um token (ADR 0011); precisaria de contas e dados separados por pessoa.
+- **IA:** o chat usa o login da assinatura do Claude, que não pode ser oferecido a terceiros (ADR 0008); seria chave de API ou Gemini.
+- **Hospedagem obrigatória** (fase 8) em vez do PC ligado.
+- **Fonte de treinos:** parceria com a Samsung (Samsung Health Data SDK sem modo desenvolvedor) ou Health Connect (sem GPS do Samsung Health); a fase 7 já deixa a leitura atrás de uma "fonte de treinos" para isso.
+- **Play Store:** política de privacidade, declaração e revisão dos dados de saúde, conta de desenvolvedor (custo a conferir).
 
 ## Pendências de validação
 

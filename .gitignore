@@ -27,3 +27,7 @@ data/
 # painel web
 node_modules/
 web/dist/
+
+# SDK da Samsung (baixado pelo usuário; não redistribuir)
+*.aar
+samsung-health-data-sdk*

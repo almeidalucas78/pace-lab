@@ -12,9 +12,11 @@ export function Conectar() {
   const [qr, setQr] = useState<string | null>(null)
   const [erro, setErro] = useState<string | null>(null)
 
-  async function mostrar(url: string) {
+  // navegador: abre o painel já com o token; app: abre a página que repassa endereço e token ao app Android
+  async function mostrar(url: string, paraApp: boolean) {
     try {
-      const destino = `${url.replace(/\/+$/, '')}/#token=${encodeURIComponent(lerToken() ?? '')}`
+      const caminho = paraApp ? '/abrir-app' : '/'
+      const destino = `${url.replace(/\/+$/, '')}${caminho}#token=${encodeURIComponent(lerToken() ?? '')}`
       setQr(await QRCode.toDataURL(destino, { width: 320, margin: 2 }))
     } catch (e) {
       setErro(e instanceof Error ? e.message : String(e))
@@ -40,8 +42,8 @@ export function Conectar() {
           <div className="cartao pilha">
             <ol style={{ margin: 0, paddingLeft: 20 }}>
               <li>No celular, ligue o Tailscale.</li>
-              <li>Aponte a câmera para o QR code e abra o link.</li>
-              <li>No Chrome do celular, menu ⋮ e <strong>Instalar app</strong> (ou "Adicionar à tela inicial").</li>
+              <li><strong>App Android:</strong> leia o QR do app, abra o link no Chrome e toque em <strong>Abrir o app</strong>.</li>
+              <li><strong>Navegador:</strong> leia o QR do navegador e abra o link (dá para instalar pelo menu ⋮ do Chrome).</li>
             </ol>
             <div className="fraco pequeno">Endereço: {c.url_celular}</div>
             {qr ? (
@@ -51,7 +53,10 @@ export function Conectar() {
                 <button className="botao-sec" onClick={() => setQr(null)}>Esconder QR code</button>
               </div>
             ) : (
-              <button className="botao" onClick={() => mostrar(c.url_celular!)}>Mostrar QR code</button>
+              <div className="linha">
+                <button className="botao" onClick={() => mostrar(c.url_celular!, true)}>QR do app Android</button>
+                <button className="botao-sec" onClick={() => mostrar(c.url_celular!, false)}>QR do navegador</button>
+              </div>
             )}
             <div className="erro-caixa" style={{ background: 'var(--alerta-suave)', color: 'var(--alerta)' }}>
               O QR code contém o seu token de acesso. Não compartilhe nem tire foto dele.

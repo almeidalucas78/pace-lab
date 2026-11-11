@@ -78,3 +78,15 @@ def test_arquivos_do_app_instalavel(tmp_path, monkeypatch):
         assert m.headers["cache-control"] == "no-cache"
         sw = c.get("/sw.js")
         assert sw.headers["content-type"].startswith("text/javascript") and sw.headers["cache-control"] == "no-cache"
+
+
+def test_cors_so_para_o_app_android(db):
+    with TestClient(app) as c:
+        pre = c.options("/api/perfil", headers={"Origin": "https://localhost", "Access-Control-Request-Method": "GET",
+                                                "Access-Control-Request-Headers": "authorization"})
+        assert pre.status_code == 200 and pre.headers["access-control-allow-origin"] == "https://localhost"
+        r = c.get("/api/perfil", headers={**H, "Origin": "https://localhost"})
+        assert r.headers["access-control-allow-origin"] == "https://localhost"
+        outro = c.get("/api/perfil", headers={**H, "Origin": "https://site-qualquer.com"})
+        assert "access-control-allow-origin" not in outro.headers
+        assert c.get("/abrir-app").status_code in (200, 404)   # página pública do painel (404 só sem build)

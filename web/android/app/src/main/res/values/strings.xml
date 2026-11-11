@@ -1,0 +1,7 @@
+<?xml version='1.0' encoding='utf-8'?>
+<resources>
+    <string name="app_name">Pace Lab</string>
+    <string name="title_activity_main">Pace Lab</string>
+    <string name="package_name">app.pacelab</string>
+    <string name="custom_url_scheme">app.pacelab</string>
+</resources>

@@ -1,6 +1,6 @@
 # 0012. Painel no celular: Tailscale, PWA, QR code e dados guardados
 
-- Status: aceita
+- Status: aceita; no celular, o app instalado pelo navegador foi substituído pelo app Android (0013)
 - Data: 2026-11-09
 
 ## Contexto

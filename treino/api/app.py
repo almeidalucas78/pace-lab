@@ -7,6 +7,7 @@ from contextlib import asynccontextmanager
 
 from fastapi import APIRouter, Depends, FastAPI, HTTPException, Query, Request
 from fastapi.concurrency import run_in_threadpool
+from fastapi.middleware.cors import CORSMiddleware
 from fastapi.responses import FileResponse, JSONResponse
 from fastapi.security import HTTPAuthorizationCredentials, HTTPBearer
 from pydantic import BaseModel, Field
@@ -34,6 +35,12 @@ async def lifespan(app: FastAPI):
 app = FastAPI(title="Treino API", version="0.5.0", lifespan=lifespan,
               docs_url="/api/docs", openapi_url="/api/openapi.json", redoc_url=None)
 api = APIRouter(prefix="/api")
+
+# App Android (Capacitor, ADR 0013): o painel roda em https://localhost dentro do app e chama a API pelo
+# endereço do Tailscale. Só essa origem é liberada; o painel no navegador usa o próprio site.
+ORIGEM_APP = "https://localhost"
+app.add_middleware(CORSMiddleware, allow_origins=[ORIGEM_APP], allow_methods=["GET", "POST"],
+                   allow_headers=["Authorization", "Content-Type"])
 bearer = HTTPBearer(auto_error=False)
 
 

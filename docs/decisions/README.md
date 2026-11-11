@@ -7,7 +7,7 @@ Regra do projeto: decisão com status **aceita** não é reaberta sem perguntar 
 | Nº | Decisão | Status |
 |---|---|---|
 | [0001](0001-sem-api-do-strava.md) | Strava só pelo export completo, nunca pela API | aceita (reavaliação pedida) |
-| [0002](0002-health-connect-por-pull.md) | Treinos novos do Health Connect, com o PC puxando do celular | aceita |
+| [0002](0002-health-connect-por-pull.md) | Treinos novos do Health Connect, com o PC puxando do celular | substituída por 0013 |
 | [0003](0003-deduplicacao-strava-prevalece.md) | Deduplicação por horário e esporte; Strava prevalece | aceita |
 | [0004](0004-stack.md) | Python + FastAPI + SQLAlchemy; React + TypeScript + Vite | aceita |
 | [0005](0005-arquitetura-em-camadas.md) | Camadas core, ingest, services e interfaces | aceita |
@@ -17,7 +17,8 @@ Regra do projeto: decisão com status **aceita** não é reaberta sem perguntar 
 | [0009](0009-mcp-e-hospedagem.md) | MCP local agora, remoto ao hospedar; Tailscale antes disso | aceita |
 | [0010](0010-planos-e-aderencia.md) | Planos de treino e aderência | aceita |
 | [0011](0011-painel-web.md) | Painel web: estrutura, autenticação, chat, gráficos e mapa | aceita |
-| [0012](0012-celular-e-pwa.md) | Painel no celular: Tailscale, PWA, QR code e dados guardados | aceita |
+| [0012](0012-celular-e-pwa.md) | Painel no celular: Tailscale, PWA, QR code e dados guardados | aceita (app pelo navegador substituído por 0013) |
+| [0013](0013-app-android-samsung-health.md) | Pace Lab como app Android lendo o Samsung Health (com GPS) | aceita |
 
 ## Modelo
 
