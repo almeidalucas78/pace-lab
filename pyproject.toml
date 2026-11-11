@@ -1,6 +1,6 @@
 [project]
 name = "treino"
-version = "0.6.0"
+version = "0.7.0"
 description = "Painel pessoal de corrida: importa treinos, calcula métricas e alimenta um agente de IA"
 requires-python = ">=3.11"
 dependencies = [

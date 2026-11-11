@@ -4,7 +4,9 @@ O que mudou em cada fase, escrito para o usuário. Formato inspirado no [Keep a 
 
 ## [Não lançado]
 
-### Adicionado (fase 7)
+## [0.7.0] - 2026-11-11 (fase 7)
+
+### Adicionado
 - App Android Pace Lab: lê os treinos do Samsung Health com GPS e os envia ao PC ao abrir, ao voltar e no botão Sincronizar.
 - Esteira e musculação entram sem mapa; a distância sai da velocidade do relógio. Comando `treino reprocessar-app`.
 - Atualização do app sem cabo: `treino publicar-app` no PC e o botão Atualizar no celular.

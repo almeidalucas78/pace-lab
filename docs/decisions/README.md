@@ -11,7 +11,7 @@ Regra do projeto: decisão com status **aceita** não é reaberta sem perguntar 
 | [0003](0003-deduplicacao-strava-prevalece.md) | Deduplicação por horário e esporte; Strava prevalece | aceita |
 | [0004](0004-stack.md) | Python + FastAPI + SQLAlchemy; React + TypeScript + Vite | aceita |
 | [0005](0005-arquitetura-em-camadas.md) | Camadas core, ingest, services e interfaces | aceita |
-| [0006](0006-agendador-no-servico.md) | Agendador dentro do serviço, iniciado à mão | aceita |
+| [0006](0006-agendador-no-servico.md) | Agendador dentro do serviço, iniciado à mão | substituída por 0013 |
 | [0007](0007-migracoes-alembic.md) | Migrações com Alembic | aceita |
 | [0008](0008-chat-e-provedores-de-ia.md) | Ferramentas compartilhadas e provedores de IA intercambiáveis | aceita |
 | [0009](0009-mcp-e-hospedagem.md) | MCP local agora, remoto ao hospedar; Tailscale antes disso | aceita |

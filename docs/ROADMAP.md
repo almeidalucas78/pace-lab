@@ -33,8 +33,8 @@ Painel em `web/` servido por `treino servico` em http://127.0.0.1:8000 (API em `
 ## Fase 6: celular ✅
 Painel no celular pelo Tailscale (`tailscale serve`), instalável como app, conectado por QR code, com layout próprio e dados guardados no aparelho para ver com o PC desligado. Detalhes em [fases/fase-6.md](fases/fase-6.md); guia em [celular.md](celular.md).
 
-## Fase 7: app Android e Samsung Health 🚧
-Decidido com o usuário em 10/11/2026: treinos novos entrando sozinhos é o que mais falta, e ele quer um app só no celular (sem o HC Webhook). O painel (`web/`) vira app Android com Capacitor e um plugin do Health Connect: aparece nos apps conectados do Health Connect, lê exercícios, FC, distância e calorias (em segundo plano, com permissão própria; até 30 dias para trás) e envia para a API pelo Tailscale. Percurso com GPS de outro app só com o app aberto e autorização do usuário (docs do Android); não se sabe se o Samsung Health grava o percurso no Health Connect. Instalação fora da Play Store. Substitui as decisões 0002 (HC Webhook) e 0012 (app pelo navegador) quando planejada. Planejar com `/planejar-fase 7`.
+## Fase 7: app Android e Samsung Health ✅
+App Android Pace Lab (Capacitor, painel embutido) que lê os treinos do Samsung Health com GPS, FC, velocidade e cadência (Samsung Health Data SDK em modo desenvolvedor) e envia ao PC pelo Tailscale ao abrir, ao voltar e no botão Sincronizar; atualização do app pelo próprio app (`treino publicar-app`). HC Webhook e agendador removidos. Detalhes em [fases/fase-7.md](fases/fase-7.md); guia em [celular.md](celular.md).
 
 ## Fase 8: hospedagem e musculação ⬜
 Docker Compose, Postgres, MCP remoto com autenticação, Claude por chave de API. Hospedagem preferida: Oracle Cloud Always Free (ver ADR 0009), com backup automático do banco. Musculação do Hevy (JSON já guardado em `extra`).
@@ -55,6 +55,6 @@ O usuário quer, um dia, um app "redondo" para amigos ou para a Play Store (10/1
 - [x] **Gemini:** testado com a chave real em 28/10/2026 (último treino e aderência). Nesse dia o `gemini-3.8-flash` estava sobrecarregado (503/504, até 2 min por resposta); o `gemini-3.6-flash` respondeu em cerca de 3 s e virou reserva automática.
 - [ ] **agy:** conferir se o arquivo de MCP é `~/.gemini/config/mcp_config.json` (fontes citam também `~/.gemini/antigravity-cli/mcp_config.json`).
 - [ ] **Plano de teste:** "Teste de aderencia" (id 1) ficou ativo no banco real; arquivar ou substituir pelo primeiro plano de verdade.
-- [ ] **Musculação (fase 7):** peso do Hevy em kg? Valores de 2 a 180. Decidir como guardar os sets.
+- [ ] **Musculação (fase 8):** peso do Hevy em kg? Valores de 2 a 180. Decidir como guardar os sets.
 - [ ] **Play Protect (app Android):** na atualização pelo próprio app (11/11/2026) o Play Protect mostrou aviso de segurança e bloqueou, com opção de instalar mesmo assim; o usuário instalou e funcionou. Por enquanto não é problema. Verificar no futuro: registrar o app na conta gratuita de distribuição limitada do Google (verificação de desenvolvedor) e ver se o aviso some; obrigatório para o app ir a outras pessoas.
 - [x] TCX do Watch 7, leitor de FIT e notificação do Windows validados (27/10/2026).

@@ -1,7 +1,7 @@
 # Fase 7: Pace Lab como app Android com os treinos do Samsung Health (com GPS)
 
-- Status: em andamento
-- Planejada em: 2026-11-10 · Concluída em: -
+- Status: concluída
+- Planejada em: 2026-11-10 · Concluída em: 2026-11-11
 
 ## Objetivo
 O usuário tem **um app só** no celular além do Tailscale: o Pace Lab. Ao abrir o app (ou voltar para ele), os treinos novos do Samsung Health, **com percurso de GPS**, FC, velocidade e cadência ao longo do treino, são lidos e enviados ao PC pelo Tailscale, entram no banco sem duplicar o histórico do Strava e aparecem no painel (com mapa e parciais) e no chat. O painel continua o mesmo da fase 6, agora dentro do app. Quando sair versão nova do app, ele avisa e baixa sozinho.
@@ -47,7 +47,7 @@ O usuário tem **um app só** no celular além do Tailscale: o Pace Lab. Ao abri
 Respostas de 10/11/2026: Capacitor, atualização pelo app e conta Samsung aceitos; fonte Samsung Health Data SDK em modo desenvolvedor aceita, com a leitura atrás de uma "fonte de treinos" para trocar por parceria Samsung ou Health Connect quando o app for para outras pessoas; 2 a 5 aceitas antes; 6 mudou (atualização pelo próprio app). Viram o ADR 0013; 0002 e 0012 ficam marcadas como substituídas (no que mudou).
 
 ## Mudanças no banco
-Nenhuma. Os treinos do app entram como `source="health_connect"`, com o id do registro no Health Connect (como já previsto na fase 2); a última sincronização fica em `sync_state` (tabela existente).
+Nenhuma. Os treinos do app entram como `source="samsung_health"` (a fonte `health_connect` fica reservada para o futuro), com o id do treino na fonte; o último envio fica em `sync_state` (tabela existente).
 
 ## O que o usuário instala ou configura
 - **PC:** Android Studio (alguns GB; traz o SDK e o JDK).
@@ -64,8 +64,16 @@ Nenhuma. Os treinos do app entram como `source="health_connect"`, com o id do re
 6. [x] **Limpeza e docs**: remover o cliente do HC Webhook e o agendador (decisão 4); ADR 0013; ARCHITECTURE, README, `docs/celular.md`, CHANGELOG, regras.
 
 ## Critério de pronto
-- [ ] `pytest`, `npm run build` e `npm test` passando; testes novos: conversor do formato do app, rota `/api/saude/treinos` (idempotente, duplicata com o Strava, sessão apagada), CORS só para a origem do app, link `pacelab://conectar`, sincronização no app com o plugin simulado.
-- [ ] Teste manual (usuário): instalar o app pelo cabo, ligar o modo desenvolvedor do Samsung Health, ler o QR, dar as permissões e ver os treinos de 27/10 em diante no painel **com mapa e parciais**, sem duplicar com o Strava; fazer um treino curto com o relógio, abrir o Pace Lab e ver o treino novo entrar (e a notificação no PC); perguntar no chat "como foi meu último treino?"; gerar uma versão nova e ver o app oferecer a atualização.
-- [ ] Docs atualizadas.
+- [x] `pytest`, `npm run build` e `npm test` passando; testes novos: conversor do formato do app, rota `/api/saude/treinos` (idempotente, duplicata com o Strava, sessão apagada), CORS só para a origem do app, link `pacelab://conectar`, sincronização no app com o plugin simulado. No fechamento: 49 no backend, 40 no painel.
+- [x] Teste manual (usuário): app instalado pelo cabo, modo desenvolvedor ligado, QR lido, permissões dadas; treinos de 27/10 em diante no painel com mapa e parciais, sem duplicar com o Strava; musculação de 11/11 entrou ao abrir o Pace Lab; chat respondeu sobre a corrida de 03/11 (e revelou o erro de parciais, corrigido); versão nova oferecida e instalada pelo app.
+- [x] Docs atualizadas.
 
 ## Resultado (preenchido no fechamento)
+**Entrou:** app Android Pace Lab (Capacitor 8, painel embutido) com plugin próprio em Kotlin que lê o Samsung Health Data SDK em modo desenvolvedor: treinos com percurso de GPS, FC, velocidade e cadência, enviados ao PC (`POST /api/saude/treinos`) ao abrir, ao voltar e no botão Sincronizar; conexão por QR (`pacelab://conectar`); CORS só para a origem do app; notificação do Windows a cada treino novo; atualização do app pelo próprio app (`treino publicar-app`, `/api/app/versao`, `/api/app/apk`, PackageInstaller); `treino reprocessar-app`.
+
+**Mudou em relação ao plano:**
+- Fonte: o plano começou pelo Health Connect; o teste do usuário mostrou que o Samsung Health não manda o percurso para lá, então a fonte virou o Samsung Health Data SDK (ADR 0013). A leitura fica atrás de uma "fonte de treinos" para trocar por parceria Samsung ou Health Connect.
+- Dados reais pediram dois ajustes no conversor: esteira e musculação chegam com GPS (0, 0) (distância pela velocidade) e GPS, FC e velocidade chegam em registros com horários desencontrados (pontos próximos juntados e parciais por janela de 3 s). Antes, a corrida de 03/11 mostrava km a 1:16/km. Ver `docs/dados.md`.
+- Removidos o HC Webhook e o agendador (ADR 0002 e 0006 substituídas por 0013); `treino servico` e `treino api` agora são o mesmo serviço.
+
+**Pendente:** aviso do Play Protect na atualização (ROADMAP); leitura com o app fechado; sessão "OTHER" que o Samsung grava junto com a musculação; natação na piscina mapeada como "other"; peso do Hevy (fase 8).

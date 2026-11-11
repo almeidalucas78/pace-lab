@@ -2,7 +2,7 @@
 
 - Status: aceita
 - Data: 2026-11-11
-- Substitui: 0002 (treinos novos pelo HC Webhook, com o PC puxando) e, no celular, 0012 (app instalado pelo navegador)
+- Substitui: 0002 (treinos novos pelo HC Webhook, com o PC puxando), 0006 (agendador no serviço) e, no celular, 0012 (app instalado pelo navegador)
 
 ## Contexto
 O usuário quer treinos entrando sozinhos, com GPS, e um app só no celular. Verificado em 10 e 11/11/2026:

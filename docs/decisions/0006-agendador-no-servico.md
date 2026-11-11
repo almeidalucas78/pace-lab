@@ -1,6 +1,6 @@
 # 0006. Agendador dentro do serviço, iniciado à mão
 
-- Status: aceita
+- Status: substituída por 0013 (o app Android envia os treinos; agendador removido na fase 7)
 - Data: 2026-10-27
 
 ## Contexto
