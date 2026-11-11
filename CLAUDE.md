@@ -38,13 +38,12 @@ Projeto Treino (repositório pace-lab): sistema pessoal para analisar corridas (
 treino/
   config.py      .env (resolvido pela raiz do projeto, config.ROOT)
   core/          cálculo puro: parciais, limpeza de FC, zonas, TRIMP, fitness/fadiga/forma, aderência ao plano
-  ingest/        export do Strava, HC Webhook (cliente, conversor, gravação), streams_store
+  ingest/        export do Strava, treinos do app Android (treinos_app: conversor e gravação), streams_store
   db/            modelos SQLAlchemy, sessão, init_db() com Alembic
   migrations/    versões do Alembic
   services.py    única camada de regras e consultas
   ia/            ferramentas (registro único), MCP, provedores Claude e Gemini, chat
   api/           FastAPI com token: rotas em /api, painel compilado (web/dist) na raiz
-  scheduler.py   sincronização periódica dentro do serviço
   notify.py      notificação do Windows
   cli.py         comandos `treino ...`
 tests/           pytest com dados sintéticos
@@ -65,8 +64,8 @@ web/             painel React + TypeScript + Vite (só fala com a API)
 .\.venv\Scripts\python.exe -m pytest -q
 .\.venv\Scripts\treino.exe resumo
 .\.venv\Scripts\treino.exe importar-strava "D:\dados\strava\export_<número>.zip"
-.\.venv\Scripts\treino.exe servico      # painel + API + sincronização (iniciar-treino.bat)
-.\.venv\Scripts\treino.exe sincronizar
+.\.venv\Scripts\treino.exe servico      # painel + API para o app (iniciar-treino.bat)
+.\.venv\Scripts\treino.exe publicar-app   # publica o APK compilado para o app se atualizar
 .\.venv\Scripts\treino.exe chat         # --provedor gemini, --conversa N
 .\.venv\Scripts\treino.exe mcp          # --http para 127.0.0.1:8001/mcp
 cd web; npm run build; npm test         # painel (desenvolvimento: npm run dev, em :5173)

@@ -49,8 +49,8 @@ O usuário quer, um dia, um app "redondo" para amigos ou para a Play Store (10/1
 
 ## Pendências de validação
 
-- [ ] **Celular:** ver um JSON real do HC Webhook (`GET /?days=2` depois de uma corrida) e ajustar `ingest/health_connect.py`: valores de `type`, se `metadata` vem na sessão, resolução da FC, granularidade da distância, se existe rota/GPS. (Usuário deixou para depois.)
-- [ ] **Celular:** a documentação do app se contradiz sobre token no servidor local (`local-http.md` tem Bearer; `usage.md` diz que não tem autenticação). Conferir no app.
+- [x] ~~**Celular:** ver um JSON real do HC Webhook (`GET /?days=2` depois de uma corrida) e ajustar `ingest/health_connect.py`: valores de `type`, se `metadata` vem na sessão, resolução da FC, granularidade da distância, se existe rota/GPS.~~ Obsoleto: o HC Webhook foi removido na fase 7.
+- [x] ~~**Celular:** token do servidor local do HC Webhook.~~ Obsoleto: HC Webhook removido na fase 7.
 - [ ] **Strava:** reavaliar a decisão [0001](decisions/0001-sem-api-do-strava.md) junto com o teste do Health Connect.
 - [x] **Gemini:** testado com a chave real em 28/10/2026 (último treino e aderência). Nesse dia o `gemini-3.8-flash` estava sobrecarregado (503/504, até 2 min por resposta); o `gemini-3.6-flash` respondeu em cerca de 3 s e virou reserva automática.
 - [ ] **agy:** conferir se o arquivo de MCP é `~/.gemini/config/mcp_config.json` (fontes citam também `~/.gemini/antigravity-cli/mcp_config.json`).

@@ -1,6 +1,6 @@
 # Pace Lab
 
-Painel pessoal de corrida. Importa o histórico do Strava, puxa os treinos novos do celular (Health Connect), calcula métricas, mostra tudo num painel web com gráficos e mapa, e conversa com você sobre os treinos (Claude ou Gemini, no painel, no terminal ou via MCP).
+Painel pessoal de corrida. Importa o histórico do Strava, recebe os treinos novos do app Android (Samsung Health, com GPS), calcula métricas, mostra tudo num painel web com gráficos e mapa, e conversa com você sobre os treinos (Claude ou Gemini, no painel, no terminal ou via MCP).
 
 ## Instalar no Windows
 
@@ -70,26 +70,21 @@ Pode rodar de novo quando quiser: atualiza o que já existe, sem duplicar.
 | `treino atividade 356` | Detalhe de um treino: parciais por km, zonas de FC, qualidade dos dados |
 | `treino fc` | FC máxima usada nos cálculos e se é configurada ou estimada |
 | `treino recalcular` | Refaz zonas, carga e duplicatas (rode após mudar o `.env`) |
-| `treino servico` | Sobe o painel, a API e a sincronização automática do celular (é o que o `iniciar-treino.bat` roda) |
-| `treino api` | Sobe o painel e a API em http://127.0.0.1:8000 sem sincronização (documentação da API em `/api/docs`) |
-| `treino sincronizar` | Puxa agora os treinos do celular |
-| `treino status-sync` | Última sincronização com o celular e último erro |
+| `treino servico` | Sobe o painel e a API para o app do celular (é o que o `iniciar-treino.bat` roda) |
+| `treino api` | Igual ao `servico` (documentação da API em `/api/docs`) |
+| `treino publicar-app` | Publica o APK compilado; o app no celular oferece a atualização |
+| `treino reprocessar-app` | Refaz parciais, mapa e zonas dos treinos do app com o conversor atual |
+| `treino status-sync` | Última vez que o app enviou treinos e último erro |
 | `treino plano` | Plano ativo com a situação de cada sessão (`treino plano 3`, `--listar` para o histórico) |
 | `treino chat` | Conversa com o treinador no terminal (`--provedor gemini`, `--conversa 3` para continuar) |
 | `treino mcp` | Servidor MCP por stdio (para Claude Desktop, Claude Code e agy); `--http` serve em http://127.0.0.1:8001/mcp |
 
-## Treinos novos pelo celular (Health Connect)
+## Treinos novos pelo app Android (Samsung Health)
 
-Os treinos novos chegam pelo app **HC Webhook** (Play Store), com o **servidor HTTP local** ligado. O PC puxa os dados pela Wi-Fi; o celular não precisa enviar nada.
+O app **Pace Lab** no celular lê os treinos do Samsung Health (com GPS, FC, velocidade e cadência) e os envia ao PC pelo Tailscale: ao abrir o app, ao voltar para ele e no botão **Sincronizar**. O PC precisa estar ligado com o `iniciar-treino.bat` aberto; se não estiver, o app tenta de novo na próxima vez, sem perder nada. Treino novo gera notificação do Windows. Instalação, modo desenvolvedor do Samsung Health e atualização do app: `docs/celular.md`.
 
-1. No app: ative o servidor local (porta padrão 8787), ative o token e libere no Health Connect os tipos **exercício, frequência cardíaca, distância e calorias**.
-2. No `.env`: preencha `HC_URL` com o endereço do celular na Wi-Fi (ex.: `http://192.168.0.20:8787`) e `HC_TOKEN` com o token do app.
-3. Abra o `iniciar-treino.bat` (dois cliques). Ele sobe o serviço, sincroniza na hora e repete a cada `SYNC_INTERVALO_MIN` enquanto a janela estiver aberta. Treino novo gera notificação do Windows.
-
-Detalhes:
-- Cada leitura pede tudo desde a última leitura bem-sucedida, voltando 48 h a mais (o relógio às vezes passa os dados para o Health Connect com atraso). Se o celular estiver fora da rede, a janela não avança e a próxima rodada recupera.
-- O mesmo treino no Strava e no Health Connect (mesmo esporte, até 10 min de diferença): **vale o do Strava**; o do Health Connect fica marcado como duplicata.
-- Segundo a documentação do app, a sessão de exercício não traz GPS, velocidade nem potência. Parciais por km só saem se os registros de distância vierem em intervalos curtos (até 2 min); senão o treino fica só com totais, zonas e carga.
+- O mesmo treino no Strava e no Samsung Health (mesmo esporte, até 10 min de diferença): **vale o do Strava**; o outro fica marcado como duplicata.
+- Esteira e musculação não têm GPS: a distância sai da velocidade do relógio e o treino não tem mapa.
 
 ## Chat com o treinador (IA)
 
@@ -153,11 +148,10 @@ treino/
   config.py        configurações (.env)
   db/              modelos e conexão (SQLite hoje, Postgres trocando DATABASE_URL)
   migrations/      migrações do Alembic (gerar nova: `alembic revision --autogenerate -m "..."`)
-  ingest/          leitura de GPX, TCX, FIT, JSON, do activities.csv e do HC Webhook
+  ingest/          leitura de GPX, TCX, FIT, JSON, do activities.csv e dos treinos enviados pelo app Android
   core/            cálculos puros: parciais, limpeza de FC, zonas, carga
-  services.py      regras e consultas usadas pela CLI, pela API, pelo agendador, pelo MCP e pelo chat
+  services.py      regras e consultas usadas pela CLI, pela API, pelo MCP e pelo chat
   ia/              ferramentas da IA (registro único), servidor MCP, provedores Claude e Gemini, chat
-  scheduler.py     sincronização periódica dentro do serviço
   notify.py        notificações do Windows (só log em servidor)
   api/             FastAPI com token (rotas em /api) e o painel compilado na raiz
   cli.py           comandos `treino ...`

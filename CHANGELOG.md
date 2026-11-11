@@ -4,6 +4,18 @@ O que mudou em cada fase, escrito para o usuário. Formato inspirado no [Keep a 
 
 ## [Não lançado]
 
+### Adicionado (fase 7)
+- App Android Pace Lab: lê os treinos do Samsung Health com GPS e os envia ao PC ao abrir, ao voltar e no botão Sincronizar.
+- Esteira e musculação entram sem mapa; a distância sai da velocidade do relógio. Comando `treino reprocessar-app`.
+- Atualização do app sem cabo: `treino publicar-app` no PC e o botão Atualizar no celular.
+- Página Conectar celular com QR que abre o app já conectado.
+
+### Corrigido
+- Parciais dos treinos vindos do relógio: ritmos impossíveis (1:16/km) e FC faltando por km, porque GPS e sensores chegam com horários desencontrados. Treinos já recebidos corrigidos com `treino reprocessar-app`.
+
+### Removido
+- Sincronização por HC Webhook (cliente, agendador, `treino sincronizar`, `HC_URL`, `HC_TOKEN`, `SYNC_*` do `.env`). O celular passa a enviar os treinos.
+
 ## [0.6.0] - 2026-11-10 (fase 6)
 
 ### Adicionado

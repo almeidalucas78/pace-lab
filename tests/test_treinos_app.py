@@ -15,8 +15,9 @@ H = {"Authorization": "Bearer teste"}
 INICIO = datetime(2026, 11, 3, 21, 18, 0, tzinfo=timezone.utc)   # 18:18 em Brasília
 
 
-def corrida(id_="sh-1", segundos=1000, vel=3.0, fc=150, inicio=INICIO, com_gps=True):
-    """Corrida sintética: 1 registro e 1 ponto de GPS por segundo, rumo ao norte a `vel` m/s."""
+def corrida(id_="sh-1", segundos=1000, vel=3.0, fc=150, inicio=INICIO, com_gps=True, desvio_gps_ms=0):
+    """Corrida sintética: 1 registro e 1 ponto de GPS por segundo, rumo ao norte a `vel` m/s.
+    `desvio_gps_ms`: o relógio real grava o GPS uns 100 ms depois dos sensores."""
     ms0 = int(inicio.timestamp() * 1000)
     dlat = vel / 111_320
     return {
@@ -26,7 +27,7 @@ def corrida(id_="sh-1", segundos=1000, vel=3.0, fc=150, inicio=INICIO, com_gps=T
         "cadencia_media": 170, "ganho_elevacao_m": 12, "vo2max": 47.5,
         "registros": [{"t": ms0 + i * 1000, "fc": fc if i != 500 else 0, "vel": vel, "cad": 170}
                       for i in range(segundos)],
-        "percurso": [{"t": ms0 + i * 1000, "lat": -23.5 + i * dlat, "lon": -46.6, "alt": 750 + i / 100}
+        "percurso": [{"t": ms0 + i * 1000 + desvio_gps_ms, "lat": -23.5 + i * dlat, "lon": -46.6, "alt": 750 + i / 100}
                      for i in range(segundos)] if com_gps else [],
     }
 
@@ -43,6 +44,20 @@ def test_tipos_e_juncao_dos_pontos():
     assert [p.time.second for p in pontos] == [1, 2, 3]
     assert pontos[0].hr is None and pontos[0].lat == -23.5     # FC 0 do relógio vira "sem leitura"
     assert pontos[1].hr == 150 and pontos[1].lat is None
+
+
+def test_gps_fora_de_sincronia_com_os_sensores(db):
+    """Galaxy Watch: GPS, FC e velocidade em registros e horários próprios. Próximos (< 0,5 s) viram um ponto;
+    mais afastados ficam intercalados e as parciais ainda precisam sair certas (antes davam 1:16/km)."""
+    pontos = juntar_pontos([{"t": 1000, "fc": 150}, {"t": 1050, "vel": 3, "cad": 160}, {"t": 2000, "fc": 151}],
+                           [{"t": 1100, "lat": -23.5, "lon": -46.6}, {"t": 2100, "lat": -23.4, "lon": -46.6}])
+    assert len(pontos) == 2 and pontos[0].hr == 150 and pontos[0].speed == 3 and pontos[0].lat == -23.5
+    assert pontos[1].hr == 151 and pontos[1].lat == -23.4
+    with TestClient(app) as c:
+        tid = c.post("/api/saude/treinos", json=lote(corrida(desvio_gps_ms=500)), headers=H).json()["novos_ids"][0]
+        d = c.get(f"/api/activities/{tid}", headers=H).json()
+    assert all(p["ritmo"] in ("5:32/km", "5:33/km", "5:34/km") for p in d["parciais"][:3])
+    assert all(p["fc_media"] == 150 for p in d["parciais"][:3])
 
 
 def test_converter_resumo():

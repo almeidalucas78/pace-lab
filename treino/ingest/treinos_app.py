@@ -68,18 +68,37 @@ def _positivo(v):
 
 def juntar_pontos(registros: list[dict], percurso: list[dict]) -> list[Point]:
     """Une registros (FC, velocidade, cadência) e percurso (GPS) pelo horário, em ordem."""
-    por_t: dict[int, Point] = {}
-    for r in registros:
-        p = por_t.setdefault(int(r["t"]), Point(time=_ms(r["t"])))
-        p.hr = _positivo(r.get("fc"))          # o relógio grava 0 quando perde a FC
-        p.speed = r.get("vel")
-        p.cadence = _positivo(r.get("cad"))
-    for g in percurso:
-        if not gps_valido(g["lat"], g["lon"]):
+    pontos = [Point(time=_ms(r["t"]), hr=_positivo(r.get("fc")),   # o relógio grava 0 quando perde a FC
+                    speed=r.get("vel"), cadence=_positivo(r.get("cad"))) for r in registros]
+    pontos += [Point(time=_ms(g["t"]), lat=g["lat"], lon=g["lon"], ele=g.get("alt"))
+               for g in percurso if gps_valido(g["lat"], g["lon"])]
+    return mesclar_proximos(pontos)
+
+
+JANELA_MESCLA_S = 0.5
+
+
+CAMPOS_MESCLA = ("lat", "hr", "speed", "cadence")   # lon e ele andam junto com lat
+
+
+def mesclar_proximos(pontos: list[Point]) -> list[Point]:
+    """O Samsung Health grava GPS, FC e velocidade/cadência em registros e horários próprios, a frações de
+    segundo uns dos outros. Separados, viram pontos intercalados. Junta cada ponto ao anterior quando estão
+    a menos de 0,5 s e nenhum campo aparece nos dois (nada é sobrescrito)."""
+    out: list[Point] = []
+    for p in sorted(pontos, key=lambda x: x.time):
+        q = out[-1] if out else None
+        if (q is not None and (p.time - q.time).total_seconds() < JANELA_MESCLA_S
+                and not any(getattr(q, c) is not None and getattr(p, c) is not None for c in CAMPOS_MESCLA)):
+            if p.lat is not None:
+                q.lat, q.lon, q.ele = p.lat, p.lon, p.ele
+            for c in ("hr", "speed", "cadence"):
+                if getattr(p, c) is not None:
+                    setattr(q, c, getattr(p, c))
             continue
-        p = por_t.setdefault(int(g["t"]), Point(time=_ms(g["t"])))
-        p.lat, p.lon, p.ele = g["lat"], g["lon"], g.get("alt")
-    return [por_t[t] for t in sorted(por_t)]
+        out.append(Point(time=p.time, lat=p.lat, lon=p.lon, ele=p.ele, hr=p.hr,
+                         cadence=p.cadence, speed=p.speed, dist=p.dist))
+    return out
 
 
 def gps_valido(lat: float | None, lon: float | None) -> bool:

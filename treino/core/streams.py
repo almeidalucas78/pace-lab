@@ -12,6 +12,7 @@ from ..ingest.files import Point
 
 MOVING_SPEED = {"run": 0.9, "walk": 0.4, "ride": 1.5}  # m/s mínimos para contar como "em movimento"
 MAX_GAP_S = 15          # intervalo maior que isso entre leituras = pausa
+JANELA_MOVIMENTO_S = 3  # janela para decidir se está em movimento (parciais)
 MAX_GPS_SPEED = 12.0    # m/s; acima disso o trecho é salto de GPS
 HR_MIN, HR_MAX_ABS = 30, 230
 HR_SPIKE_BPM, HR_SPIKE_WINDOW_S = 25, 2
@@ -133,14 +134,19 @@ def _splits(samples: list[CleanSample], sport: str) -> list[dict]:
     acc_t = 0.0
     hr_sum = hr_t = 0.0
     ele_start = next((s.ele_m for s in samples if s.ele_m is not None), None)
+    com_dist = [s for s in samples if s.dist_m is not None]
+    j = 0
     prev = None
-    for s in samples:
-        if s.dist_m is None:
-            continue
+    for i, s in enumerate(com_dist):
+        # velocidade numa janela de alguns segundos: com leituras intercaladas (GPS e sensores em horários
+        # próprios), dois pontos colados dão "3 m em 0,1 s" e "0 m em 0,9 s", e o par sozinho engana
+        while s.t_s - com_dist[j].t_s > JANELA_MOVIMENTO_S:
+            j += 1
+        a = com_dist[j] if j < i else prev
         if prev is not None:
             dt = s.t_s - prev.t_s
-            dd = s.dist_m - prev.dist_m
-            if 0 < dt <= MAX_GAP_S and dd / dt >= thr:
+            vel = (s.dist_m - a.dist_m) / (s.t_s - a.t_s) if s.t_s > a.t_s else 0.0
+            if 0 < dt <= MAX_GAP_S and vel >= thr:
                 acc_t += dt
                 if s.hr is not None:
                     hr_sum += s.hr * dt

@@ -6,12 +6,12 @@ Visão de como o sistema é montado hoje e como ele cresce. As decisões por tr�
 
 ```
             interfaces (só chamam services)
-  ┌──────────┬──────────┬──────────┬──────────┬────────────┐
-  │ CLI      │ API      │ agendador│ MCP      │ chat (IA)  │
-  │ cli.py   │ api/     │scheduler │ ia/mcp_  │ ia/chat.py │
-  │          │          │   .py    │ server.py│ provedores │
-  └────┬─────┴────┬─────┴────┬─────┴────┬─────┴─────┬──────┘
-       └──────────┴──────────┼──────────┴───────────┘
+  ┌──────────┬──────────┬──────────┬────────────┐
+  │ CLI      │ API      │ MCP      │ chat (IA)  │
+  │ cli.py   │ api/     │ ia/mcp_  │ ia/chat.py │
+  │          │          │ server.py│ provedores │
+  └────┬─────┴────┬─────┴────┬─────┴─────┬──────┘
+       └──────────┴─────┬────┴───────────┘
                              ▼
                  services.py  (regras e consultas)
                  ▲           │            ▲
@@ -22,11 +22,11 @@ Visão de como o sistema é montado hoje e como ele cresce. As decisões por tr�
 | Pacote | Papel | Pode depender de |
 |---|---|---|
 | `core/` | Parciais, limpeza de FC, zonas, TRIMP, fitness/fadiga/forma, aderência ao plano | nada do projeto além de `ingest.files.Point` |
-| `ingest/` | Ler fontes e gravar treinos: export do Strava, HC Webhook | `core`, `db` |
+| `ingest/` | Ler fontes e gravar treinos: export do Strava, treinos enviados pelo app Android | `core`, `db` |
 | `db/` | Modelos, sessão, `init_db()` com Alembic | `config` |
 | `services.py` | Única camada de regras e consultas | `core`, `db`, `ingest` |
 | `ia/` | Ferramentas da IA, servidor MCP, provedores, chat | `services` |
-| `api/`, `cli.py`, `scheduler.py` | Interfaces | `services`, `ia` |
+| `api/`, `cli.py` | Interfaces | `services`, `ia` |
 
 O painel web (`web/`, ADR 0011) é um app React separado que fala só com a API, por HTTP:
 
@@ -45,7 +45,9 @@ Em uso normal, `treino servico` serve o build (`web/dist`) na raiz e a API em `/
 
 **Histórico (Strava):** `treino importar-strava export.zip` → `ingest/strava_export.py` lê o `activities.csv` (`strava_csv.py`) e cada arquivo (`files.py`: GPX, TCX, FIT, com ou sem .gz) → `streams_store.save_streams()` → `core/streams.process_points()` limpa e gera amostras e parciais → banco → `services.recompute()`.
 
-**Treinos novos (Health Connect):** agendador ou `treino sincronizar` → `services.sync_health_connect()` → `ingest/hc_client.py` faz `GET /?start=&end=` no celular → `ingest/health_connect.py` converte (cálculo puro) → `ingest/hc_import.py` grava (idempotente pelo id do Health Connect) → `recompute()` → notificação dos treinos novos que não são duplicata.
+**Treinos novos (app Android, ADR 0013):** o plugin `SamsungHealthPlugin.kt` lê o Samsung Health Data SDK (modo desenvolvedor) → `web/src/sync/sincronizar.ts` envia em lotes para `POST /api/saude/treinos` (a marca da última leitura e os treinos já enviados ficam no aparelho) → `services.receive_app_workouts()` → `ingest/treinos_app.converter()` (cálculo puro; ignora GPS (0, 0) de esteira) → `gravar()` (idempotente pelo par fonte e id) → `streams_store.save_streams()` → `recompute()` → notificação dos treinos novos que não são duplicata.
+
+**Atualização do app:** `treino publicar-app` copia o APK compilado para `data/app` e grava a versão; o app consulta `GET /api/app/versao`, baixa `GET /api/app/apk` e entrega ao instalador do Android (`AtualizacaoPlugin.kt`, PackageInstaller). O Android sempre pede confirmação.
 
 **Recálculo (`services.recompute`)**, sempre depois de importar: marca duplicatas (Strava prevalece), resolve a FC máxima (configurada ou estimada), calcula zonas e TRIMP por treino e refaz a série diária de fitness, fadiga e forma.
 
@@ -79,8 +81,8 @@ Tudo em `.env` (modelo em `.env.example`), lido por `config.Settings`. O `.env` 
 | Hoje (PC) | Ao hospedar |
 |---|---|
 | SQLite em `data/` | Postgres, trocando `DATABASE_URL` (migrações do Alembic já servem) |
-| PC puxa do celular (`hc_client`) | HC Webhook envia webhook para a API (endpoint novo em `api/`) |
-| `treino servico` aberto à mão | Docker Compose; o agendador continua dentro do processo |
+| O app envia pelo Tailscale | O app envia pela internet ao endereço público (a rota é a mesma) |
+| `treino servico` aberto à mão | Docker Compose |
 | MCP por stdio | MCP via HTTP com autenticação, como conector customizado no claude.ai |
 | Claude com login da assinatura | Claude com chave de API |
 | Celular via Tailscale | Domínio público com HTTPS |

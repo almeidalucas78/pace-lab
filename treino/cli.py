@@ -105,22 +105,6 @@ def fc():
     typer.echo(f"FC máxima: {v} ({src})")
 
 
-@app.command()
-def sincronizar():
-    """Puxa agora os treinos do celular (HC Webhook) e mostra o resultado."""
-    from .scheduler import run_sync
-    settings = get_settings()
-    if not settings.hc_url:
-        typer.secho("HC_URL vazio no .env: configure o endereço do celular (ex.: http://192.168.0.20:8787).",
-                    fg=typer.colors.YELLOW)
-        raise typer.Exit(code=1)
-    init_db()
-    rep = run_sync(settings)
-    _print(rep)
-    if rep["status"] != "ok":
-        raise typer.Exit(code=1)
-
-
 @app.command("publicar-app")
 def publicar_app(pasta: Path = typer.Argument(
         Path("web/android/app/build/outputs/apk/debug"), help="Pasta do build com o APK e o output-metadata.json")):
@@ -142,7 +126,7 @@ def reprocessar_app():
 
 @app.command("status-sync")
 def status_sync():
-    """Mostra quando foi a última sincronização com o celular e se deu erro."""
+    """Mostra quando o app enviou treinos pela última vez e se deu erro."""
     init_db()
     with session_scope() as s:
         _print(services.sync_status(s, get_settings()))
@@ -257,12 +241,11 @@ def _porta_ocupada(host: str, porta: int) -> str | None:
     return "outro programa está usando essa porta."
 
 
-def _serve(host: str, porta: int, agendador: bool) -> None:
+def _serve(host: str, porta: int) -> None:
     import logging
-    import os
 
     import uvicorn
-    from .api.app import PAINEL, SCHEDULER_ENV
+    from .api.app import PAINEL
     ocupada = _porta_ocupada(host, porta)
     if ocupada:
         typer.secho(f"Não dá para abrir em http://{host}:{porta}: {ocupada}\n"
@@ -275,7 +258,6 @@ def _serve(host: str, porta: int, agendador: bool) -> None:
     for noisy in ("alembic", "httpx"):
         logging.getLogger(noisy).setLevel(logging.WARNING)
     init_db()
-    os.environ[SCHEDULER_ENV] = "1" if agendador else "0"
     if (PAINEL / "index.html").exists():
         typer.secho(f"Painel: http://{host}:{porta}  (API em /api, documentação em /api/docs)", fg=typer.colors.GREEN)
         url_celular = get_settings().painel_url_celular
@@ -289,14 +271,14 @@ def _serve(host: str, porta: int, agendador: bool) -> None:
 
 @app.command()
 def api(host: str = "127.0.0.1", porta: int = 8000):
-    """Sobe a API e o painel sem sincronização automática."""
-    _serve(host, porta, agendador=False)
+    """Sobe a API e o painel."""
+    _serve(host, porta)
 
 
 @app.command()
 def servico(host: str = "127.0.0.1", porta: int = 8000):
-    """Sobe o painel, a API e a sincronização automática do celular (deixe a janela aberta)."""
-    _serve(host, porta, agendador=True)
+    """Sobe o painel e a API; o app no celular envia os treinos (deixe a janela aberta)."""
+    _serve(host, porta)
 
 
 if __name__ == "__main__":

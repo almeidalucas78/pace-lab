@@ -165,7 +165,7 @@ def ver_sensacoes(dias: Annotated[int, Field(ge=1, le=365, description="quantos 
         return services.list_sensations(s, get_settings(), days=dias)
 
 
-@ferramenta("Quando foi a última sincronização com o celular (Health Connect) e se deu erro. Use se o usuário "
+@ferramenta("Quando o app do celular enviou treinos pela última vez e se deu erro. Use se o usuário "
             "disser que um treino recente não aparece.")
 def status_sincronizacao() -> dict:
     with session_scope() as s:

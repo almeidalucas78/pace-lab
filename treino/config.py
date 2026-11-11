@@ -20,13 +20,6 @@ class Settings(BaseSettings):
     fc_repouso: int | None = None
     api_token: str = "troque-este-token"
 
-    # Health Connect via app HC Webhook (servidor HTTP local do celular)
-    hc_url: str = ""                    # ex.: http://192.168.0.20:8787 (vazio = sincronização desligada)
-    hc_token: str = ""                  # token Bearer configurado no app (vazio = sem token)
-    hc_timeout_s: float = 60
-    sync_intervalo_min: int = 30
-    sync_margem_h: int = 48             # relê esse tanto antes da última leitura (o relógio sincroniza com atraso)
-    sync_primeira_janela_dias: int = 30 # janela da primeira leitura, quando ainda não há histórico de sincronização
     notificacoes: bool = True
 
     # Chat com IA

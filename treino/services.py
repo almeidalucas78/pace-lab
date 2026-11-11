@@ -17,9 +17,6 @@ from .core.load import (ENDURANCE_SPORTS, ZONES, daily_series, estimate_fc_max, 
 from .core.aderencia import Sessao, Treino, aderencia
 from .db.models import (Activity, ChatMessage, Conversation, DailyLoad, PlannedSession, Sample, Sensation, Split,
                         SyncState, TrainingPlan)
-from .ingest.hc_client import HCUnavailable
-from .ingest.hc_import import import_payload
-from .ingest.health_connect import parse_payload
 from .ingest.treinos_app import converter as converter_treino_app, gravar as gravar_treinos_app
 
 DUPLICATE_WINDOW = timedelta(minutes=10)
@@ -204,53 +201,23 @@ def overview(session: Session) -> dict:
             "ultima": last.isoformat() if last else None, "arquivos": files}
 
 
-# ---------- sincronização com o Health Connect ----------
-
-HC_SOURCE = "health_connect"
-
+# ---------- situação da sincronização do app ----------
 
 def sync_status(session: Session, settings: Settings) -> dict:
-    st = session.get(SyncState, HC_SOURCE)
-    return {
-        "fonte": HC_SOURCE, "configurada": bool(settings.hc_url),
-        "ultimo_sucesso": _local(st.last_success_utc, settings) if st and st.last_success_utc else None,
-        "ultima_tentativa": _local(st.last_attempt_utc, settings) if st and st.last_attempt_utc else None,
-        "ultimo_erro": st.last_error if st else None,
-        "ultimo_resultado": st.last_result if st else None,
-    }
-
-
-def sync_health_connect(session: Session, settings: Settings, client, now: datetime | None = None) -> dict:
-    """Lê do celular tudo desde a última leitura bem-sucedida (menos a margem), grava, deduplica e recalcula.
-    `client` precisa ter read(start, end) -> dict e levantar HCUnavailable quando o celular não responde."""
-    now = now or datetime.now(timezone.utc)
-    st = session.get(SyncState, HC_SOURCE)
-    if st is None:
-        st = SyncState(source=HC_SOURCE)
-        session.add(st)
-    if st.last_success_utc:
-        start = st.last_success_utc - timedelta(hours=settings.sync_margem_h)
-    else:
-        start = now - timedelta(days=settings.sync_primeira_janela_dias)
-    st.last_attempt_utc = now
-    try:
-        raw = client.read(start, now)
-    except HCUnavailable as e:
-        st.last_error = str(e)
-        return {"status": "indisponivel", "erro": str(e), "novos": []}
-
-    rep = import_payload(session, parse_payload(raw))
-    rc = recompute(session, settings)
-    novos = [activity_summary(a, settings) for a in
-             session.scalars(select(Activity).where(Activity.id.in_(rep["novas_ids"]),
-                                                    Activity.possible_duplicate_of.is_(None))
-                             .order_by(Activity.start_utc))]
-    result = {"status": "ok", "janela": [_local(start, settings), _local(now, settings)],
-              "sessoes_lidas": len(raw.get("exercise") or []), "novas": len(rep["novas_ids"]),
-              "novas_duplicadas": len(rep["novas_ids"]) - len(novos), "atualizadas": rep["atualizadas"],
-              "apagadas": rep["apagadas"], "fc_max": rc["fc_max"], "fc_max_origem": rc["fc_max_origem"]}
-    st.last_success_utc, st.last_error, st.last_result = now, None, result
-    return {**result, "novos": novos}
+    """Última sincronização de cada fonte do app Android (o celular envia; o PC só registra)."""
+    fontes = []
+    for fonte in ("samsung_health", "health_connect"):
+        st = session.get(SyncState, fonte)
+        if st is None:
+            continue
+        fontes.append({
+            "fonte": fonte,
+            "ultimo_sucesso": _local(st.last_success_utc, settings) if st.last_success_utc else None,
+            "ultima_tentativa": _local(st.last_attempt_utc, settings) if st.last_attempt_utc else None,
+            "ultimo_erro": st.last_error,
+            "ultimo_resultado": st.last_result,
+        })
+    return {"fontes": fontes, "aviso": None if fontes else "o app ainda não enviou treinos"}
 
 
 # ---------- fichas para a IA (resumidas, sem dados brutos) ----------
@@ -602,7 +569,7 @@ def reprocess_app_workouts(session: Session, settings: Settings) -> dict:
     (ex.: depois de corrigir o conversor). Não precisa reenviar nada do celular."""
     from .ingest.files import Point
     from .ingest.streams_store import save_streams
-    from .ingest.treinos_app import FONTES, gps_valido
+    from .ingest.treinos_app import FONTES, gps_valido, mesclar_proximos
 
     feitos = 0
     for a in session.scalars(select(Activity).where(Activity.source.in_(FONTES))).all():
@@ -614,6 +581,7 @@ def reprocess_app_workouts(session: Session, settings: Settings) -> dict:
                         lon=s.lon if gps_valido(s.lat, s.lon) else None,
                         ele=s.ele_m if gps_valido(s.lat, s.lon) else None,
                         hr=s.hr_raw, cadence=s.cadence_spm, speed=s.speed_ms) for s in amostras]
+        pontos = mesclar_proximos(pontos)
         save_streams(session, a, pontos, a.source)
         extra = dict(a.extra or {})
         extra["pontos_gps"] = sum(1 for p in pontos if p.lat is not None)

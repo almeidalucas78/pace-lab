@@ -1,13 +1,10 @@
 """API HTTP em /api e o painel web na raiz. Única porta de entrada para painel, chat e (no futuro) celular."""
 from __future__ import annotations
 
-import os
 import secrets
-from contextlib import asynccontextmanager
 from typing import Literal
 
-from fastapi import APIRouter, Depends, FastAPI, HTTPException, Query, Request
-from fastapi.concurrency import run_in_threadpool
+from fastapi import APIRouter, Depends, FastAPI, HTTPException, Query
 from fastapi.middleware.cors import CORSMiddleware
 from fastapi.responses import FileResponse, JSONResponse
 from fastapi.security import HTTPAuthorizationCredentials, HTTPBearer
@@ -19,22 +16,8 @@ from ..db import session_scope
 from ..ia.chat import conversar
 from ..ia.provedores import ErroIA
 from ..notify import describe_new, notify
-from ..scheduler import SyncScheduler
 
-# `treino servico` liga o agendador; `treino api` e os testes não.
-SCHEDULER_ENV = "TREINO_AGENDADOR"
-
-
-@asynccontextmanager
-async def lifespan(app: FastAPI):
-    app.state.scheduler = SyncScheduler(get_settings())
-    if os.environ.get(SCHEDULER_ENV) == "1":
-        app.state.scheduler.start()
-    yield
-    app.state.scheduler.stop()
-
-
-app = FastAPI(title="Treino API", version="0.5.0", lifespan=lifespan,
+app = FastAPI(title="Treino API", version="0.5.0",
               docs_url="/api/docs", openapi_url="/api/openapi.json", redoc_url=None)
 api = APIRouter(prefix="/api")
 
@@ -104,13 +87,6 @@ def load(days: int = Query(90, le=3650), settings: Settings = Depends(auth)):
 def sync_status(settings: Settings = Depends(auth)):
     with session_scope() as s:
         return services.sync_status(s, settings)
-
-
-@api.post("/sync")
-async def sync_now(request: Request, settings: Settings = Depends(auth)):
-    if not settings.hc_url:
-        raise HTTPException(400, "HC_URL não configurado no .env")
-    return await run_in_threadpool(request.app.state.scheduler.run_now)
 
 
 class ChatIn(BaseModel):
