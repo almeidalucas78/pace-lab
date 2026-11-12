@@ -14,11 +14,13 @@ Regra do projeto: decisão com status **aceita** não é reaberta sem perguntar 
 | [0006](0006-agendador-no-servico.md) | Agendador dentro do serviço, iniciado à mão | substituída por 0013 |
 | [0007](0007-migracoes-alembic.md) | Migrações com Alembic | aceita |
 | [0008](0008-chat-e-provedores-de-ia.md) | Ferramentas compartilhadas e provedores de IA intercambiáveis | aceita |
-| [0009](0009-mcp-e-hospedagem.md) | MCP local agora, remoto ao hospedar; Tailscale antes disso | aceita |
+| [0009](0009-mcp-e-hospedagem.md) | MCP local agora, remoto ao hospedar; Tailscale antes disso | aceita (hospedagem detalhada em 0014) |
 | [0010](0010-planos-e-aderencia.md) | Planos de treino e aderência | aceita |
-| [0011](0011-painel-web.md) | Painel web: estrutura, autenticação, chat, gráficos e mapa | aceita |
+| [0011](0011-painel-web.md) | Painel web: estrutura, autenticação, chat, gráficos e mapa | aceita (autenticação substituída por 0014) |
 | [0012](0012-celular-e-pwa.md) | Painel no celular: Tailscale, PWA, QR code e dados guardados | aceita (app pelo navegador substituído por 0013) |
-| [0013](0013-app-android-samsung-health.md) | Pace Lab como app Android lendo o Samsung Health (com GPS) | aceita |
+| [0013](0013-app-android-samsung-health.md) | Pace Lab como app Android lendo o Samsung Health (com GPS) | aceita (envio ao servidor com login em 0014) |
+| [0014](0014-nuvem-com-contas-e-desktop.md) | Nuvem com contas (Oracle, Postgres, login com Google) e desktop em Electron | aceita |
+| [0015](0015-acesso-publico-sessoes-e-testes.md) | Endereço público (Funnel), sessões com cookie seguro e testes em SQLite e Postgres | aceita |
 
 ## Modelo
 

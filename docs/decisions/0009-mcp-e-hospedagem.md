@@ -1,6 +1,6 @@
 # 0009. MCP local agora, remoto ao hospedar; Tailscale antes disso
 
-- Status: aceita
+- Status: aceita; hospedagem detalhada em 0014 (Oracle, Postgres, contas); MCP remoto com OAuth na fase 12
 - Data: 2026-10-27
 
 ## Contexto

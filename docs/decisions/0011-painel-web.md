@@ -1,6 +1,6 @@
 # 0011. Painel web: estrutura, autenticação, chat, gráficos e mapa
 
-- Status: aceita
+- Status: aceita; a autenticação por `API_TOKEN` único foi substituída por contas com login (0014)
 - Data: 2026-10-28
 
 ## Contexto

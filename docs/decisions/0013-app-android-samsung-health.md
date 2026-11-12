@@ -1,6 +1,6 @@
 # 0013. Pace Lab como app Android lendo o Samsung Health (com GPS)
 
-- Status: aceita
+- Status: aceita; com 0014 o app passa a ter login e a enviar ao servidor na Oracle
 - Data: 2026-11-11
 - Substitui: 0002 (treinos novos pelo HC Webhook, com o PC puxando), 0006 (agendador no serviço) e, no celular, 0012 (app instalado pelo navegador)
 
