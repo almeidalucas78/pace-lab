@@ -164,12 +164,13 @@ web/               painel React + TypeScript + Vite (só fala com a API)
 
 ## Documentação do projeto
 
+- [AGENTS.md](AGENTS.md): regras do projeto para pessoas e para qualquer IA (Claude, Gemini)
+- [CONTRIBUTING.md](CONTRIBUTING.md): montar o ambiente e rodar as checagens
+- [docs/processo.md](docs/processo.md): fluxo de trabalho (fases, issues, pull requests)
 - [docs/ROADMAP.md](docs/ROADMAP.md): fases, status e pendências
 - [docs/ARCHITECTURE.md](docs/ARCHITECTURE.md): camadas, fluxos de dados, tabelas e como escalar
 - [docs/decisions/](docs/decisions/README.md): decisões e por que foram tomadas
 - [CHANGELOG.md](CHANGELOG.md): o que mudou em cada versão
+- [SECURITY.md](SECURITY.md): como relatar um problema de segurança
 
-## Próximas fases
-
-4. Planos de treino e aderência
-5. Painel web
+O código está visível, mas sem licença aberta: todos os direitos reservados.

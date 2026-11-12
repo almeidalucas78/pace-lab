@@ -1,6 +1,6 @@
 # Fase 8: fundação de engenharia
 
-- Status: planejada
+- Status: em andamento
 - Planejada em: 2026-11-11 · Concluída em: -
 
 ## Objetivo
@@ -41,8 +41,8 @@ Daqui em diante o Pace Lab é construído como num time profissional: cada taref
 Nenhuma.
 
 ## Etapas
-1. [ ] **Limpeza e publicação**: backup completo do repositório (`git bundle`) fora dele; número do export trocado por exemplo genérico nos arquivos atuais; `git filter-repo` para tirar o número de todos os commits e trocar o e-mail de autor pelo `noreply`; nova auditoria do histórico; push forçado (com o ok do usuário na hora); `git config user.email` do repositório com o `noreply`; o usuário liga no GitHub "manter e-mail privado" e "bloquear pushes que exponham o e-mail"; licença conforme a decisão 1; `SECURITY.md`; o usuário torna o repositório público.
-2. [ ] **Documentação para qualquer IA ou pessoa**: `AGENTS.md` com as regras do projeto (vindas do `CLAUDE.md` e de `.claude/rules/`), `CLAUDE.md` e `GEMINI.md` importando o `AGENTS.md`, `.gemini/settings.json`; regras de pasta em `docs/convencoes/`; `docs/processo.md` com o fluxo (issue, branch, PR, revisão, fechamento de fase) que hoje só existe nas skills; `CONTRIBUTING.md` (montar o ambiente, comandos, checagens).
+1. [x] **Limpeza e publicação**: backup completo do repositório (`git bundle`) fora dele; número do export trocado por exemplo genérico nos arquivos atuais; `git filter-repo` para tirar o número de todos os commits e trocar o e-mail de autor pelo `noreply`; nova auditoria do histórico; push forçado (com o ok do usuário na hora); `git config user.email` do repositório com o `noreply`; o usuário liga no GitHub "manter e-mail privado" e "bloquear pushes que exponham o e-mail"; licença conforme a decisão 1; `SECURITY.md`; o usuário torna o repositório público.
+2. [x] **Documentação para qualquer IA ou pessoa**: `AGENTS.md` com as regras do projeto (vindas do `CLAUDE.md`), `CLAUDE.md` e `GEMINI.md` importando o `AGENTS.md` (sem `.gemini/settings.json`: o `GEMINI.md` já importa); as regras por área continuam em `.claude/rules/` (o Claude Code carrega sozinho; o `AGENTS.md` aponta qual abrir em cada área, em vez de duplicar em `docs/convencoes/`); `docs/processo.md` com o fluxo (issue, branch, PR, revisão, fechamento de fase) que hoje só existe nas skills; `CONTRIBUTING.md` (montar o ambiente, comandos, checagens).
 3. [ ] **Organização das pastas** (decisão 2): mover com `git mv`, ajustar `pyproject.toml`, Alembic, Vite, Capacitor, scripts e docs; testes e build passando.
 4. [ ] **Qualidade local**: `ruff` (lint e formatação) com configuração no `pyproject.toml`, `mypy` gradual (decisão 4), ESLint no painel, script `checagens` (travessão, arquivos proibidos, padrões de dado pessoal, segredos), `pre-commit` rodando a parte rápida antes de cada commit; corrigir o que aparecer.
 5. [ ] **CI no GitHub Actions** (`.github/workflows/ci.yml`), em cada pull request e na `main`: Python (ruff, mypy, pytest), painel (ESLint, tipos, vitest, build), checagens do projeto, `gitleaks` em todo o histórico, `pip-audit` e `npm audit`. Tempo alvo: menos de 5 minutos.

@@ -13,7 +13,7 @@ Status: ⬜ não iniciada · 📝 planejada · 🚧 em andamento · ✅ concluí
 | 5 | Painel web desktop (React) com gráficos e chat | ✅ ([plano](fases/fase-5.md)) |
 | 6 | Painel no celular (responsivo + PWA, via Tailscale) | ✅ ([plano](fases/fase-6.md)) |
 | 7 | Pace Lab como app Android lendo o Samsung Health (com GPS) | ✅ ([plano](fases/fase-7.md)) |
-| 8 | Fundação de engenharia: CI, processo no GitHub, qualidade, segurança e documentação para qualquer IA | 📝 ([plano](fases/fase-8.md)) |
+| 8 | Fundação de engenharia: CI, processo no GitHub, qualidade, segurança e documentação para qualquer IA | 🚧 ([plano](fases/fase-8.md)) |
 | 9 | Nuvem com contas: Oracle, Postgres, login com Google, app Android enviando ao servidor, deploy automático | 📝 ([plano](fases/fase-9.md)) |
 | 10 | Pace Lab Desktop (Electron) com IA: provedores, IA local, Claude pela assinatura | ⬜ |
 | 11 | Musculação (Hevy) | ⬜ |
@@ -40,7 +40,7 @@ Painel no celular pelo Tailscale (`tailscale serve`), instalável como app, cone
 ## Fase 7: app Android e Samsung Health ✅
 App Android Pace Lab (Capacitor, painel embutido) que lê os treinos do Samsung Health com GPS, FC, velocidade e cadência (Samsung Health Data SDK em modo desenvolvedor) e envia ao PC pelo Tailscale ao abrir, ao voltar e no botão Sincronizar; atualização do app pelo próprio app (`treino publicar-app`). HC Webhook e agendador removidos. Detalhes em [fases/fase-7.md](fases/fase-7.md); guia em [celular.md](celular.md).
 
-## Fase 8: fundação de engenharia 📝
+## Fase 8: fundação de engenharia 🚧
 Decidido em 11/11/2026: antes da nuvem, trabalhar como um time profissional. Repositório limpo e público, processo no GitHub (issues, milestones, quadro, pull requests, `main` protegida), CI no GitHub Actions (lint, tipos, testes, segredos, dependências, regras do projeto), Dependabot, documentação de segurança e `AGENTS.md` para qualquer IA (Claude, Gemini) continuar de onde parou. Plano em [fases/fase-8.md](fases/fase-8.md).
 
 ## Fase 9: nuvem com contas 📝
@@ -65,7 +65,7 @@ Conector MCP com OAuth (o app do Claude da pessoa usando o Pace Lab, permitido a
 O usuário quer, um dia, um app "redondo" para amigos ou para a Play Store (10/11/2026). Ainda não é fase; exige revisar decisões aceitas:
 - **Contas de usuário:** hoje um usuário e um token (ADR 0011); precisaria de contas e dados separados por pessoa.
 - **IA:** o chat usa o login da assinatura do Claude, que não pode ser oferecido a terceiros (ADR 0008); seria chave de API ou Gemini.
-- **Hospedagem obrigatória** (fase 8) em vez do PC ligado.
+- **Hospedagem obrigatória** (fase 9) em vez do PC ligado.
 - **Fonte de treinos:** parceria com a Samsung (Samsung Health Data SDK sem modo desenvolvedor) ou Health Connect (sem GPS do Samsung Health); a fase 7 já deixa a leitura atrás de uma "fonte de treinos" para isso.
 - **Registro de musculação próprio:** uma aba "Academia" no Pace Lab no lugar do Hevy (biblioteca de exercícios, descanso, cargas anteriores, offline). Ideia de 11/11/2026; hoje o Hevy com export CSV basta.
 - **Play Store:** política de privacidade, declaração e revisão dos dados de saúde, conta de desenvolvedor (custo a conferir).

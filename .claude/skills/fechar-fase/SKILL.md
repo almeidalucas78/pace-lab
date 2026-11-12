@@ -29,7 +29,7 @@ Abra `docs/fases/fase-$ARGUMENTS.md`:
 - `README.md`: comandos ou configurações novas para o usuário.
 - `.env.example`: variáveis novas.
 - `CHANGELOG.md`: mova o "Não lançado" para uma versão nova com a data; suba a `version` no `pyproject.toml` na mesma numeração.
-- `CLAUDE.md`: só se mudou o mapa do código ou uma regra; mantenha abaixo de 200 linhas.
+- `AGENTS.md`: só se mudou o mapa do código ou uma regra; mantenha abaixo de 200 linhas (o `CLAUDE.md` e o `GEMINI.md` só importam ele).
 
 ## 5. Checagens
 - Nenhum travessão (U+2014) em arquivos do projeto (fora do `.venv`).
