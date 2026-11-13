@@ -1,5 +1,7 @@
 # Pace Lab
 
+[![CI](https://github.com/almeidalucas78/pace-lab/actions/workflows/ci.yml/badge.svg)](https://github.com/almeidalucas78/pace-lab/actions/workflows/ci.yml)
+
 Painel pessoal de corrida. Importa o histórico do Strava, recebe os treinos novos do app Android (Samsung Health, com GPS), calcula métricas, mostra tudo num painel web com gráficos e mapa, e conversa com você sobre os treinos (Claude ou Gemini, no painel, no terminal ou via MCP).
 
 ## Instalar no Windows
