@@ -1,7 +1,7 @@
 # Fase 8: fundação de engenharia
 
-- Status: em andamento
-- Planejada em: 2026-11-11 · Concluída em: -
+- Status: concluída
+- Planejada em: 2026-11-11 · Concluída em: 2026-11-12
 
 ## Objetivo
 Daqui em diante o Pace Lab é construído como num time profissional: cada tarefa é uma issue no GitHub, cada mudança entra por pull request com testes e checagens automáticas (CI), a `main` só recebe código aprovado, as dependências são vigiadas, a segurança tem documento e checklist, e qualquer IA (Claude, Gemini) ou pessoa retoma o trabalho lendo o repositório e a issue aberta. O repositório fica limpo de dados pessoais e público.
@@ -48,12 +48,33 @@ Nenhuma.
 5. [x] **CI no GitHub Actions** (`.github/workflows/ci.yml`), em cada pull request e na `main`: Python (ruff, mypy, pytest), painel (ESLint, tipos, vitest, build), checagens do projeto, `gitleaks` em todo o histórico, `pip-audit` e `npm audit` (dependências do app com qualquer gravidade; ferramentas de build só graves, porque hoje há 6 avisos baixos e moderados em `vite-plugin-pwa` → `workbox-build` → `glob`, só no build). Tempo alvo: menos de 5 minutos. O job com Postgres (ADR 0015) fica para a fase 9, quando o código passar a aceitar Postgres.
 6. [x] **Dependências e segurança**: Dependabot (pip, npm, gradle, actions, pre-commit; espera de 7 dias), alertas e correções de segurança do Dependabot, varredura de segredos com bloqueio no push e relato privado de vulnerabilidade ligados pela API, `docs/seguranca.md` (o que protegemos, de quem e como; checklist do OWASP ASVS nível 1 para a fase 9), pasta `docs/runbooks/` (segredo vazado, restaurar backup, derrubar sessões).
 7. [x] **GitHub organizado** (labels, modelos, milestones 8 a 12, 22 issues, `main` protegida com merge só por squash; o quadro no Projects ficou de fora por escolha do usuário, as milestones bastam por enquanto) (com o `gh`): labels (área, tipo, prioridade), modelos de issue (tarefa, bug, decisão) e de pull request (checklist do `/fechar-fase`), milestones das fases 8 a 12, quadro no GitHub Projects, issues das etapas da fase 9, `main` protegida (só por PR com CI verde). A partir daqui, toda etapa vira branch e PR.
-8. [ ] **Skills e versão** (skills feitas no PR da issue #16; falta a Release): `/planejar-fase` passa a criar a milestone e as issues; `/fechar-fase` passa a conferir o CI e a criar a tag e a Release no GitHub; primeira Release (`v0.7.0`, a da fase 7) criada a partir do CHANGELOG.
+8. [x] **Skills e versão** (PR #29; Release `v0.7.0` publicada): `/planejar-fase` passa a criar a milestone e as issues; `/fechar-fase` passa a conferir o CI e a criar a tag e a Release no GitHub; primeira Release (`v0.7.0`, a da fase 7) criada a partir do CHANGELOG.
 
 ## Critério de pronto
-- [ ] CI verde na `main`; um PR de teste com um teste quebrado é bloqueado; outro com um segredo falso (sintético) é pego pelo `gitleaks`.
-- [ ] Auditoria final do histórico público sem o número do export e sem o e-mail antigo.
-- [ ] Teste manual: no Gemini CLI, na pasta do projeto, `/memory show` mostra as regras do `AGENTS.md`; pedir a ele "qual a próxima tarefa?" e ele achar a issue aberta.
-- [ ] Docs atualizadas (README com selo do CI, CONTRIBUTING, processo, segurança, CHANGELOG).
+- [x] CI verde na `main`; um PR de teste com um teste quebrado é bloqueado (#30: `1 failed, 49 passed`, merge bloqueado); outro com um segredo falso (sintético) é pego pelo `gitleaks` (#31: `generic-api-key`, merge bloqueado). Os dois foram fechados sem merge.
+- [x] Auditoria final do histórico público sem o número do export e sem o e-mail antigo (zero ocorrências; autores só com endereços `noreply`).
+- [ ] Teste manual (com o usuário, issue #17): no Gemini CLI, na pasta do projeto, `/memory show` mostra as regras do `AGENTS.md`; pedir a ele "qual a próxima tarefa?" e ele achar a issue aberta.
+- [x] Docs atualizadas (README com selo do CI, CONTRIBUTING, processo, segurança, CHANGELOG).
 
 ## Resultado (preenchido no fechamento)
+
+**Entrou:**
+- Histórico reescrito (número do export do Strava e e-mail de autor fora de todos os commits), backup em `git bundle`, repositório público sem licença aberta, `SECURITY.md`.
+- `AGENTS.md` com as regras, importado pelo `CLAUDE.md` e pelo `GEMINI.md`; `docs/processo.md`; `CONTRIBUTING.md`.
+- Monorepo: `server/`, `web/`, `android/`, `scripts/`; raiz limpa.
+- Qualidade (ADR 0016): ruff, mypy (rigoroso em `core/`), oxlint, `scripts/checagens.py`, pre-commit, `.gitattributes`. As checagens acharam e corrigiram pequenos problemas (tipos, efeitos do React, erros sem a causa).
+- CI no GitHub Actions (cerca de 1 min): Python, painel, regras do projeto e gitleaks no histórico inteiro.
+- Dependabot com espera de 7 dias; alertas, correções de segurança, varredura de segredos com bloqueio no push e relato privado de vulnerabilidade; `docs/seguranca.md` com o checklist do ASVS 5.0 para a fase 9; três runbooks.
+- GitHub: labels, modelos de issue e de PR, milestones 8 a 12, 22 issues, `main` protegida (PR, CI verde, branch em dia, squash, vale para administradores).
+- Skills integradas ao GitHub; Release `v0.7.0`.
+
+**Mudou em relação ao plano:**
+- oxlint no lugar do ESLint: o `typescript-eslint` não aceita o TypeScript 7 do painel (ADR 0016; reavaliar na #20).
+- Regras por área ficaram em `.claude/rules/` (o `AGENTS.md` aponta qual ler) em vez de cópia em `docs/convencoes/`; sem `.gemini/settings.json` (o `GEMINI.md` importa o `AGENTS.md`).
+- Quadro no GitHub Projects ficou de fora, por escolha do usuário; as milestones bastam.
+- O job de testes com Postgres (ADR 0015) foi para a fase 9, quando o código aceitar Postgres.
+- O Dependabot propôs o Gradle 9, que quebra o build com o AGP 8 do Capacitor (o CI não compila o Android); PR fechado e versão principal do Gradle ignorada até o Capacitor mudar.
+
+**Pendente:**
+- Teste manual no Gemini CLI (#17), que depende de o usuário instalar e entrar no Gemini CLI.
+- Compilar o Android no CI (#18), apertar o mypy fora do `core/` (#19).
