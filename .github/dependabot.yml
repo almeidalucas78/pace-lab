@@ -38,6 +38,12 @@ updates:
       default-days: 7
     commit-message:
       prefix: "build(deps)"
+    ignore:
+      # O Gradle 9.6+ quebra o AGP 8 usado pelo Capacitor (testado no PR #1); só sobe junto com o Capacitor.
+      - dependency-name: "gradle-wrapper"
+        update-types: ["version-update:semver-major"]
+      - dependency-name: "com.android.tools.build:gradle"
+        update-types: ["version-update:semver-major"]
 
   - package-ecosystem: github-actions
     directory: /
