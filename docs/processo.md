@@ -31,7 +31,7 @@ fase no ROADMAP → plano (docs/fases/fase-N.md) → milestone e issues no GitHu
 
 ## 3. Pull request
 
-1. Abrir com o modelo do repositório; o corpo diz `Fecha #NUMERO`, o que mudou, como foi testado e o que ficou de fora.
+1. Abrir com o modelo do repositório; o corpo diz `Closes #NUMERO` (o GitHub só fecha a issue com as palavras-chave em inglês: close, fix, resolve), o que mudou, como foi testado e o que ficou de fora.
 2. O CI precisa ficar verde. Se falhar, corrigir na mesma branch.
 3. Revisão: o usuário aprova (ou pede ajuste). Uma IA pode revisar antes (`/code-review` no Claude Code), mas o merge é do usuário ou com o ok dele.
 4. Merge por "squash", com a mensagem no padrão de commit. A branch é apagada.

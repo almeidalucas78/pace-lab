@@ -47,7 +47,7 @@ Abra `docs/fases/fase-$ARGUMENTS.md`:
 - Texto do pull request e da Release sem dados reais (GPS, nomes de rede ou de aparelho, tokens).
 
 ## 7. Pull request de fechamento
-Mostre o resumo das mudanças. Com o ok do usuário: commit `docs: fecha a fase $ARGUMENTS`, push da branch, `gh pr create` com o modelo do repositório (corpo com o resumo da fase e `Fecha #...` das issues de fechamento, se houver). Espere o CI ficar verde; o merge é do usuário (ou com o ok dele).
+Mostre o resumo das mudanças. Com o ok do usuário: commit `docs: fecha a fase $ARGUMENTS`, push da branch, `gh pr create` com o modelo do repositório (corpo com o resumo da fase e `Closes #...` das issues que o PR conclui; o GitHub só reconhece as palavras-chave em inglês). Espere o CI ficar verde; o merge é do usuário (ou com o ok dele).
 
 ## 8. Tag e Release (depois do merge, com o ok do usuário)
 1. `git checkout main; git pull`.
