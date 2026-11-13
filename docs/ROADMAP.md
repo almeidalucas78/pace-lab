@@ -13,7 +13,7 @@ Status: ⬜ não iniciada · 📝 planejada · 🚧 em andamento · ✅ concluí
 | 5 | Painel web desktop (React) com gráficos e chat | ✅ ([plano](fases/fase-5.md)) |
 | 6 | Painel no celular (responsivo + PWA, via Tailscale) | ✅ ([plano](fases/fase-6.md)) |
 | 7 | Pace Lab como app Android lendo o Samsung Health (com GPS) | ✅ ([plano](fases/fase-7.md)) |
-| 8 | Fundação de engenharia: CI, processo no GitHub, qualidade, segurança e documentação para qualquer IA | 🚧 ([plano](fases/fase-8.md)) |
+| 8 | Fundação de engenharia: CI, processo no GitHub, qualidade, segurança e documentação para qualquer IA | ✅ ([plano](fases/fase-8.md)) |
 | 9 | Nuvem com contas: Oracle, Postgres, login com Google, app Android enviando ao servidor, deploy automático | 📝 ([plano](fases/fase-9.md)) |
 | 10 | Pace Lab Desktop (Electron) com IA: provedores, IA local, Claude pela assinatura | ⬜ |
 | 11 | Musculação (Hevy) | ⬜ |
@@ -40,8 +40,8 @@ Painel no celular pelo Tailscale (`tailscale serve`), instalável como app, cone
 ## Fase 7: app Android e Samsung Health ✅
 App Android Pace Lab (Capacitor, painel embutido) que lê os treinos do Samsung Health com GPS, FC, velocidade e cadência (Samsung Health Data SDK em modo desenvolvedor) e envia ao PC pelo Tailscale ao abrir, ao voltar e no botão Sincronizar; atualização do app pelo próprio app (`treino publicar-app`). HC Webhook e agendador removidos. Detalhes em [fases/fase-7.md](fases/fase-7.md); guia em [celular.md](celular.md).
 
-## Fase 8: fundação de engenharia 🚧
-Decidido em 11/11/2026: antes da nuvem, trabalhar como um time profissional. Repositório limpo e público, processo no GitHub (issues, milestones, quadro, pull requests, `main` protegida), CI no GitHub Actions (lint, tipos, testes, segredos, dependências, regras do projeto), Dependabot, documentação de segurança e `AGENTS.md` para qualquer IA (Claude, Gemini) continuar de onde parou. Plano em [fases/fase-8.md](fases/fase-8.md).
+## Fase 8: fundação de engenharia ✅
+Repositório limpo e público; pastas `server/`, `web/`, `android/`, `scripts/`; `AGENTS.md` para qualquer IA (Claude, Gemini); ruff, mypy, oxlint, checagens do projeto e pre-commit (ADR 0016); CI no GitHub Actions; Dependabot e segurança do GitHub ligadas; issues, milestones e `main` protegida (tudo por pull request). Pendências viraram issues no GitHub. Detalhes em [fases/fase-8.md](fases/fase-8.md).
 
 ## Fase 9: nuvem com contas 📝
 Servidor na Oracle Always Free (API, Postgres, painel web), contas com login por Google e por e-mail e senha, dados separados por usuário, os dados atuais migrados, app Android com login enviando direto ao servidor, backup diário. Decisões no [ADR 0014](decisions/0014-nuvem-com-contas-e-desktop.md); plano em [fases/fase-9.md](fases/fase-9.md). Inclui o deploy automático (CD).
@@ -71,6 +71,8 @@ O usuário quer, um dia, um app "redondo" para amigos ou para a Play Store (10/1
 - **Play Store:** política de privacidade, declaração e revisão dos dados de saúde, conta de desenvolvedor (custo a conferir).
 
 ## Pendências de validação
+
+Desde a fase 8, pendências novas viram issues no GitHub (label `tipo: validação`); a lista abaixo fica como histórico.
 
 - [x] ~~**Celular:** ver um JSON real do HC Webhook (`GET /?days=2` depois de uma corrida) e ajustar `ingest/health_connect.py`: valores de `type`, se `metadata` vem na sessão, resolução da FC, granularidade da distância, se existe rota/GPS.~~ Obsoleto: o HC Webhook foi removido na fase 7.
 - [x] ~~**Celular:** token do servidor local do HC Webhook.~~ Obsoleto: HC Webhook removido na fase 7.
