@@ -1,4 +1,5 @@
 """Ambiente do Alembic. Usa a conexão passada por init_db ou, na linha de comando, o DATABASE_URL do .env."""
+
 from alembic import context
 from sqlalchemy import create_engine
 
@@ -8,8 +9,9 @@ from treino.db.models import Base
 
 def _run(connection) -> None:
     # render_as_batch: o SQLite não altera colunas no lugar; o Alembic recria a tabela.
-    context.configure(connection=connection, target_metadata=Base.metadata,
-                      render_as_batch=connection.dialect.name == "sqlite")
+    context.configure(
+        connection=connection, target_metadata=Base.metadata, render_as_batch=connection.dialect.name == "sqlite"
+    )
     with context.begin_transaction():
         context.run_migrations()
 

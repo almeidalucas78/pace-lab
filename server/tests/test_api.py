@@ -1,6 +1,5 @@
 from fastapi.testclient import TestClient
 
-from test_ia import db  # noqa: F401
 from treino.api import app as app_mod
 from treino.api.app import app
 
@@ -27,7 +26,7 @@ def test_painel_servido_na_raiz(tmp_path, monkeypatch):
     monkeypatch.setattr(app_mod, "PAINEL", dist)
     with TestClient(app) as c:
         assert c.get("/").text == "<html>painel</html>"
-        assert c.get("/treinos/356").text == "<html>painel</html>"     # rota do React Router
+        assert c.get("/treinos/356").text == "<html>painel</html>"  # rota do React Router
         assert c.get("/assets/app.js").text == "console.log(1)"
         assert "nao" not in c.get("/../segredo.txt").text
         assert "nao" not in c.get("/%2e%2e/segredo.txt").text
@@ -44,6 +43,7 @@ def test_aviso_de_porta_ocupada():
     import socket
 
     from treino.cli import _porta_ocupada
+
     with socket.socket() as s:
         s.bind(("127.0.0.1", 0))
         s.listen()
@@ -54,6 +54,7 @@ def test_aviso_de_porta_ocupada():
 
 def test_config_do_painel_para_o_celular(db, monkeypatch):
     from treino.config import get_settings
+
     monkeypatch.setenv("PAINEL_URL_CELULAR", "")  # independe do .env do usuário
     get_settings.cache_clear()
     with TestClient(app) as c:
@@ -82,11 +83,17 @@ def test_arquivos_do_app_instalavel(tmp_path, monkeypatch):
 
 def test_cors_so_para_o_app_android(db):
     with TestClient(app) as c:
-        pre = c.options("/api/perfil", headers={"Origin": "https://localhost", "Access-Control-Request-Method": "GET",
-                                                "Access-Control-Request-Headers": "authorization"})
+        pre = c.options(
+            "/api/perfil",
+            headers={
+                "Origin": "https://localhost",
+                "Access-Control-Request-Method": "GET",
+                "Access-Control-Request-Headers": "authorization",
+            },
+        )
         assert pre.status_code == 200 and pre.headers["access-control-allow-origin"] == "https://localhost"
         r = c.get("/api/perfil", headers={**H, "Origin": "https://localhost"})
         assert r.headers["access-control-allow-origin"] == "https://localhost"
         outro = c.get("/api/perfil", headers={**H, "Origin": "https://site-qualquer.com"})
         assert "access-control-allow-origin" not in outro.headers
-        assert c.get("/abrir-app").status_code in (200, 404)   # página pública do painel (404 só sem build)
+        assert c.get("/abrir-app").status_code in (200, 404)  # página pública do painel (404 só sem build)

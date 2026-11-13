@@ -1,11 +1,12 @@
 """Leitura dos arquivos de treino (GPX, TCX, FIT, com ou sem .gz) para um formato comum."""
+
 from __future__ import annotations
 
 import gzip
 import io
 import xml.etree.ElementTree as ET
 from dataclasses import dataclass, field
-from datetime import datetime, timezone
+from datetime import UTC, datetime
 
 
 @dataclass
@@ -15,9 +16,9 @@ class Point:
     lon: float | None = None
     ele: float | None = None
     hr: float | None = None
-    cadence: float | None = None   # como vem no arquivo (TCX/FIT de corrida: por perna)
-    speed: float | None = None     # m/s
-    dist: float | None = None      # acumulada, se o arquivo trouxer
+    cadence: float | None = None  # como vem no arquivo (TCX/FIT de corrida: por perna)
+    speed: float | None = None  # m/s
+    dist: float | None = None  # acumulada, se o arquivo trouxer
 
 
 @dataclass
@@ -33,7 +34,7 @@ class UnsupportedFormat(Exception):
 
 def _parse_time(s: str) -> datetime:
     dt = datetime.fromisoformat(s.strip().replace("Z", "+00:00"))
-    return dt if dt.tzinfo else dt.replace(tzinfo=timezone.utc)
+    return dt if dt.tzinfo else dt.replace(tzinfo=UTC)
 
 
 def _strip_ns(root: ET.Element) -> ET.Element:
@@ -64,8 +65,16 @@ def parse_gpx(raw: bytes) -> ParsedFile:
                 hr = _f(ext.text)
             elif ext.tag in ("cad", "cadence"):
                 cad = _f(ext.text)
-        pts.append(Point(time=_parse_time(t), lat=_f(p.get("lat")), lon=_f(p.get("lon")),
-                         ele=_f(p.findtext("ele")), hr=hr, cadence=cad))
+        pts.append(
+            Point(
+                time=_parse_time(t),
+                lat=_f(p.get("lat")),
+                lon=_f(p.get("lon")),
+                ele=_f(p.findtext("ele")),
+                hr=hr,
+                cadence=cad,
+            )
+        )
     return ParsedFile(fmt="gpx", sport_hint=sport or None, points=pts)
 
 
@@ -86,8 +95,12 @@ def parse_tcx(raw: bytes) -> ParsedFile:
         if pos is not None:
             pt.lat = _f(pos.findtext("LatitudeDegrees"))
             pt.lon = _f(pos.findtext("LongitudeDegrees"))
-        for attr, path in (("ele", "AltitudeMeters"), ("hr", "HeartRateBpm/Value"),
-                           ("cadence", "Cadence"), ("dist", "DistanceMeters")):
+        for attr, path in (
+            ("ele", "AltitudeMeters"),
+            ("hr", "HeartRateBpm/Value"),
+            ("cadence", "Cadence"),
+            ("dist", "DistanceMeters"),
+        ):
             v = _f(tp.findtext(path))
             if v is not None:
                 setattr(pt, attr, v)
@@ -109,32 +122,40 @@ def parse_fit(raw: bytes) -> ParsedFile:
         for frame in fit:
             if not isinstance(frame, fitdecode.FitDataMessage):
                 continue
-            if frame.name == "sport" and frame.has_field("sport"):
-                sport = str(frame.get_value("sport"))
-            elif frame.name == "session" and sport is None and frame.has_field("sport"):
+            if (
+                frame.name == "sport"
+                and frame.has_field("sport")
+                or frame.name == "session"
+                and sport is None
+                and frame.has_field("sport")
+            ):
                 sport = str(frame.get_value("sport"))
             elif frame.name == "record" and frame.has_field("timestamp"):
-                def val(*names):
+
+                def val(*names, frame=frame):
                     for n in names:
                         if frame.has_field(n):
                             v = frame.get_value(n)
                             if v is not None:
                                 return v
                     return None
+
                 ts = val("timestamp")
                 if ts.tzinfo is None:
-                    ts = ts.replace(tzinfo=timezone.utc)
+                    ts = ts.replace(tzinfo=UTC)
                 lat, lon = val("position_lat"), val("position_long")
-                pts.append(Point(
-                    time=ts,
-                    lat=lat * SEMICIRCLE if isinstance(lat, int) else None,
-                    lon=lon * SEMICIRCLE if isinstance(lon, int) else None,
-                    ele=val("enhanced_altitude", "altitude"),
-                    hr=val("heart_rate"),
-                    cadence=val("cadence"),
-                    speed=val("enhanced_speed", "speed"),
-                    dist=val("distance"),
-                ))
+                pts.append(
+                    Point(
+                        time=ts,
+                        lat=lat * SEMICIRCLE if isinstance(lat, int) else None,
+                        lon=lon * SEMICIRCLE if isinstance(lon, int) else None,
+                        ele=val("enhanced_altitude", "altitude"),
+                        hr=val("heart_rate"),
+                        cadence=val("cadence"),
+                        speed=val("enhanced_speed", "speed"),
+                        dist=val("distance"),
+                    )
+                )
     return ParsedFile(fmt="fit", sport_hint=sport, points=pts)
 
 

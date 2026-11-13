@@ -73,6 +73,8 @@ export function Chat({ fechar, pagina }: { fechar?: () => void; pagina?: boolean
   // e o React tentava chamá-la como função de limpeza ao enviar ("destroy is not a function").
   useEffect(() => {
     fim.current?.scrollIntoView?.({ behavior: 'smooth' })
+    // As dependências são o gatilho de propósito: rolar quando chega mensagem ou quando começa o envio.
+    // oxlint-disable-next-line react/exhaustive-effect-dependencies
   }, [mensagens.length, enviar.isPending])
 
   function mandar() {

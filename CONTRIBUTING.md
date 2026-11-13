@@ -19,12 +19,21 @@ O app Android (`android/`) precisa também do JDK 21, do Android SDK e do Samsun
 
 ## Checagens antes de abrir um pull request
 
+Uma vez, depois de montar o ambiente: `.\.venv\Scripts\pre-commit.exe install`. A partir daí, cada commit roda as checagens rápidas (ruff, checagens do projeto, oxlint) nos arquivos alterados.
+
+Antes de abrir um pull request, rode tudo:
+
 ```powershell
-.\.venv\Scripts\python.exe -m pytest -q server   # backend
-cd web; npm run build; npm test           # painel: tipos, build e testes
+.\.venv\Scripts\pre-commit.exe run --all-files    # ruff, checagens do projeto, oxlint
+cd server; ..\.venv\Scripts\mypy.exe; cd ..          # tipos do Python
+.\.venv\Scripts\python.exe -m pytest -q server       # testes do backend
+cd web; npm run lint; npm run build; npm test         # painel: lint, tipos, build e testes
 ```
 
-O CI do GitHub roda as mesmas checagens em todo pull request.
+O CI do GitHub roda as mesmas checagens em todo pull request. Por que cada ferramenta: [ADR 0016](docs/decisions/0016-qualidade-de-codigo.md).
+
+### Padrões privados
+Para o `scripts/checagens.py` barrar também dados seus que não podem aparecer no repositório (nome da sua rede, do seu aparelho), escreva um por linha em `data/checagens-locais.txt`. A pasta `data/` nunca vai para o git.
 
 ## Regras que mais pegam
 

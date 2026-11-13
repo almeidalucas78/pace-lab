@@ -69,7 +69,7 @@ export function conectarPorLink(url: string): boolean {
   if (u.protocol !== 'pacelab:' || (u.hostname || u.pathname.replace(/^\/+/, '')) !== 'conectar') return false
   const servidor = u.searchParams.get('servidor')
   const token = u.searchParams.get('token')
-  if (!servidor || !token || !/^https:\/\//.test(servidor)) return false
+  if (!servidor || !token || !servidor.startsWith('https://')) return false
   salvarServidor(servidor)
   salvarToken(token)
   return true

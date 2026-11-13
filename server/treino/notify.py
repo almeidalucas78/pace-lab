@@ -1,4 +1,5 @@
 """Avisos ao usuário. No Windows vira notificação do sistema; em servidor (ou sem winotify) só vai para o log."""
+
 from __future__ import annotations
 
 import logging
@@ -14,6 +15,7 @@ def notify(title: str, message: str, enabled: bool = True) -> None:
         return
     try:
         from winotify import Notification
+
         Notification(app_id=APP_ID, title=title, msg=message).show()
     except Exception as e:  # notificação nunca derruba a sincronização
         log.warning("notificação do Windows falhou: %s", e)

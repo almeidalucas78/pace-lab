@@ -8,6 +8,10 @@ O que mudou em cada fase, escrito para o usuário. Formato inspirado no [Keep a 
 - Pastas reorganizadas: backend em `server/` (instalar com `pip install -e "./server[dev]"`, testes com `pytest -q server`), app Android em `android/`, `iniciar-treino.bat` em `scripts/`.
 - Regras do projeto em `AGENTS.md`, lidas pelo Claude Code e pelo Gemini CLI; fluxo de trabalho em `docs/processo.md`; `CONTRIBUTING.md` e `SECURITY.md`.
 - Repositório público, sem licença aberta (todos os direitos reservados).
+- Checagens de qualidade: ruff e mypy no Python, oxlint no painel, `scripts/checagens.py` (travessão, arquivos proibidos, segredos) e pre-commit antes de cada commit.
+
+### Corrigido
+- Pequenos ajustes apontados pelas checagens (tipos, data de "hoje" na visão geral calculada uma vez, erros encadeados com a causa).
 
 ## [0.7.0] - 2026-11-11 (fase 7)
 

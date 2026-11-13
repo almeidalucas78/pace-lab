@@ -21,7 +21,7 @@ Pace Lab: sistema pessoal para analisar corridas (depois musculação) e montar 
 - Nunca afirme como uma ferramenta, API ou plugin funciona sem checar a documentação oficial ou a web. Se não conseguir verificar, diga.
 - Testes só com dados sintéticos. Nunca colocar os arquivos reais do usuário (têm GPS de onde ele mora) no repositório, nos testes, em issues ou em pull requests.
 - Antes de decisões caras de desfazer (mudar esquema do banco, trocar biblioteca, apagar dados, reescrever histórico), pergunte.
-- Rode os testes (`pytest`; e, se mexeu em `web/`, `npm run build` e `npm test` lá) antes de dizer que algo está pronto.
+- Antes de dizer que algo está pronto, rode as checagens de `CONTRIBUTING.md` (pre-commit, mypy, pytest; e, se mexeu em `web/`, `npm run lint`, `npm run build` e `npm test`).
 - Decisões com status "aceita" em `docs/decisions/` não são reabertas sem perguntar. Decisão nova vira ADR na hora.
 - Commit, push, abrir ou fechar pull request só com o ok do usuário.
 - Mensagens de commit no formato Conventional Commits, com o tipo em inglês e o texto em português: `feat(web): tela de login`, `fix(ingest): parciais do Samsung`, `docs: plano da fase 9`. Tipos: `feat`, `fix`, `docs`, `test`, `refactor`, `chore`, `ci`, `build`.
@@ -89,6 +89,8 @@ data/            banco, APK publicado e sessões do chat (fora do git)
 ## Comandos
 
 ```powershell
+.\.venv\Scripts\pre-commit.exe run --all-files   # ruff, checagens do projeto, oxlint
+cd server; ..\.venv\Scripts\mypy.exe; cd ..         # tipos (rigoroso em core/)
 .\.venv\Scripts\python.exe -m pytest -q server
 .\.venv\Scripts\treino.exe resumo
 .\.venv\Scripts\treino.exe importar-strava "D:\dados\strava\export_<número>.zip"
@@ -96,5 +98,5 @@ data/            banco, APK publicado e sessões do chat (fora do git)
 .\.venv\Scripts\treino.exe publicar-app   # publica o APK compilado para o app se atualizar
 .\.venv\Scripts\treino.exe chat         # --provedor gemini, --conversa N
 .\.venv\Scripts\treino.exe mcp          # --http para 127.0.0.1:8001/mcp
-cd web; npm run build; npm test         # painel (desenvolvimento: npm run dev, em :5173)
+cd web; npm run lint; npm run build; npm test   # painel (desenvolvimento: npm run dev, em :5173)
 ```

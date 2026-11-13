@@ -1,0 +1,9 @@
+# Quebras de linha: LF no repositório; .bat com CRLF (o cmd do Windows exige)
+* text=auto
+*.bat text eol=crlf
+*.cmd text eol=crlf
+gradlew text eol=lf
+*.sh text eol=lf
+*.png binary
+*.ico binary
+*.jar binary

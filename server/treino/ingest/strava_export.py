@@ -1,4 +1,5 @@
 """Importa o export completo do Strava (pasta descompactada ou o próprio .zip)."""
+
 from __future__ import annotations
 
 import gzip
@@ -12,8 +13,8 @@ from sqlalchemy.orm import Session
 
 from ..db.models import Activity
 from .files import UnsupportedFormat, parse_activity_file
-from .streams_store import save_streams
 from .strava_csv import CsvActivity, read_activities_csv
+from .streams_store import save_streams
 
 MAX_JSON_BYTES = 2_000_000
 
@@ -54,8 +55,8 @@ def _apply_summary(a: Activity, c: CsvActivity) -> None:
     a.temp_c, a.humidity, a.file_path = c.temp_c, c.humidity, c.file
 
 
-def _store_streams(session: Session, a: Activity, raw: bytes, c: CsvActivity) -> None:
-    parsed = parse_activity_file(c.file, raw)
+def _store_streams(session: Session, a: Activity, raw: bytes, nome: str) -> None:
+    parsed = parse_activity_file(nome, raw)
     save_streams(session, a, parsed.points, parsed.fmt)
 
 
@@ -74,14 +75,16 @@ def _store_json(a: Activity, raw: bytes, name: str) -> None:
 def import_strava_export(session: Session, path: str | Path, with_streams: bool = True, progress=None) -> dict:
     src = ExportSource(path)
     raw_csv = src.read("activities.csv")
+    if raw_csv is None:
+        raise ValueError("activities.csv não encontrado no export")
     rows = read_activities_csv(raw_csv.decode("utf-8-sig"))
-    status = Counter()
+    status: Counter[str] = Counter()
     errors: list[str] = []
 
     for n, c in enumerate(rows, 1):
         a = session.scalar(select(Activity).where(Activity.source == "strava", Activity.source_id == c.id))
         is_new = a is None
-        if is_new:
+        if a is None:
             a = Activity(source="strava", source_id=c.id)
             session.add(a)
         _apply_summary(a, c)
@@ -101,7 +104,7 @@ def import_strava_export(session: Session, path: str | Path, with_streams: bool 
                     if c.file.endswith((".json", ".json.gz")):
                         _store_json(a, raw, c.file)
                     else:
-                        _store_streams(session, a, raw, c)
+                        _store_streams(session, a, raw, c.file)
                 except UnsupportedFormat:
                     a.file_status = "nao_suportado"
                 except Exception as e:  # um arquivo ruim não derruba a importação

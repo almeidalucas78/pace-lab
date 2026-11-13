@@ -6,16 +6,29 @@ Observações do export real:
   o segundo bloco é numérico (distância em metros). Usamos sempre o segundo quando existir.
 - Cadência de corrida vem por perna.
 """
+
 from __future__ import annotations
 
 import csv
 import io
 import re
 from dataclasses import dataclass
-from datetime import datetime, timezone
+from datetime import UTC, datetime
 
-PT_MONTHS = {"jan": 1, "fev": 2, "mar": 3, "abr": 4, "mai": 5, "jun": 6,
-             "jul": 7, "ago": 8, "set": 9, "out": 10, "nov": 11, "dez": 12}
+PT_MONTHS = {
+    "jan": 1,
+    "fev": 2,
+    "mar": 3,
+    "abr": 4,
+    "mai": 5,
+    "jun": 6,
+    "jul": 7,
+    "ago": 8,
+    "set": 9,
+    "out": 10,
+    "nov": 11,
+    "dez": 12,
+}
 
 # campo -> lista de (nome da coluna, ocorrência). Português primeiro; inglês como alternativa.
 COLUMNS: dict[str, list[tuple[str, int]]] = {
@@ -41,11 +54,22 @@ COLUMNS: dict[str, list[tuple[str, int]]] = {
 REQUIRED = ("id", "date", "type")
 
 SPORTS = {
-    "corrida": "run", "run": "run", "corrida na esteira": "run", "virtual run": "run", "trail run": "run",
-    "caminhada": "walk", "walk": "walk", "hike": "walk", "trilha": "walk",
-    "pedalada": "ride", "ride": "ride", "virtual ride": "ride",
-    "treinamento com peso": "strength", "weight training": "strength",
-    "treino": "workout", "workout": "workout",
+    "corrida": "run",
+    "run": "run",
+    "corrida na esteira": "run",
+    "virtual run": "run",
+    "trail run": "run",
+    "caminhada": "walk",
+    "walk": "walk",
+    "hike": "walk",
+    "trilha": "walk",
+    "pedalada": "ride",
+    "ride": "ride",
+    "virtual ride": "ride",
+    "treinamento com peso": "strength",
+    "weight training": "strength",
+    "treino": "workout",
+    "workout": "workout",
 }
 
 
@@ -77,10 +101,10 @@ def parse_date(s: str) -> datetime:
     m = re.match(r"(\d{1,2}) de (\w{3})\.? de (\d{4}),? (\d{1,2}):(\d{2}):(\d{2})", s)
     if m:
         d, mon, y, hh, mm, ss = m.groups()
-        return datetime(int(y), PT_MONTHS[mon.lower()], int(d), int(hh), int(mm), int(ss), tzinfo=timezone.utc)
+        return datetime(int(y), PT_MONTHS[mon.lower()], int(d), int(hh), int(mm), int(ss), tzinfo=UTC)
     for fmt in ("%b %d, %Y, %I:%M:%S %p", "%b %d, %Y, %H:%M:%S", "%Y-%m-%d %H:%M:%S"):
         try:
-            return datetime.strptime(s, fmt).replace(tzinfo=timezone.utc)
+            return datetime.strptime(s, fmt).replace(tzinfo=UTC)
         except ValueError:
             continue
     raise ValueError(f"data em formato desconhecido: {s!r}")
@@ -140,25 +164,27 @@ def read_activities_csv(text: str) -> list[CsvActivity]:
         if cad is not None and sport == "run":
             cad *= 2  # Strava exporta cadência de corrida por perna (caminhada já vem total)
         text_or_none = lambda v: (v.strip() or None) if v is not None else None
-        out.append(CsvActivity(
-            id=get(row, "id").strip(),
-            start_utc=parse_date(get(row, "date")),
-            sport=sport,
-            sport_raw=sport_raw,
-            name=text_or_none(get(row, "name")),
-            description=text_or_none(get(row, "description")),
-            elapsed_s=_num(get(row, "elapsed_s")),
-            moving_s=_num(get(row, "moving_s")),
-            distance_m=_num(get(row, "distance_m")),
-            elev_gain_m=_num(get(row, "elev_gain_m")),
-            max_hr=_num(get(row, "max_hr")),
-            avg_hr=_num(get(row, "avg_hr")),
-            avg_cadence_spm=cad,
-            calories=_num(get(row, "calories")),
-            rpe=_num(get(row, "rpe")),
-            gear=text_or_none(get(row, "gear")),
-            file=text_or_none(get(row, "file")),
-            temp_c=_num(get(row, "temp_c")),
-            humidity=_num(get(row, "humidity")),
-        ))
+        out.append(
+            CsvActivity(
+                id=get(row, "id").strip(),
+                start_utc=parse_date(get(row, "date")),
+                sport=sport,
+                sport_raw=sport_raw,
+                name=text_or_none(get(row, "name")),
+                description=text_or_none(get(row, "description")),
+                elapsed_s=_num(get(row, "elapsed_s")),
+                moving_s=_num(get(row, "moving_s")),
+                distance_m=_num(get(row, "distance_m")),
+                elev_gain_m=_num(get(row, "elev_gain_m")),
+                max_hr=_num(get(row, "max_hr")),
+                avg_hr=_num(get(row, "avg_hr")),
+                avg_cadence_spm=cad,
+                calories=_num(get(row, "calories")),
+                rpe=_num(get(row, "rpe")),
+                gear=text_or_none(get(row, "gear")),
+                file=text_or_none(get(row, "file")),
+                temp_c=_num(get(row, "temp_c")),
+                humidity=_num(get(row, "humidity")),
+            )
+        )
     return out

@@ -1,47 +1,17 @@
 import asyncio
-import gzip
-import zipfile
 
 import pytest
 from fastapi.testclient import TestClient
 from google.genai import types
 
-from test_basico import make_csv, make_gpx
 from treino import services
 from treino.config import get_settings
-from treino.db import init_db, session_scope
-from treino.db.session import get_engine
+from treino.db import session_scope
 from treino.ia import chat as chat_mod
 from treino.ia.chat import conversar
 from treino.ia.ferramentas import REGISTRO, executar
 from treino.ia.mcp_server import criar_servidor
 from treino.ia.provedores import ErroIA, Gemini, Resposta
-from treino.ingest.strava_export import import_strava_export
-
-
-@pytest.fixture
-def db(tmp_path, monkeypatch):
-    """Banco temporário com duas corridas sintéticas (a segunda é duplicata da primeira) e uma caminhada."""
-    monkeypatch.setenv("DATABASE_URL", f"sqlite:///{tmp_path.as_posix()}/ia.db")
-    monkeypatch.setenv("FC_MAX", "190")
-    monkeypatch.setenv("API_TOKEN", "teste")
-    get_settings.cache_clear()
-    get_engine.cache_clear()
-    init_db()
-    zpath = tmp_path / "export.zip"
-    with zipfile.ZipFile(zpath, "w") as z:
-        z.writestr("activities.csv", make_csv([
-            '10,"20 de out. de 2026, 10:00:00",Corrida A,Corrida,700,"2,00",160,activities/10.gpx.gz,700.0,699.0,2000.0,86.0,150.0',
-            '11,"20 de out. de 2026, 10:03:00",Corrida A copia,Corrida,700,"2,00",160,,700.0,699.0,2000.0,86.0,150.0',
-            '12,"18 de out. de 2026, 10:00:00",Passeio,Caminhada,600,"0,5",120,,600.0,600.0,500.0,110.0,100.0',
-        ]))
-        z.writestr("activities/10.gpx.gz", gzip.compress(make_gpx(n=700)))
-    with session_scope() as s:
-        import_strava_export(s, zpath)
-        services.recompute(s, get_settings())
-    yield
-    get_settings.cache_clear()
-    get_engine.cache_clear()
 
 
 def test_esquemas_das_ferramentas():
@@ -60,7 +30,7 @@ def test_ferramentas_devolvem_fichas(db):
     assert "observacoes_dados" not in card and card["sensacoes"] == []
 
     lista = executar("listar_treinos", {"esporte": "todos"})
-    assert [t["nome"] for t in lista] == ["Corrida A", "Passeio"]          # duplicata fica de fora
+    assert [t["nome"] for t in lista] == ["Corrida A", "Passeio"]  # duplicata fica de fora
 
     reg = executar("registrar_sensacao", {"texto": "pernas pesadas", "rpe": 7, "treino_id": card["id"]})
     assert reg["dia"] == "2026-10-20" and reg["rpe"] == 7
@@ -113,13 +83,16 @@ class GeminiFalso:
             part = types.Part(function_call=types.FunctionCall(id="c1", name="ultimo_treino", args={}))
         else:
             part = types.Part(text="Seu último treino foi bom.")
-        return types.GenerateContentResponse(candidates=[types.Candidate(
-            content=types.Content(role="model", parts=[part]))])
+        return types.GenerateContentResponse(
+            candidates=[types.Candidate(content=types.Content(role="model", parts=[part]))]
+        )
 
 
 def test_gemini_executa_ferramentas_e_devolve_resultado(db):
     falso = GeminiFalso()
-    r = asyncio.run(Gemini(get_settings(), client=falso).responder("e aí?", [("user", "oi"), ("assistant", "olá")], None))
+    r = asyncio.run(
+        Gemini(get_settings(), client=falso).responder("e aí?", [("user", "oi"), ("assistant", "olá")], None)
+    )
     assert r.texto == "Seu último treino foi bom." and r.ferramentas == ["ultimo_treino"]
     ultimo = falso.contents[1][-1].parts[0].function_response
     assert ultimo.id == "c1" and ultimo.response["resultado"]["nome"] == "Corrida A"
@@ -135,6 +108,7 @@ def test_api_de_chat(db, monkeypatch):
     falso = ProvedorFalso()
     monkeypatch.setattr(chat_mod, "criar_provedor", lambda n, s: falso)
     from treino.api.app import app
+
     with TestClient(app) as c:
         h = {"Authorization": "Bearer teste"}
         r = c.post("/api/chat", json={"mensagem": "oi"}, headers=h)
@@ -144,27 +118,46 @@ def test_api_de_chat(db, monkeypatch):
 
         def falha(n, s):
             raise ErroIA("sem cota")
+
         monkeypatch.setattr(chat_mod, "criar_provedor", falha)
         r = c.post("/api/chat", json={"mensagem": "oi"}, headers=h)
         assert r.status_code == 502 and r.json()["detail"] == "sem cota"
 
 
 def test_ferramentas_de_plano(db):
-    plano = executar("salvar_plano", {
-        "titulo": "Base 10 km", "inicio": "2026-10-19", "fim": "2026-10-25", "objetivo": "10 km",
-        "sessoes": [
-            {"dia": "2026-10-20", "esporte": "run", "tipo": "rodagem", "distancia_km": 2, "ritmo_min": "5:30",
-             "ritmo_max": "6:00"},
-            {"dia": "2026-10-21", "esporte": "rest", "tipo": "descanso"},
-            {"dia": "2026-10-23", "esporte": "run", "tipo": "intervalado", "duracao_min": 40, "esforco": 8},
-        ]})
+    plano = executar(
+        "salvar_plano",
+        {
+            "titulo": "Base 10 km",
+            "inicio": "2026-10-19",
+            "fim": "2026-10-25",
+            "objetivo": "10 km",
+            "sessoes": [
+                {
+                    "dia": "2026-10-20",
+                    "esporte": "run",
+                    "tipo": "rodagem",
+                    "distancia_km": 2,
+                    "ritmo_min": "5:30",
+                    "ritmo_max": "6:00",
+                },
+                {"dia": "2026-10-21", "esporte": "rest", "tipo": "descanso"},
+                {"dia": "2026-10-23", "esporte": "run", "tipo": "intervalado", "duracao_min": 40, "esforco": 8},
+            ],
+        },
+    )
     assert plano["status"] == "ativo" and plano["sessoes"][0]["ritmo"] == "5:30/km a 6:00/km"
     sid = plano["sessoes"][0]["id"]
 
     alterada = executar("alterar_sessao", {"sessao_id": sid, "distancia_km": 3, "limpar": ["ritmo_max"]})
     assert alterada["distancia_km"] == 3 and alterada["ritmo"] == "5:30/km a -"
-    assert executar("adicionar_sessao", {"sessao": {"dia": "2026-10-25", "esporte": "run", "tipo": "longao",
-                                                    "distancia_km": 12}})["tipo"] == "longao"
+    assert (
+        executar(
+            "adicionar_sessao",
+            {"sessao": {"dia": "2026-10-25", "esporte": "run", "tipo": "longao", "distancia_km": 12}},
+        )["tipo"]
+        == "longao"
+    )
     assert len(executar("plano_atual", {})["sessoes"]) == 4
 
     rep = executar("aderencia_plano", {})
@@ -172,17 +165,33 @@ def test_ferramentas_de_plano(db):
     assert {l["sessao_id"]: l["status"] for l in rep["sessoes"]}[sid] == "feita"
     assert executar("listar_planos", {})[0]["titulo"] == "Base 10 km"
 
-    assert "erro" in executar("salvar_plano", {"titulo": "x", "inicio": "2026-10-19", "fim": "2026-10-25",
-                                               "sessoes": [{"dia": "2026-11-01", "esporte": "run", "tipo": "rodagem"}]})
+    assert "erro" in executar(
+        "salvar_plano",
+        {
+            "titulo": "x",
+            "inicio": "2026-10-19",
+            "fim": "2026-10-25",
+            "sessoes": [{"dia": "2026-11-01", "esporte": "run", "tipo": "rodagem"}],
+        },
+    )
     assert "erro" in executar("alterar_sessao", {"sessao_id": sid, "ritmo_min": "530"})
-    assert "erro" in executar("adicionar_sessao", {"sessao": {"dia": "2026-10-24", "esporte": "run", "tipo": "fartlek"}})
+    assert "erro" in executar(
+        "adicionar_sessao", {"sessao": {"dia": "2026-10-24", "esporte": "run", "tipo": "fartlek"}}
+    )
 
 
 def test_plano_criado_no_chat_fica_ligado_a_conversa(db):
     class CriaPlano(ProvedorFalso):
         async def responder(self, mensagem, historico, sessao):
-            executar("salvar_plano", {"titulo": "Do chat", "inicio": "2026-10-19", "fim": "2026-10-25",
-                                      "sessoes": [{"dia": "2026-10-20", "esporte": "run", "tipo": "rodagem"}]})
+            executar(
+                "salvar_plano",
+                {
+                    "titulo": "Do chat",
+                    "inicio": "2026-10-19",
+                    "fim": "2026-10-25",
+                    "sessoes": [{"dia": "2026-10-20", "esporte": "run", "tipo": "rodagem"}],
+                },
+            )
             return await super().responder(mensagem, historico, sessao)
 
     r = asyncio.run(conversar("pode salvar", provedor="claude", fabrica=lambda n, s: CriaPlano()))
@@ -198,6 +207,7 @@ class GeminiSobrecarregado(GeminiFalso):
 
     async def generate_content(self, model, contents, config):
         from google.genai import errors
+
         self.modelos.append(model)
         if model == "principal" and (not self.falha_depois or len(self.modelos) > 1):
             raise errors.ServerError(503, {"error": {"code": 503, "message": "high demand", "status": "UNAVAILABLE"}})
@@ -220,8 +230,11 @@ def test_gemini_usa_modelo_de_reserva_quando_o_principal_esta_sobrecarregado(db)
 
 def test_contexto_do_painel_vai_para_a_ia_mas_nao_fica_gravado(db):
     falso = ProvedorFalso()
-    r = asyncio.run(conversar("o que achou?", provedor="claude", fabrica=lambda n, s: falso,
-                              contexto="o usuário está vendo o treino #1"))
+    r = asyncio.run(
+        conversar(
+            "o que achou?", provedor="claude", fabrica=lambda n, s: falso, contexto="o usuário está vendo o treino #1"
+        )
+    )
     assert falso.chamadas[0][0] == "[Contexto do painel: o usuário está vendo o treino #1]\n\no que achou?"
     with session_scope() as s:
         conv = services.conversation_detail(s, get_settings(), r["conversa_id"])

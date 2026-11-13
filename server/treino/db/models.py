@@ -1,5 +1,6 @@
 """Modelos do banco. Funcionam igual em SQLite (PC) e Postgres (hospedado)."""
-from datetime import date, datetime, timezone
+
+from datetime import UTC, date, datetime
 
 from sqlalchemy import JSON, Date, DateTime, Float, ForeignKey, Integer, String, Text, UniqueConstraint
 from sqlalchemy.orm import DeclarativeBase, Mapped, mapped_column, relationship
@@ -8,6 +9,7 @@ from sqlalchemy.types import TypeDecorator
 
 class UTCDateTime(TypeDecorator):
     """Grava sempre em UTC e devolve com fuso, inclusive no SQLite (que perde o fuso)."""
+
     impl = DateTime(timezone=True)
     cache_ok = True
 
@@ -15,14 +17,14 @@ class UTCDateTime(TypeDecorator):
         if value is not None:
             if value.tzinfo is None:
                 raise ValueError("datetime sem fuso horário")
-            value = value.astimezone(timezone.utc)
+            value = value.astimezone(UTC)
             if dialect.name == "sqlite":
                 value = value.replace(tzinfo=None)
         return value
 
     def process_result_value(self, value, dialect):
         if value is not None and value.tzinfo is None:
-            value = value.replace(tzinfo=timezone.utc)
+            value = value.replace(tzinfo=UTC)
         return value
 
 
@@ -35,9 +37,9 @@ class Activity(Base):
     __table_args__ = (UniqueConstraint("source", "source_id", name="uq_activity_source"),)
 
     id: Mapped[int] = mapped_column(primary_key=True)
-    source: Mapped[str] = mapped_column(String(20))              # strava, health_connect...
+    source: Mapped[str] = mapped_column(String(20))  # strava, health_connect...
     source_id: Mapped[str] = mapped_column(String(64))
-    sport: Mapped[str] = mapped_column(String(20), index=True)   # run, walk, ride, strength, workout, other
+    sport: Mapped[str] = mapped_column(String(20), index=True)  # run, walk, ride, strength, workout, other
     sport_raw: Mapped[str | None] = mapped_column(String(60))
     name: Mapped[str | None] = mapped_column(String(200))
     description: Mapped[str | None] = mapped_column(Text)
@@ -52,42 +54,47 @@ class Activity(Base):
     max_hr: Mapped[float | None] = mapped_column(Float)
     avg_cadence_spm: Mapped[float | None] = mapped_column(Float)  # passos/min, as duas pernas
     calories: Mapped[float | None] = mapped_column(Float)
-    rpe: Mapped[float | None] = mapped_column(Float)              # percepção de esforço (1 a 10)
+    rpe: Mapped[float | None] = mapped_column(Float)  # percepção de esforço (1 a 10)
     gear: Mapped[str | None] = mapped_column(String(120))
     temp_c: Mapped[float | None] = mapped_column(Float)
-    humidity: Mapped[float | None] = mapped_column(Float)         # 0 a 1
+    humidity: Mapped[float | None] = mapped_column(Float)  # 0 a 1
 
     # Arquivo de origem e qualidade
     file_path: Mapped[str | None] = mapped_column(String(300))
-    file_status: Mapped[str] = mapped_column(String(20), default="sem_arquivo")  # ok, ausente, erro, sem_arquivo, nao_suportado
+    file_status: Mapped[str] = mapped_column(
+        String(20), default="sem_arquivo"
+    )  # ok, ausente, erro, sem_arquivo, nao_suportado
     file_error: Mapped[str | None] = mapped_column(Text)
-    hr_quality: Mapped[str] = mapped_column(String(30), default="sem_fc")       # ok, suspeita, suspeita_cadencia, sem_fc
+    hr_quality: Mapped[str] = mapped_column(String(30), default="sem_fc")  # ok, suspeita, suspeita_cadencia, sem_fc
     hr_suspect_pct: Mapped[float | None] = mapped_column(Float)
 
     # Métricas calculadas
-    hr_zones_s: Mapped[dict | None] = mapped_column(JSON)         # {"z1": seg, ...}
+    hr_zones_s: Mapped[dict | None] = mapped_column(JSON)  # {"z1": seg, ...}
     trimp: Mapped[float | None] = mapped_column(Float)
     trimp_method: Mapped[str | None] = mapped_column(String(30))  # streams, media_csv
     possible_duplicate_of: Mapped[int | None] = mapped_column(ForeignKey("activities.id", ondelete="SET NULL"))
-    extra: Mapped[dict | None] = mapped_column(JSON)              # detalhes brutos (ex.: musculação)
+    extra: Mapped[dict | None] = mapped_column(JSON)  # detalhes brutos (ex.: musculação)
 
-    samples: Mapped[list["Sample"]] = relationship(back_populates="activity", cascade="all, delete-orphan",
-                                                   order_by="Sample.t_s")
-    splits: Mapped[list["Split"]] = relationship(back_populates="activity", cascade="all, delete-orphan",
-                                                 order_by="Split.km")
+    samples: Mapped[list["Sample"]] = relationship(
+        back_populates="activity", cascade="all, delete-orphan", order_by="Sample.t_s"
+    )
+    splits: Mapped[list["Split"]] = relationship(
+        back_populates="activity", cascade="all, delete-orphan", order_by="Split.km"
+    )
 
 
 class Sample(Base):
     """Uma leitura ao longo do treino (normalmente 1 por segundo)."""
+
     __tablename__ = "samples"
 
     id: Mapped[int] = mapped_column(primary_key=True)
     activity_id: Mapped[int] = mapped_column(ForeignKey("activities.id", ondelete="CASCADE"), index=True)
-    t_s: Mapped[float] = mapped_column(Float)          # segundos desde o início
+    t_s: Mapped[float] = mapped_column(Float)  # segundos desde o início
     lat: Mapped[float | None] = mapped_column(Float)
     lon: Mapped[float | None] = mapped_column(Float)
     ele_m: Mapped[float | None] = mapped_column(Float)
-    hr: Mapped[float | None] = mapped_column(Float)    # já filtrada (leituras suspeitas viram NULL)
+    hr: Mapped[float | None] = mapped_column(Float)  # já filtrada (leituras suspeitas viram NULL)
     hr_raw: Mapped[float | None] = mapped_column(Float)
     cadence_spm: Mapped[float | None] = mapped_column(Float)
     speed_ms: Mapped[float | None] = mapped_column(Float)
@@ -113,6 +120,7 @@ class Split(Base):
 
 class SyncState(Base):
     """Situação da sincronização de cada fonte automática (hoje só o Health Connect)."""
+
     __tablename__ = "sync_state"
 
     source: Mapped[str] = mapped_column(String(30), primary_key=True)
@@ -124,15 +132,16 @@ class SyncState(Base):
 
 class Sensation(Base):
     """Como o usuário se sentiu (registrado pelo chat): cansaço, dor, sono, percepção de esforço."""
+
     __tablename__ = "sensations"
 
     id: Mapped[int] = mapped_column(primary_key=True)
     created_utc: Mapped[datetime] = mapped_column(UTCDateTime)
-    day: Mapped[date] = mapped_column(Date, index=True)            # dia a que a sensação se refere (fuso local)
+    day: Mapped[date] = mapped_column(Date, index=True)  # dia a que a sensação se refere (fuso local)
     activity_id: Mapped[int | None] = mapped_column(ForeignKey("activities.id", ondelete="SET NULL"))
-    rpe: Mapped[float | None] = mapped_column(Float)              # percepção de esforço (1 a 10)
+    rpe: Mapped[float | None] = mapped_column(Float)  # percepção de esforço (1 a 10)
     text: Mapped[str] = mapped_column(Text)
-    tags: Mapped[list | None] = mapped_column(JSON)               # ex.: ["dor_joelho", "sono_ruim"]
+    tags: Mapped[list | None] = mapped_column(JSON)  # ex.: ["dor_joelho", "sono_ruim"]
 
 
 class Conversation(Base):
@@ -141,12 +150,13 @@ class Conversation(Base):
     id: Mapped[int] = mapped_column(primary_key=True)
     created_utc: Mapped[datetime] = mapped_column(UTCDateTime)
     updated_utc: Mapped[datetime] = mapped_column(UTCDateTime, index=True)
-    provider: Mapped[str] = mapped_column(String(20))             # claude, gemini
+    provider: Mapped[str] = mapped_column(String(20))  # claude, gemini
     title: Mapped[str | None] = mapped_column(String(200))
     provider_session_id: Mapped[str | None] = mapped_column(String(100))  # sessão do Claude Agent SDK
 
-    messages: Mapped[list["ChatMessage"]] = relationship(back_populates="conversation", cascade="all, delete-orphan",
-                                                         order_by="ChatMessage.id")
+    messages: Mapped[list["ChatMessage"]] = relationship(
+        back_populates="conversation", cascade="all, delete-orphan", order_by="ChatMessage.id"
+    )
 
 
 class ChatMessage(Base):
@@ -155,49 +165,52 @@ class ChatMessage(Base):
     id: Mapped[int] = mapped_column(primary_key=True)
     conversation_id: Mapped[int] = mapped_column(ForeignKey("conversations.id", ondelete="CASCADE"), index=True)
     created_utc: Mapped[datetime] = mapped_column(UTCDateTime)
-    role: Mapped[str] = mapped_column(String(20))                 # user, assistant
+    role: Mapped[str] = mapped_column(String(20))  # user, assistant
     content: Mapped[str] = mapped_column(Text)
-    meta: Mapped[dict | None] = mapped_column(JSON)               # ferramentas usadas, modelo, uso de tokens
+    meta: Mapped[dict | None] = mapped_column(JSON)  # ferramentas usadas, modelo, uso de tokens
 
     conversation: Mapped[Conversation] = relationship(back_populates="messages")
 
 
 class TrainingPlan(Base):
     """Plano de treino montado na conversa com a IA. Só um com status "ativo" por vez."""
+
     __tablename__ = "training_plans"
 
     id: Mapped[int] = mapped_column(primary_key=True)
     created_utc: Mapped[datetime] = mapped_column(UTCDateTime)
     updated_utc: Mapped[datetime] = mapped_column(UTCDateTime)
     title: Mapped[str] = mapped_column(String(200))
-    goal: Mapped[str | None] = mapped_column(Text)                # objetivo em texto (prova, ritmo, volume)
+    goal: Mapped[str | None] = mapped_column(Text)  # objetivo em texto (prova, ritmo, volume)
     start_date: Mapped[date] = mapped_column(Date)
     end_date: Mapped[date] = mapped_column(Date)
-    status: Mapped[str] = mapped_column(String(20), index=True)   # ativo, arquivado, substituido
+    status: Mapped[str] = mapped_column(String(20), index=True)  # ativo, arquivado, substituido
     replaced_by: Mapped[int | None] = mapped_column(ForeignKey("training_plans.id", ondelete="SET NULL"))
     conversation_id: Mapped[int | None] = mapped_column(ForeignKey("conversations.id", ondelete="SET NULL"))
     notes: Mapped[str | None] = mapped_column(Text)
 
-    sessions: Mapped[list["PlannedSession"]] = relationship(back_populates="plan", cascade="all, delete-orphan",
-                                                            order_by="PlannedSession.day, PlannedSession.id")
+    sessions: Mapped[list["PlannedSession"]] = relationship(
+        back_populates="plan", cascade="all, delete-orphan", order_by="PlannedSession.day, PlannedSession.id"
+    )
 
 
 class PlannedSession(Base):
     """Uma sessão do plano. Todas as metas são opcionais; o casamento com o treino feito é calculado na hora."""
+
     __tablename__ = "planned_sessions"
 
     id: Mapped[int] = mapped_column(primary_key=True)
     plan_id: Mapped[int] = mapped_column(ForeignKey("training_plans.id", ondelete="CASCADE"), index=True)
     day: Mapped[date] = mapped_column(Date, index=True)
-    sport: Mapped[str] = mapped_column(String(20))                # run, walk, ride, strength, workout, rest
-    kind: Mapped[str] = mapped_column(String(20))                 # rodagem, longao, intervalado, ritmo, ...
+    sport: Mapped[str] = mapped_column(String(20))  # run, walk, ride, strength, workout, rest
+    kind: Mapped[str] = mapped_column(String(20))  # rodagem, longao, intervalado, ritmo, ...
     description: Mapped[str | None] = mapped_column(Text)
     target_distance_km: Mapped[float | None] = mapped_column(Float)
     target_duration_min: Mapped[float | None] = mapped_column(Float)
     target_pace_min_s_km: Mapped[float | None] = mapped_column(Float)  # ritmo mais rápido aceito (s/km)
     target_pace_max_s_km: Mapped[float | None] = mapped_column(Float)  # ritmo mais lento aceito (s/km)
-    target_hr_zone: Mapped[str | None] = mapped_column(String(5))      # z1 a z5
-    target_rpe: Mapped[float | None] = mapped_column(Float)            # 1 a 10
+    target_hr_zone: Mapped[str | None] = mapped_column(String(5))  # z1 a z5
+    target_rpe: Mapped[float | None] = mapped_column(Float)  # 1 a 10
     status: Mapped[str] = mapped_column(String(20), default="planejada")  # planejada, cancelada
     notes: Mapped[str | None] = mapped_column(Text)
 
@@ -209,6 +222,6 @@ class DailyLoad(Base):
 
     day: Mapped[date] = mapped_column(Date, primary_key=True)
     trimp: Mapped[float] = mapped_column(Float, default=0.0)
-    fitness: Mapped[float] = mapped_column(Float)   # CTL, média exponencial 42 dias
-    fatigue: Mapped[float] = mapped_column(Float)   # ATL, média exponencial 7 dias
-    form: Mapped[float] = mapped_column(Float)      # TSB = fitness - fadiga do dia anterior
+    fitness: Mapped[float] = mapped_column(Float)  # CTL, média exponencial 42 dias
+    fatigue: Mapped[float] = mapped_column(Float)  # ATL, média exponencial 7 dias
+    form: Mapped[float] = mapped_column(Float)  # TSB = fitness - fadiga do dia anterior

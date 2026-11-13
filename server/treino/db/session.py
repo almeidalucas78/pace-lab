@@ -18,12 +18,14 @@ def get_engine(url: str | None = None) -> Engine:
             db_path.parent.mkdir(parents=True, exist_ok=True)
     engine = create_engine(url, future=True)
     if url.startswith("sqlite"):
+
         @event.listens_for(engine, "connect")
         def _pragmas(dbapi_conn, _):
             cur = dbapi_conn.cursor()
             cur.execute("PRAGMA foreign_keys=ON")
             cur.execute("PRAGMA journal_mode=WAL")
             cur.close()
+
     return engine
 
 

@@ -59,9 +59,9 @@ export function Treino() {
   const treino = useTreino(id)
   const amostras = useAmostras(id)
   const perfil = usePerfil()
-  const t = treino.data
-  useDescreverPagina(t ? `o usuário está vendo o treino #${t.id} (${esporte(t.esporte)} de ${dataCurta(t.data)}`
-    + `${t.distancia_km ? `, ${km(t.distancia_km)}` : ''}); use detalhe_treino com esse id` : null)
+  const atual = treino.data
+  useDescreverPagina(atual ? `o usuário está vendo o treino #${atual.id} (${esporte(atual.esporte)} de ${dataCurta(atual.data)}`
+    + `${atual.distancia_km ? `, ${km(atual.distancia_km)}` : ''}); use detalhe_treino com esse id` : null)
 
   return (
     <Estado consulta={treino}>

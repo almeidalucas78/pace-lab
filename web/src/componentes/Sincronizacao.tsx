@@ -58,6 +58,8 @@ export function Sincronizacao({ fonte = samsungHealth }: { fonte?: FonteTreinos 
   }, [fonte, qc])
 
   useEffect(() => {
+    // Sincronizar ao abrir é falar com um sistema externo (o Samsung Health e o servidor): uso legítimo de efeito.
+    // oxlint-disable-next-line react/set-state-in-effect
     rodar(true)
     const ouvinte = AppNativo.addListener('resume', () => { rodar(false) })
     return () => { ouvinte.then((h) => h.remove()) }

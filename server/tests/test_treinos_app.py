@@ -1,10 +1,10 @@
 """Treinos enviados pelo app Android (ADR 0013), com dados sintéticos no formato do Samsung Health Data SDK."""
-from datetime import datetime, timedelta, timezone
+
+from datetime import UTC, datetime, timedelta
 
 from fastapi.testclient import TestClient
 from sqlalchemy import select
 
-from test_ia import db  # noqa: F401
 from treino.api import app as app_mod
 from treino.api.app import app
 from treino.db import session_scope
@@ -12,7 +12,7 @@ from treino.db.models import Activity, SyncState
 from treino.ingest.treinos_app import converter, esporte, juntar_pontos
 
 H = {"Authorization": "Bearer teste"}
-INICIO = datetime(2026, 11, 3, 21, 18, 0, tzinfo=timezone.utc)   # 18:18 em Brasília
+INICIO = datetime(2026, 11, 3, 21, 18, 0, tzinfo=UTC)  # 18:18 em Brasília
 
 
 def corrida(id_="sh-1", segundos=1000, vel=3.0, fc=150, inicio=INICIO, com_gps=True, desvio_gps_ms=0):
@@ -21,14 +21,27 @@ def corrida(id_="sh-1", segundos=1000, vel=3.0, fc=150, inicio=INICIO, com_gps=T
     ms0 = int(inicio.timestamp() * 1000)
     dlat = vel / 111_320
     return {
-        "id": id_, "tipo": "RUNNING", "inicio": inicio.isoformat(),
-        "fim": (inicio + timedelta(seconds=segundos)).isoformat(), "duracao_s": segundos,
-        "distancia_m": vel * segundos, "calorias": 250, "fc_media": fc, "fc_max": fc + 10,
-        "cadencia_media": 170, "ganho_elevacao_m": 12, "vo2max": 47.5,
-        "registros": [{"t": ms0 + i * 1000, "fc": fc if i != 500 else 0, "vel": vel, "cad": 170}
-                      for i in range(segundos)],
-        "percurso": [{"t": ms0 + i * 1000 + desvio_gps_ms, "lat": -23.5 + i * dlat, "lon": -46.6, "alt": 750 + i / 100}
-                     for i in range(segundos)] if com_gps else [],
+        "id": id_,
+        "tipo": "RUNNING",
+        "inicio": inicio.isoformat(),
+        "fim": (inicio + timedelta(seconds=segundos)).isoformat(),
+        "duracao_s": segundos,
+        "distancia_m": vel * segundos,
+        "calorias": 250,
+        "fc_media": fc,
+        "fc_max": fc + 10,
+        "cadencia_media": 170,
+        "ganho_elevacao_m": 12,
+        "vo2max": 47.5,
+        "registros": [
+            {"t": ms0 + i * 1000, "fc": fc if i != 500 else 0, "vel": vel, "cad": 170} for i in range(segundos)
+        ],
+        "percurso": [
+            {"t": ms0 + i * 1000 + desvio_gps_ms, "lat": -23.5 + i * dlat, "lon": -46.6, "alt": 750 + i / 100}
+            for i in range(segundos)
+        ]
+        if com_gps
+        else [],
     }
 
 
@@ -39,18 +52,22 @@ def lote(*treinos, apagados=()):
 def test_tipos_e_juncao_dos_pontos():
     assert esporte("RUNNING") == "run" and esporte("treadmill") == "run" and esporte("HIKING") == "walk"
     assert esporte("BIKING") == "ride" and esporte("YOGA") == "other"
-    pontos = juntar_pontos([{"t": 2000, "fc": 150, "vel": 3}, {"t": 1000, "fc": 0, "vel": 3}],
-                           [{"t": 1000, "lat": -23.5, "lon": -46.6}, {"t": 3000, "lat": -23.4, "lon": -46.6}])
+    pontos = juntar_pontos(
+        [{"t": 2000, "fc": 150, "vel": 3}, {"t": 1000, "fc": 0, "vel": 3}],
+        [{"t": 1000, "lat": -23.5, "lon": -46.6}, {"t": 3000, "lat": -23.4, "lon": -46.6}],
+    )
     assert [p.time.second for p in pontos] == [1, 2, 3]
-    assert pontos[0].hr is None and pontos[0].lat == -23.5     # FC 0 do relógio vira "sem leitura"
+    assert pontos[0].hr is None and pontos[0].lat == -23.5  # FC 0 do relógio vira "sem leitura"
     assert pontos[1].hr == 150 and pontos[1].lat is None
 
 
 def test_gps_fora_de_sincronia_com_os_sensores(db):
     """Galaxy Watch: GPS, FC e velocidade em registros e horários próprios. Próximos (< 0,5 s) viram um ponto;
     mais afastados ficam intercalados e as parciais ainda precisam sair certas (antes davam 1:16/km)."""
-    pontos = juntar_pontos([{"t": 1000, "fc": 150}, {"t": 1050, "vel": 3, "cad": 160}, {"t": 2000, "fc": 151}],
-                           [{"t": 1100, "lat": -23.5, "lon": -46.6}, {"t": 2100, "lat": -23.4, "lon": -46.6}])
+    pontos = juntar_pontos(
+        [{"t": 1000, "fc": 150}, {"t": 1050, "vel": 3, "cad": 160}, {"t": 2000, "fc": 151}],
+        [{"t": 1100, "lat": -23.5, "lon": -46.6}, {"t": 2100, "lat": -23.4, "lon": -46.6}],
+    )
     assert len(pontos) == 2 and pontos[0].hr == 150 and pontos[0].speed == 3 and pontos[0].lat == -23.5
     assert pontos[1].hr == 151 and pontos[1].lat == -23.4
     with TestClient(app) as c:
@@ -62,6 +79,7 @@ def test_gps_fora_de_sincronia_com_os_sensores(db):
 
 def test_converter_resumo():
     from treino.api.app import TreinoIn
+
     t = converter("samsung_health", TreinoIn(**corrida(segundos=10)).model_dump())
     assert t.esporte == "run" and t.inicio == INICIO and t.extras["vo2max"] == 47.5
     assert t.extras == {"vo2max": 47.5, "pontos_gps": 10, "registros": 10} and len(t.pontos) == 10
@@ -102,8 +120,9 @@ def test_reenvio_e_idempotente_e_apagado_remove(db):
 def test_strava_prevalece_sobre_o_samsung_health(db):
     # a corrida de 20/10 10:00 UTC já existe no banco de teste, vinda do Strava
     with TestClient(app) as c:
-        r = c.post("/api/saude/treinos", json=lote(corrida(inicio=datetime(2026, 10, 20, 10, 2, tzinfo=timezone.utc))),
-                   headers=H).json()
+        r = c.post(
+            "/api/saude/treinos", json=lote(corrida(inicio=datetime(2026, 10, 20, 10, 2, tzinfo=UTC))), headers=H
+        ).json()
     assert r["novos"] == 1 and r["novos_duplicados"] == 1 and r["novos_ids"] == []
     with session_scope() as s:
         sh = s.scalar(select(Activity).where(Activity.source == "samsung_health"))
@@ -136,11 +155,11 @@ def test_esteira_sem_gps_tem_parciais_pela_velocidade(db):
     with TestClient(app) as c:
         tid = c.post("/api/saude/treinos", json=lote(esteira()), headers=H).json()["novos_ids"][0]
         d = c.get(f"/api/activities/{tid}", headers=H).json()
-        assert [p["km"] for p in d["parciais"]] == [1, 2, 3, 4]       # 3,36 km: 3 cheios e o resto
+        assert [p["km"] for p in d["parciais"]] == [1, 2, 3, 4]  # 3,36 km: 3 cheios e o resto
         assert d["observacoes_dados"]["distancia_fonte"] == "velocidade"
         assert d["observacoes_dados"]["pontos_gps"] == 0
         amostras = c.get(f"/api/activities/{tid}/samples?every_s=5", headers=H).json()
-        assert all(a["lat"] is None for a in amostras)                # nada de mapa no meio do oceano
+        assert all(a["lat"] is None for a in amostras)  # nada de mapa no meio do oceano
 
 
 def test_musculacao_com_gps_zerado_fica_sem_gps(db):
@@ -157,6 +176,7 @@ def test_reprocessar_treinos_ja_gravados_com_gps_zerado(db):
     from treino import services
     from treino.config import get_settings
     from treino.db.models import Sample
+
     # simula o que ficou no banco antes da correção: amostras com lat/lon 0 e sem distância
     with TestClient(app) as c:
         tid = c.post("/api/saude/treinos", json=lote(esteira(gps_zerado=False)), headers=H).json()["novos_ids"][0]

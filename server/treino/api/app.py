@@ -1,4 +1,5 @@
 """API HTTP em /api e o painel web na raiz. Única porta de entrada para painel, chat e (no futuro) celular."""
+
 from __future__ import annotations
 
 import secrets
@@ -17,20 +18,26 @@ from ..ia.chat import conversar
 from ..ia.provedores import ErroIA
 from ..notify import describe_new, notify
 
-app = FastAPI(title="Treino API", version="0.5.0",
-              docs_url="/api/docs", openapi_url="/api/openapi.json", redoc_url=None)
+app = FastAPI(
+    title="Treino API", version="0.5.0", docs_url="/api/docs", openapi_url="/api/openapi.json", redoc_url=None
+)
 api = APIRouter(prefix="/api")
 
 # App Android (Capacitor, ADR 0013): o painel roda em https://localhost dentro do app e chama a API pelo
 # endereço do Tailscale. Só essa origem é liberada; o painel no navegador usa o próprio site.
 ORIGEM_APP = "https://localhost"
-app.add_middleware(CORSMiddleware, allow_origins=[ORIGEM_APP], allow_methods=["GET", "POST"],
-                   allow_headers=["Authorization", "Content-Type"])
+app.add_middleware(
+    CORSMiddleware,
+    allow_origins=[ORIGEM_APP],
+    allow_methods=["GET", "POST"],
+    allow_headers=["Authorization", "Content-Type"],
+)
 bearer = HTTPBearer(auto_error=False)
 
 
-def auth(creds: HTTPAuthorizationCredentials | None = Depends(bearer),
-         settings: Settings = Depends(get_settings)) -> Settings:
+def auth(
+    creds: HTTPAuthorizationCredentials | None = Depends(bearer), settings: Settings = Depends(get_settings)
+) -> Settings:
     if creds is None or not secrets.compare_digest(creds.credentials, settings.api_token):
         raise HTTPException(status_code=401, detail="token inválido")
     return settings
@@ -48,8 +55,9 @@ def overview(settings: Settings = Depends(auth)):
 
 
 @api.get("/activities")
-def activities(sport: str | None = None, limit: int = Query(20, le=200), offset: int = 0,
-               settings: Settings = Depends(auth)):
+def activities(
+    sport: str | None = None, limit: int = Query(20, le=200), offset: int = 0, settings: Settings = Depends(auth)
+):
     with session_scope() as s:
         return services.list_activities(s, settings, sport, limit, offset)
 
@@ -101,7 +109,7 @@ async def chat(body: ChatIn, settings: Settings = Depends(auth)):
     try:
         return await conversar(body.mensagem, body.conversa_id, body.provedor, settings, contexto=body.contexto)
     except ErroIA as e:
-        raise HTTPException(502, str(e))
+        raise HTTPException(502, str(e)) from e
 
 
 @api.get("/chat/conversas")
@@ -130,7 +138,7 @@ def _plano(fn):
         with session_scope() as s:
             return fn(s)
     except ValueError as e:
-        raise HTTPException(404, str(e))
+        raise HTTPException(404, str(e)) from e
 
 
 @api.get("/planos")
@@ -187,6 +195,7 @@ def carga_atual(settings: Settings = Depends(auth)):
 
 # ---------- treinos enviados pelo app Android (ADR 0013) ----------
 
+
 class RegistroIn(BaseModel):
     t: int = Field(description="horário em ms desde 1970 (UTC)")
     fc: float | None = Field(None, ge=0, le=260)
@@ -232,12 +241,15 @@ def receber_treinos(lote: LoteTreinos, settings: Settings = Depends(auth)):
         if t.fim <= t.inicio:
             raise HTTPException(422, f"treino {t.id}: fim antes do início")
     with session_scope() as s:
-        rep = services.receive_app_workouts(s, settings, lote.fonte, [t.model_dump() for t in lote.treinos],
-                                            lote.apagados)
+        rep = services.receive_app_workouts(
+            s, settings, lote.fonte, [t.model_dump() for t in lote.treinos], lote.apagados
+        )
     msg = describe_new(rep["treinos_novos"])
     if msg:
         notify(*msg, enabled=settings.notificacoes)
-    return {k: v for k, v in rep.items() if k != "treinos_novos"} | {"novos_ids": [t["id"] for t in rep["treinos_novos"]]}
+    return {k: v for k, v in rep.items() if k != "treinos_novos"} | {
+        "novos_ids": [t["id"] for t in rep["treinos_novos"]]
+    }
 
 
 @api.get("/painel/config")
@@ -261,8 +273,9 @@ def painel(caminho: str):
     if caminho.startswith("api/") or caminho == "api":
         raise HTTPException(404, "rota da API não encontrada")
     if not (PAINEL / "index.html").exists():
-        return JSONResponse({"aviso": "painel não compilado: rode `npm run build` na pasta web",
-                             "api": "/api/docs"}, status_code=404)
+        return JSONResponse(
+            {"aviso": "painel não compilado: rode `npm run build` na pasta web", "api": "/api/docs"}, status_code=404
+        )
     arquivo = (PAINEL / caminho).resolve()
     if caminho and arquivo.is_file() and PAINEL.resolve() in arquivo.parents:
         tipo = TIPOS_PAINEL.get(arquivo.suffix)

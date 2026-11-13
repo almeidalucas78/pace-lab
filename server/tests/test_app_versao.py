@@ -1,4 +1,5 @@
 """Atualização do app Android pelo próprio app: o PC publica o APK e a versão (fase 7, etapa 4b)."""
+
 import json
 
 import pytest
@@ -25,10 +26,24 @@ def build(pasta, codigo, conteudo=b"apk falso", app_id="app.pacelab"):
     """Imita a saída do Gradle: o APK e o output-metadata.json ao lado."""
     pasta.mkdir(parents=True, exist_ok=True)
     (pasta / "app-debug.apk").write_bytes(conteudo)
-    (pasta / "output-metadata.json").write_text(json.dumps({
-        "version": 3, "applicationId": app_id, "variantName": "debug",
-        "elements": [{"type": "SINGLE", "versionCode": codigo, "versionName": f"0.7.{codigo}",
-                      "outputFile": "app-debug.apk"}]}), encoding="utf-8")
+    (pasta / "output-metadata.json").write_text(
+        json.dumps(
+            {
+                "version": 3,
+                "applicationId": app_id,
+                "variantName": "debug",
+                "elements": [
+                    {
+                        "type": "SINGLE",
+                        "versionCode": codigo,
+                        "versionName": f"0.7.{codigo}",
+                        "outputFile": "app-debug.apk",
+                    }
+                ],
+            }
+        ),
+        encoding="utf-8",
+    )
     return pasta
 
 
@@ -47,7 +62,7 @@ def test_publicar_e_baixar(pastas):
         r = c.get("/api/app/apk", headers=H)
         assert r.status_code == 200 and r.content == b"versao 5"
         assert r.headers["content-type"] == "application/vnd.android.package-archive"
-        assert c.get("/api/app/apk").status_code == 401        # o APK também exige o token
+        assert c.get("/api/app/apk").status_code == 401  # o APK também exige o token
 
 
 def test_nao_publica_versao_menor_nem_build_de_outro_app(pastas):

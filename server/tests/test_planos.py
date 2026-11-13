@@ -2,7 +2,6 @@ from datetime import date
 
 import pytest
 
-from test_ia import db  # noqa: F401  (fixture: corrida em 20/10 com duplicata e caminhada em 18/10)
 from treino import services
 from treino.config import get_settings
 from treino.db import session_scope
@@ -20,8 +19,9 @@ def sessoes_base():
 
 
 def criar(s, **kw):
-    return services.create_plan(s, get_settings(), kw.pop("title", "Teste"), D(19), D(25),
-                                kw.pop("sessions", sessoes_base()), **kw)
+    return services.create_plan(
+        s, get_settings(), kw.pop("title", "Teste"), D(19), D(25), kw.pop("sessions", sessoes_base()), **kw
+    )
 
 
 def test_aderencia_com_dados_do_banco(db):
@@ -34,9 +34,9 @@ def test_aderencia_com_dados_do_banco(db):
     assert st == {"2026-10-20": "feita", "2026-10-21": "descanso", "2026-10-22": "perdida"}
     feita = rep["sessoes"][0]
     assert feita["comparacao"]["distancia"]["pct"] == 100
-    assert feita["comparacao"]["zona_fc"]["pct_acima"] == 100   # FC 150 com FC máx 190 = z3, acima da z2
+    assert feita["comparacao"]["zona_fc"]["pct_acima"] == 100  # FC 150 com FC máx 190 = z3, acima da z2
     assert feita["no_alvo"] is False
-    assert rep["extras"] == []                                  # a duplicata não aparece como extra
+    assert rep["extras"] == []  # a duplicata não aparece como extra
     assert rep["resumo"]["pct_feitas"] == 50
 
 
@@ -57,14 +57,25 @@ def test_ajustes_pontuais_e_validacoes(db):
         movida = services.update_session(s, get_settings(), sid, {"day": D(23), "target_pace_max_s_km": None})
         assert movida["dia"] == "2026-10-23" and movida["ritmo"] == "5:00/km a -"
         assert services.update_session(s, get_settings(), sid, {}, cancel=True)["status"] == "cancelada"
-        nova = services.add_session(s, get_settings(), None, {"day": D(25), "sport": "run", "kind": "longao",
-                                                               "target_distance_km": 12})
+        nova = services.add_session(
+            s, get_settings(), None, {"day": D(25), "sport": "run", "kind": "longao", "target_distance_km": 12}
+        )
         assert nova["tipo"] == "longao"
         with pytest.raises(ValueError, match="fora do plano"):
             services.update_session(s, get_settings(), sid, {"day": D(30)})
         with pytest.raises(ValueError, match="invertida"):
-            services.add_session(s, get_settings(), None, {"day": D(24), "sport": "run", "kind": "ritmo",
-                                                           "target_pace_min_s_km": 330, "target_pace_max_s_km": 300})
+            services.add_session(
+                s,
+                get_settings(),
+                None,
+                {
+                    "day": D(24),
+                    "sport": "run",
+                    "kind": "ritmo",
+                    "target_pace_min_s_km": 330,
+                    "target_pace_max_s_km": 300,
+                },
+            )
         with pytest.raises(ValueError, match="tipo inválido"):
             services.add_session(s, get_settings(), None, {"day": D(24), "sport": "run", "kind": "fartlek"})
         with pytest.raises(ValueError, match="fim do plano"):
@@ -76,7 +87,7 @@ def test_arquivar_plano(db):
         pid = criar(s)["id"]
         assert services.archive_plan(s, get_settings(), None)["status"] == "arquivado"
         assert services.active_plan(s) is None
-        assert services.get_plan(s, pid).status == "arquivado"   # continua consultável pelo id
+        assert services.get_plan(s, pid).status == "arquivado"  # continua consultável pelo id
         with pytest.raises(ValueError, match="nenhum plano ativo"):
             services.archive_plan(s, get_settings(), None)
 

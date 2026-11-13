@@ -1,4 +1,5 @@
 """Formatação de valores para leitura humana."""
+
 from __future__ import annotations
 
 

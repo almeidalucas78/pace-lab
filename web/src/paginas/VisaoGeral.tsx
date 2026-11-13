@@ -1,3 +1,4 @@
+import { useState } from 'react'
 import { Link } from 'react-router'
 import { useAderenciaAtiva, useCargaAtual, usePlanoAtivo, useSemanas, useSerieCarga, useTreinos } from '../api/consultas'
 import type { DiaCarga } from '../api/tipos'
@@ -47,7 +48,7 @@ export function VisaoGeral() {
   const ultimo = useTreinos('run', 1, 0)
   const plano = usePlanoAtivo()
   const aderencia = useAderenciaAtiva()
-  const hoje = new Date().toLocaleDateString('sv-SE') // AAAA-MM-DD no fuso do navegador
+  const [hoje] = useState(() => new Date().toLocaleDateString('sv-SE')) // AAAA-MM-DD no fuso do navegador
 
   return (
     <div className="pilha">

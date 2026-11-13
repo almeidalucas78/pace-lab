@@ -1,0 +1,31 @@
+# Checagens rápidas antes de cada commit. Instalar uma vez: .\.venv\Scripts\pre-commit.exe install
+# As lentas (mypy, testes, build) rodam no CI em cada pull request.
+repos:
+  - repo: https://github.com/astral-sh/ruff-pre-commit
+    rev: v0.17.4  # igual ao ruff do server/pyproject.toml
+    hooks:
+      - id: ruff-check
+        args: [--fix]
+        files: ^server/
+      - id: ruff-format
+        files: ^server/
+  - repo: https://github.com/pre-commit/pre-commit-hooks
+    rev: v6.0.0
+    hooks:
+      - id: check-added-large-files
+        args: [--maxkb=1024]
+      - id: check-merge-conflict
+      - id: detect-private-key
+  - repo: local
+    hooks:
+      - id: checagens
+        name: checagens do projeto (travessão, arquivos proibidos, segredos)
+        entry: python scripts/checagens.py
+        language: python
+        types: [text]
+      - id: oxlint
+        name: oxlint (painel)
+        entry: npm --prefix web run lint --silent
+        language: system
+        files: ^web/src/
+        pass_filenames: false

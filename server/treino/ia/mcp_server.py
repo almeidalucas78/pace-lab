@@ -3,6 +3,7 @@
 stdio (padrão): o cliente abre o processo `treino mcp`.
 HTTP: `treino mcp --http` serve em http://127.0.0.1:8001/mcp (só nesta máquina; sem autenticação ainda).
 """
+
 from __future__ import annotations
 
 from mcp.server import MCPServer
@@ -15,6 +16,10 @@ from .prompt import INSTRUCOES_MCP
 def criar_servidor() -> MCPServer:
     mcp = MCPServer("treino", instructions=INSTRUCOES_MCP)
     for f in REGISTRO:
-        mcp.add_tool(f.funcao, name=f.nome, description=f.descricao,
-                     annotations=ToolAnnotations(readOnlyHint=f.somente_leitura))
+        mcp.add_tool(
+            f.funcao,
+            name=f.nome,
+            description=f.descricao,
+            annotations=ToolAnnotations(read_only_hint=f.somente_leitura),
+        )
     return mcp

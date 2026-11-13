@@ -1,15 +1,28 @@
 """Zonas de FC, carga por treino (TRIMP de Edwards) e fitness/fadiga/forma diários."""
+
 from __future__ import annotations
 
 import math
+from collections.abc import Sequence
 from dataclasses import dataclass
 from datetime import date, timedelta
+from typing import Protocol
 
 # Limites em % da FC máxima. z0 = abaixo de 50% (não conta carga).
 ZONES = [("z0", 0.0), ("z1", 0.50), ("z2", 0.60), ("z3", 0.70), ("z4", 0.80), ("z5", 0.90)]
 ZONE_WEIGHT = {"z0": 0, "z1": 1, "z2": 2, "z3": 3, "z4": 4, "z5": 5}
 FITNESS_DAYS, FATIGUE_DAYS = 42, 7
 ENDURANCE_SPORTS = ("run", "walk", "ride")
+
+
+class AmostraFc(Protocol):
+    """Qualquer amostra com tempo e FC: a CleanSample do cálculo ou a Sample do banco."""
+
+    @property
+    def t_s(self) -> float: ...
+
+    @property
+    def hr(self) -> float | None: ...
 
 
 def zone_for(hr: float, fc_max: float) -> str:
@@ -21,14 +34,14 @@ def zone_for(hr: float, fc_max: float) -> str:
     return name
 
 
-def zones_from_samples(samples, fc_max: float) -> dict[str, float]:
+def zones_from_samples(samples: Sequence[AmostraFc], fc_max: float) -> dict[str, float]:
     """Segundos em cada zona, usando o intervalo até a próxima leitura (limitado a 5 s)."""
     out = {z: 0.0 for z, _ in ZONES}
-    hr_samples = [s for s in samples if s.hr is not None]
-    for a, b in zip(hr_samples, hr_samples[1:]):
-        dt = min(b.t_s - a.t_s, 5.0)
+    com_fc = [(s.t_s, s.hr) for s in samples if s.hr is not None]
+    for (ta, hr), (tb, _) in zip(com_fc, com_fc[1:]):
+        dt = min(tb - ta, 5.0)
         if dt > 0:
-            out[zone_for(a.hr, fc_max)] += dt
+            out[zone_for(hr, fc_max)] += dt
     return {k: round(v, 1) for k, v in out.items()}
 
 
@@ -46,7 +59,7 @@ def estimate_fc_max(rolling_maxes: list[float]) -> float | None:
     return round(vals[-1]) if vals else None
 
 
-def rolling_max(samples, window_s: float = 30) -> float | None:
+def rolling_max(samples: Sequence[AmostraFc], window_s: float = 30) -> float | None:
     hr = [(s.t_s, s.hr) for s in samples if s.hr is not None]
     best, j, acc = None, 0, 0.0
     for i, (t, v) in enumerate(hr):

@@ -1,4 +1,5 @@
 """Grava os pontos de um treino (amostras, parciais e notas de qualidade). Usado por todas as fontes."""
+
 from __future__ import annotations
 
 from sqlalchemy import delete, insert
@@ -10,8 +11,7 @@ from ..db.models import Activity, Sample, Split
 from .files import Point
 
 
-def save_streams(session: Session, a: Activity, points: list[Point], fmt: str,
-                 notes: dict | None = None) -> None:
+def save_streams(session: Session, a: Activity, points: list[Point], fmt: str, notes: dict | None = None) -> None:
     res = process_points(points, a.sport, a.distance_m)
     session.execute(delete(Sample).where(Sample.activity_id == a.id))
     session.execute(delete(Split).where(Split.activity_id == a.id))

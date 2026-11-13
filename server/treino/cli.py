@@ -1,4 +1,5 @@
 """Comandos de linha: treino --help"""
+
 from __future__ import annotations
 
 import json
@@ -48,9 +49,12 @@ def importar_strava(
     _print(rep)
     rc = rep["recalculo"]
     if rc["fc_max_origem"] == "estimada":
-        typer.secho(f"\nAtenção: FC máxima ESTIMADA em {rc['fc_max']:.0f} bpm a partir dos seus treinos. "
-                    "Zonas e carga dependem dela; preencha FC_MAX no .env se tiver um valor medido "
-                    "e rode `treino recalcular`.", fg=typer.colors.YELLOW)
+        typer.secho(
+            f"\nAtenção: FC máxima ESTIMADA em {rc['fc_max']:.0f} bpm a partir dos seus treinos. "
+            "Zonas e carga dependem dela; preencha FC_MAX no .env se tiver um valor medido "
+            "e rode `treino recalcular`.",
+            fg=typer.colors.YELLOW,
+        )
 
 
 @app.command()
@@ -68,8 +72,10 @@ def resumo(semanas: int = typer.Option(8, help="Quantas semanas mostrar")):
         _print(services.overview(s))
         typer.echo("\nCorrida por semana (segunda a domingo):")
         for w in services.weekly_summary(s, settings, weeks=semanas):
-            typer.echo(f"  {w['semana']}  {w['treinos']} treino(s)  {w['km']:5.1f} km  "
-                       f"ritmo {w['ritmo_medio'] or '-':>9}  maior {w['maior_treino_km']:4.1f} km  carga {w['carga']}")
+            typer.echo(
+                f"  {w['semana']}  {w['treinos']} treino(s)  {w['km']:5.1f} km  "
+                f"ritmo {w['ritmo_medio'] or '-':>9}  maior {w['maior_treino_km']:4.1f} km  carga {w['carga']}"
+            )
         load = services.load_series(s, days=1)
         if load:
             d = load[-1]
@@ -77,14 +83,17 @@ def resumo(semanas: int = typer.Option(8, help="Quantas semanas mostrar")):
 
 
 @app.command()
-def atividades(esporte: str = typer.Option("run", help="run, walk, ride, strength, workout ou 'todos'"),
-               limite: int = 10):
+def atividades(
+    esporte: str = typer.Option("run", help="run, walk, ride, strength, workout ou 'todos'"), limite: int = 10
+):
     """Lista os treinos mais recentes."""
     with session_scope() as s:
         rows = services.list_activities(s, get_settings(), None if esporte == "todos" else esporte, limite)
     for r in rows:
-        typer.echo(f"#{r['id']:<4} {r['data'][:16]}  {r['esporte']:<8} {r['distancia_km'] or 0:6.2f} km  "
-                   f"{r['ritmo'] or '':>9}  FC {r['fc_media'] or '-'}  carga {r['carga'] or '-'}  {r['nome'] or ''}")
+        typer.echo(
+            f"#{r['id']:<4} {r['data'][:16]}  {r['esporte']:<8} {r['distancia_km'] or 0:6.2f} km  "
+            f"{r['ritmo'] or '':>9}  FC {r['fc_media'] or '-'}  carga {r['carga'] or '-'}  {r['nome'] or ''}"
+        )
 
 
 @app.command()
@@ -106,14 +115,17 @@ def fc():
 
 
 @app.command("publicar-app")
-def publicar_app(pasta: Path = typer.Argument(
-        ROOT / "android/app/build/outputs/apk/debug", help="Pasta do build com o APK e o output-metadata.json")):
+def publicar_app(
+    pasta: Path = typer.Argument(
+        ROOT / "android/app/build/outputs/apk/debug", help="Pasta do build com o APK e o output-metadata.json"
+    ),
+):
     """Publica o APK compilado para o app no celular oferecer a atualização (fase 7)."""
     try:
         _print(services.publish_app(get_settings(), pasta))
     except (FileNotFoundError, ValueError) as e:
         typer.echo(f"Erro: {e}")
-        raise typer.Exit(1)
+        raise typer.Exit(1) from e
 
 
 @app.command("reprocessar-app")
@@ -132,13 +144,22 @@ def status_sync():
         _print(services.sync_status(s, get_settings()))
 
 
-STATUS_SESSAO = {"feita": "ok", "feita_outro_dia": "ok*", "perdida": "X", "futura": "..", "pendente_hoje": "hoje",
-                 "cancelada": "cancel", "descanso": "desc"}
+STATUS_SESSAO = {
+    "feita": "ok",
+    "feita_outro_dia": "ok*",
+    "perdida": "X",
+    "futura": "..",
+    "pendente_hoje": "hoje",
+    "cancelada": "cancel",
+    "descanso": "desc",
+}
 
 
 @app.command()
-def plano(id: int = typer.Argument(None, help="id do plano (padrão: o ativo)"),
-          listar: bool = typer.Option(False, "--listar", help="Mostra o histórico de planos")):
+def plano(
+    id: int = typer.Argument(None, help="id do plano (padrão: o ativo)"),
+    listar: bool = typer.Option(False, "--listar", help="Mostra o histórico de planos"),
+):
     """Plano de treino com a situação de cada sessão (ok* = feita em dia vizinho, X = perdida)."""
     init_db()
     settings = get_settings()
@@ -152,38 +173,51 @@ def plano(id: int = typer.Argument(None, help="id do plano (padrão: o ativo)"),
             metas = {x["id"]: x for x in services.plan_dict(services.get_plan(s, id), settings)["sessoes"]}
         except ValueError as e:
             typer.secho(str(e), fg=typer.colors.YELLOW)
-            raise typer.Exit(code=1)
+            raise typer.Exit(code=1) from e
     p, r = rep["plano"], rep["resumo"]
     typer.echo(f"{p['titulo']} ({p['inicio']} a {p['fim']}, {p['status']})")
     if p.get("objetivo"):
         typer.echo(f"Objetivo: {p['objetivo']}")
     for l in rep["sessoes"]:
         m = metas[l["sessao_id"]]
-        alvo = ", ".join(str(v) for v in (f"{m['distancia_km']} km" if m.get("distancia_km") else None,
-                                           f"{m['duracao_min']:.0f} min" if m.get("duracao_min") else None,
-                                           m.get("ritmo"), m.get("zona_fc")) if v)
+        alvo = ", ".join(
+            str(v)
+            for v in (
+                f"{m['distancia_km']} km" if m.get("distancia_km") else None,
+                f"{m['duracao_min']:.0f} min" if m.get("duracao_min") else None,
+                m.get("ritmo"),
+                m.get("zona_fc"),
+            )
+            if v
+        )
         feito = ""
         if "treino_id" in l:
-            feito = f"  -> treino #{l['treino_id']}" + ("" if l.get("no_alvo") is None else
-                                                          (" no alvo" if l["no_alvo"] else " fora do alvo"))
+            feito = f"  -> treino #{l['treino_id']}" + (
+                "" if l.get("no_alvo") is None else (" no alvo" if l["no_alvo"] else " fora do alvo")
+            )
         typer.echo(f"  {l['dia']} {m['dia_semana']}  {STATUS_SESSAO[l['status']]:<6} {l['tipo']:<12} {alvo}{feito}")
-    for e in rep["extras"]:
-        typer.echo(f"  {e['dia']}      extra  {e['esporte']:<12} treino #{e['treino_id']} {e.get('nome') or ''}")
+    for ex in rep["extras"]:
+        typer.echo(f"  {ex['dia']}      extra  {ex['esporte']:<12} treino #{ex['treino_id']} {ex.get('nome') or ''}")
     if r["sessoes_vencidas"]:
-        typer.echo(f"\nFeitas {r['feitas']} de {r['sessoes_vencidas']} ({r['pct_feitas']}%), "
-                   f"{r['feitas_no_alvo']} no alvo; {r['futuras']} por vir; {r['extras']} extra(s).")
+        typer.echo(
+            f"\nFeitas {r['feitas']} de {r['sessoes_vencidas']} ({r['pct_feitas']}%), "
+            f"{r['feitas_no_alvo']} no alvo; {r['futuras']} por vir; {r['extras']} extra(s)."
+        )
     if rep.get("observacao"):
         typer.secho(rep["observacao"], dim=True)
 
 
 @app.command()
-def chat(provedor: str = typer.Option(None, help="claude ou gemini (padrão: IA_PROVEDOR do .env)"),
-         conversa: int = typer.Option(None, help="id de uma conversa para continuar")):
+def chat(
+    provedor: str = typer.Option(None, help="claude ou gemini (padrão: IA_PROVEDOR do .env)"),
+    conversa: int = typer.Option(None, help="id de uma conversa para continuar"),
+):
     """Conversa com o treinador (IA) no terminal. Linha vazia ou 'sair' encerra."""
     import asyncio
 
     from .ia.chat import conversar
     from .ia.provedores import ErroIA
+
     init_db()
     while True:
         try:
@@ -206,12 +240,15 @@ def chat(provedor: str = typer.Option(None, help="claude ou gemini (padrão: IA_
 
 
 @app.command()
-def mcp(http: bool = typer.Option(False, help="Serve por HTTP em vez de stdio"),
-        porta: int = typer.Option(8001, help="Porta do modo HTTP")):
+def mcp(
+    http: bool = typer.Option(False, help="Serve por HTTP em vez de stdio"),
+    porta: int = typer.Option(8001, help="Porta do modo HTTP"),
+):
     """Servidor MCP com as ferramentas de treino (Claude Desktop, Claude Code, agy)."""
     import logging
 
     from .ia.mcp_server import criar_servidor
+
     logging.basicConfig(level=logging.WARNING)  # stdio: nada pode ir para o stdout além do protocolo
     init_db()
     servidor = criar_servidor()
@@ -226,6 +263,7 @@ def _porta_ocupada(host: str, porta: int) -> str | None:
     import socket
 
     import httpx
+
     with socket.socket() as s:
         s.settimeout(1)
         if s.connect_ex((host, porta)) != 0:
@@ -245,14 +283,18 @@ def _serve(host: str, porta: int) -> None:
     import logging
 
     import uvicorn
+
     from .api.app import PAINEL
+
     ocupada = _porta_ocupada(host, porta)
     if ocupada:
-        typer.secho(f"Não dá para abrir em http://{host}:{porta}: {ocupada}\n"
-                    "Feche a outra janela do Treino ou encerre o processo (Gerenciador de Tarefas > Detalhes, "
-                    f"ou no PowerShell: Get-NetTCPConnection -LocalPort {porta} -State Listen | "
-                    "ForEach-Object { Stop-Process -Id $_.OwningProcess }). Ou use outra porta: --porta 8002.",
-                    fg=typer.colors.RED)
+        typer.secho(
+            f"Não dá para abrir em http://{host}:{porta}: {ocupada}\n"
+            "Feche a outra janela do Treino ou encerre o processo (Gerenciador de Tarefas > Detalhes, "
+            f"ou no PowerShell: Get-NetTCPConnection -LocalPort {porta} -State Listen | "
+            "ForEach-Object { Stop-Process -Id $_.OwningProcess }). Ou use outra porta: --porta 8002.",
+            fg=typer.colors.RED,
+        )
         raise typer.Exit(code=1)
     logging.basicConfig(level=logging.INFO, format="%(asctime)s %(levelname)s %(message)s", datefmt="%H:%M:%S")
     for noisy in ("alembic", "httpx"):
@@ -264,8 +306,11 @@ def _serve(host: str, porta: int) -> None:
         if url_celular:
             typer.secho(f"No celular (Tailscale): {url_celular}  (QR code em Conectar celular)", fg=typer.colors.GREEN)
     else:
-        typer.secho("Painel não compilado: rode `npm install` e `npm run build` na pasta web. "
-                    f"Por enquanto só a API, em http://{host}:{porta}/api/docs", fg=typer.colors.YELLOW)
+        typer.secho(
+            "Painel não compilado: rode `npm install` e `npm run build` na pasta web. "
+            f"Por enquanto só a API, em http://{host}:{porta}/api/docs",
+            fg=typer.colors.YELLOW,
+        )
     uvicorn.run("treino.api.app:app", host=host, port=porta)
 
 

@@ -21,6 +21,7 @@ Regra do projeto: decisão com status **aceita** não é reaberta sem perguntar 
 | [0013](0013-app-android-samsung-health.md) | Pace Lab como app Android lendo o Samsung Health (com GPS) | aceita (envio ao servidor com login em 0014) |
 | [0014](0014-nuvem-com-contas-e-desktop.md) | Nuvem com contas (Oracle, Postgres, login com Google) e desktop em Electron | aceita |
 | [0015](0015-acesso-publico-sessoes-e-testes.md) | Endereço público (Funnel), sessões com cookie seguro e testes em SQLite e Postgres | aceita |
+| [0016](0016-qualidade-de-codigo.md) | Qualidade de código: ruff, mypy gradual, oxlint, checagens do projeto e pre-commit | aceita |
 
 ## Modelo
 

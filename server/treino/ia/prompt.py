@@ -1,4 +1,5 @@
 """Instruções fixas da IA. Ficam estáveis (sem data) para aproveitar o cache de prompt; a data vai na mensagem."""
+
 from __future__ import annotations
 
 from datetime import datetime
@@ -23,9 +24,11 @@ Como trabalhar:
 
 Estilo: direto e objetivo, frases curtas, listas só quando ajudam. Ritmo em min/km, distância em km. Nunca use o caractere travessão; use vírgula, dois-pontos ou parênteses."""
 
-INSTRUCOES_MCP = ("Dados de treino do usuário (corrida, caminhada, musculação), importados do Strava e do Health "
-                  "Connect, com métricas calculadas: parciais, zonas de FC, carga TRIMP, fitness, fadiga e forma. "
-                  "As ferramentas devolvem fichas resumidas em português.")
+INSTRUCOES_MCP = (
+    "Dados de treino do usuário (corrida, caminhada, musculação), importados do Strava e do Health "
+    "Connect, com métricas calculadas: parciais, zonas de FC, carga TRIMP, fitness, fadiga e forma. "
+    "As ferramentas devolvem fichas resumidas em português."
+)
 
 DIAS = ["segunda-feira", "terça-feira", "quarta-feira", "quinta-feira", "sexta-feira", "sábado", "domingo"]
 

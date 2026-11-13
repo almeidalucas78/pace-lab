@@ -37,6 +37,8 @@ export function AtualizacaoApp({ plugin = pluginAtualizacao, instalada = versaoI
   }, [instalada])
 
   useEffect(() => {
+    // Procurar versão nova ao abrir consulta o servidor (sistema externo): uso legítimo de efeito.
+    // oxlint-disable-next-line react/set-state-in-effect
     procurar()
     const ouvintes = [
       AppNativo.addListener('resume', () => { procurar() }),

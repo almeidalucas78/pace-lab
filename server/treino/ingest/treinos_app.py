@@ -8,10 +8,11 @@ Formato próprio e simples, pensado a partir do Samsung Health Data SDK (`Exerci
 
 `converter` é cálculo puro; `gravar` grava no banco, idempotente pelo (fonte, id).
 """
+
 from __future__ import annotations
 
 from dataclasses import dataclass, field
-from datetime import datetime, timezone
+from datetime import UTC, datetime
 
 from sqlalchemy import delete, select
 from sqlalchemy.orm import Session
@@ -25,12 +26,25 @@ NOMES = {"run": "Corrida", "walk": "Caminhada", "ride": "Pedalada", "strength": 
 
 # tipos do Samsung Health Data SDK (DataType.ExerciseType.PredefinedExerciseType, conferidos no SDK 1.1.0)
 ESPORTES = {
-    "RUNNING": "run", "TRACK_RUNNING": "run", "TREADMILL": "run",
-    "WALKING": "walk", "HIKING": "walk", "BACKPACKING": "walk",
-    "BIKING": "ride", "MOUNTAIN_BIKING": "ride", "STATIONARY_BIKING": "ride",
-    "WEIGHT_MACHINE": "strength", "BENCH_PRESS": "strength", "SQUATS": "strength", "DEADLIFTS": "strength",
-    "LUNGES": "strength", "LEG_PRESSES": "strength", "LAT_PULLDOWNS": "strength", "SHOULDER_PRESSES": "strength",
-    "ARM_CURLS": "strength", "CIRCUIT_TRAINING": "workout",
+    "RUNNING": "run",
+    "TRACK_RUNNING": "run",
+    "TREADMILL": "run",
+    "WALKING": "walk",
+    "HIKING": "walk",
+    "BACKPACKING": "walk",
+    "BIKING": "ride",
+    "MOUNTAIN_BIKING": "ride",
+    "STATIONARY_BIKING": "ride",
+    "WEIGHT_MACHINE": "strength",
+    "BENCH_PRESS": "strength",
+    "SQUATS": "strength",
+    "DEADLIFTS": "strength",
+    "LUNGES": "strength",
+    "LEG_PRESSES": "strength",
+    "LAT_PULLDOWNS": "strength",
+    "SHOULDER_PRESSES": "strength",
+    "ARM_CURLS": "strength",
+    "CIRCUIT_TRAINING": "workout",
 }
 
 
@@ -59,7 +73,7 @@ def esporte(tipo: str) -> str:
 
 
 def _ms(t: int | float) -> datetime:
-    return datetime.fromtimestamp(t / 1000, tz=timezone.utc)
+    return datetime.fromtimestamp(t / 1000, tz=UTC)
 
 
 def _positivo(v):
@@ -68,17 +82,27 @@ def _positivo(v):
 
 def juntar_pontos(registros: list[dict], percurso: list[dict]) -> list[Point]:
     """Une registros (FC, velocidade, cadência) e percurso (GPS) pelo horário, em ordem."""
-    pontos = [Point(time=_ms(r["t"]), hr=_positivo(r.get("fc")),   # o relógio grava 0 quando perde a FC
-                    speed=r.get("vel"), cadence=_positivo(r.get("cad"))) for r in registros]
-    pontos += [Point(time=_ms(g["t"]), lat=g["lat"], lon=g["lon"], ele=g.get("alt"))
-               for g in percurso if gps_valido(g["lat"], g["lon"])]
+    pontos = [
+        Point(
+            time=_ms(r["t"]),
+            hr=_positivo(r.get("fc")),  # o relógio grava 0 quando perde a FC
+            speed=r.get("vel"),
+            cadence=_positivo(r.get("cad")),
+        )
+        for r in registros
+    ]
+    pontos += [
+        Point(time=_ms(g["t"]), lat=g["lat"], lon=g["lon"], ele=g.get("alt"))
+        for g in percurso
+        if gps_valido(g["lat"], g["lon"])
+    ]
     return mesclar_proximos(pontos)
 
 
 JANELA_MESCLA_S = 0.5
 
 
-CAMPOS_MESCLA = ("lat", "hr", "speed", "cadence")   # lon e ele andam junto com lat
+CAMPOS_MESCLA = ("lat", "hr", "speed", "cadence")  # lon e ele andam junto com lat
 
 
 def mesclar_proximos(pontos: list[Point]) -> list[Point]:
@@ -88,16 +112,20 @@ def mesclar_proximos(pontos: list[Point]) -> list[Point]:
     out: list[Point] = []
     for p in sorted(pontos, key=lambda x: x.time):
         q = out[-1] if out else None
-        if (q is not None and (p.time - q.time).total_seconds() < JANELA_MESCLA_S
-                and not any(getattr(q, c) is not None and getattr(p, c) is not None for c in CAMPOS_MESCLA)):
+        if (
+            q is not None
+            and (p.time - q.time).total_seconds() < JANELA_MESCLA_S
+            and not any(getattr(q, c) is not None and getattr(p, c) is not None for c in CAMPOS_MESCLA)
+        ):
             if p.lat is not None:
                 q.lat, q.lon, q.ele = p.lat, p.lon, p.ele
             for c in ("hr", "speed", "cadence"):
                 if getattr(p, c) is not None:
                     setattr(q, c, getattr(p, c))
             continue
-        out.append(Point(time=p.time, lat=p.lat, lon=p.lon, ele=p.ele, hr=p.hr,
-                         cadence=p.cadence, speed=p.speed, dist=p.dist))
+        out.append(
+            Point(time=p.time, lat=p.lat, lon=p.lon, ele=p.ele, hr=p.hr, cadence=p.cadence, speed=p.speed, dist=p.dist)
+        )
     return out
 
 
@@ -113,11 +141,23 @@ def converter(fonte: str, treino: dict) -> TreinoRecebido:
     extras["pontos_gps"] = sum(1 for g in treino.get("percurso") or [] if gps_valido(g["lat"], g["lon"]))
     extras["registros"] = len(treino.get("registros") or [])
     return TreinoRecebido(
-        fonte=fonte, id=str(treino["id"]), esporte=esporte(treino["tipo"]), tipo_original=str(treino["tipo"]),
-        inicio=treino["inicio"].astimezone(timezone.utc), fim=treino["fim"].astimezone(timezone.utc),
-        duracao_s=treino.get("duracao_s"), distancia_m=treino.get("distancia_m"), calorias=treino.get("calorias"),
-        fc_media=treino.get("fc_media"), fc_max=treino.get("fc_max"), cadencia_media=treino.get("cadencia_media"),
-        ganho_elevacao_m=treino.get("ganho_elevacao_m"), titulo=treino.get("titulo"), extras=extras, pontos=pontos)
+        fonte=fonte,
+        id=str(treino["id"]),
+        esporte=esporte(treino["tipo"]),
+        tipo_original=str(treino["tipo"]),
+        inicio=treino["inicio"].astimezone(UTC),
+        fim=treino["fim"].astimezone(UTC),
+        duracao_s=treino.get("duracao_s"),
+        distancia_m=treino.get("distancia_m"),
+        calorias=treino.get("calorias"),
+        fc_media=treino.get("fc_media"),
+        fc_max=treino.get("fc_max"),
+        cadencia_media=treino.get("cadencia_media"),
+        ganho_elevacao_m=treino.get("ganho_elevacao_m"),
+        titulo=treino.get("titulo"),
+        extras=extras,
+        pontos=pontos,
+    )
 
 
 def _aplicar(a: Activity, t: TreinoRecebido) -> None:
@@ -138,7 +178,7 @@ def gravar(session: Session, treinos: list[TreinoRecebido], apagados: list[tuple
     for t in treinos:
         a = session.scalar(select(Activity).where(Activity.source == t.fonte, Activity.source_id == t.id))
         novo = a is None
-        if novo:
+        if a is None:
             a = Activity(source=t.fonte, source_id=t.id)
             session.add(a)
         _aplicar(a, t)
@@ -153,7 +193,7 @@ def gravar(session: Session, treinos: list[TreinoRecebido], apagados: list[tuple
             atualizados += 1
     removidos = 0
     for fonte, id_ in apagados or []:
-        removidos += session.execute(delete(Activity).where(Activity.source == fonte,
-                                                            Activity.source_id == id_)).rowcount
+        r = session.execute(delete(Activity).where(Activity.source == fonte, Activity.source_id == id_))
+        removidos += r.rowcount  # type: ignore[attr-defined]  # DELETE devolve CursorResult
     session.flush()
     return {"novos_ids": novos, "atualizados": atualizados, "apagados": removidos}
