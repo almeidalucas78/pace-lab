@@ -1,0 +1,5 @@
+blank_issues_enabled: false
+contact_links:
+  - name: Problema de segurança
+    url: https://github.com/almeidalucas78/pace-lab/security/advisories/new
+    about: Relate pelo canal privado, nunca numa issue pública (veja o SECURITY.md).

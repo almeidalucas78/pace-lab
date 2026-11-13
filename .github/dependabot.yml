@@ -25,6 +25,10 @@ updates:
     groups:
       npm-menores:
         update-types: [minor, patch]
+    ignore:
+      # Os tipos do Node acompanham a versão do Node usada (24); sobem junto com ela, à mão.
+      - dependency-name: "@types/node"
+        update-types: ["version-update:semver-major"]
 
   - package-ecosystem: gradle
     directory: /android

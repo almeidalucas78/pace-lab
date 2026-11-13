@@ -1,0 +1,40 @@
+name: Bug
+description: Algo que funcionava ou deveria funcionar e não funciona.
+labels: ["tipo: bug"]
+body:
+  - type: markdown
+    attributes:
+      value: "Nunca cole dados reais de treino (GPS, arquivos, prints com mapa) nem tokens ou chaves. Problema de segurança: use a aba Security, não uma issue."
+  - type: textarea
+    id: passos
+    attributes:
+      label: Como reproduzir
+      placeholder: |
+        1. Abrir o treino de ...
+        2. Clicar em ...
+    validations:
+      required: true
+  - type: textarea
+    id: esperado
+    attributes:
+      label: O que era esperado
+    validations:
+      required: true
+  - type: textarea
+    id: obtido
+    attributes:
+      label: O que aconteceu
+      description: Mensagens de erro, valores errados. Recorte ou apague dados pessoais.
+    validations:
+      required: true
+  - type: dropdown
+    id: onde
+    attributes:
+      label: Onde
+      multiple: true
+      options: [Painel web, App Android, Chat (IA), CLI, Importação do Strava, Servidor]
+  - type: input
+    id: versao
+    attributes:
+      label: Versão ou commit
+      placeholder: v0.7.0 ou abc1234

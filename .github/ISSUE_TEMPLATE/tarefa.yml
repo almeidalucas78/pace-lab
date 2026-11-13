@@ -1,0 +1,36 @@
+name: Tarefa
+description: Uma etapa de fase ou outro trabalho planejado.
+labels: ["tipo: tarefa"]
+body:
+  - type: markdown
+    attributes:
+      value: "Nunca cole dados reais de treino (GPS, arquivos, prints com mapa) nem tokens ou chaves."
+  - type: textarea
+    id: objetivo
+    attributes:
+      label: Objetivo
+      description: O que fica pronto ao final, do ponto de vista de quem usa.
+    validations:
+      required: true
+  - type: input
+    id: plano
+    attributes:
+      label: Plano da fase
+      description: Link para a etapa em docs/fases/fase-N.md, se houver.
+      placeholder: docs/fases/fase-9.md, etapa 2
+  - type: textarea
+    id: escopo
+    attributes:
+      label: O que entra
+      description: Arquivos, telas, rotas, tabelas envolvidas.
+  - type: textarea
+    id: pronto
+    attributes:
+      label: Critério de pronto
+      description: Testes (com dados sintéticos) e o teste manual que mostram que funcionou.
+      value: |
+        - [ ] Testes novos com dados sintéticos
+        - [ ] Checagens do CONTRIBUTING.md passando
+        - [ ] Docs atualizadas
+    validations:
+      required: true

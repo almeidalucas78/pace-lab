@@ -1,0 +1,27 @@
+name: Decisão
+description: Uma escolha de arquitetura, biblioteca ou processo que precisa ser discutida. Depois de decidida, vira ADR em docs/decisions/.
+labels: ["tipo: decisão"]
+body:
+  - type: textarea
+    id: contexto
+    attributes:
+      label: Contexto
+      description: O problema, as restrições e o que já foi verificado (com a fonte).
+    validations:
+      required: true
+  - type: textarea
+    id: opcoes
+    attributes:
+      label: Opções
+      description: Cada opção com prós, contras e custo.
+    validations:
+      required: true
+  - type: textarea
+    id: recomendacao
+    attributes:
+      label: Recomendação
+  - type: textarea
+    id: adrs
+    attributes:
+      label: ADRs relacionados
+      description: Decisões aceitas que esta afeta (não são reabertas sem conversar).
