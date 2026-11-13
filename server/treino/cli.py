@@ -7,7 +7,7 @@ from pathlib import Path
 import typer
 
 from . import services
-from .config import get_settings
+from .config import ROOT, get_settings
 from .db import init_db, session_scope
 from .ingest.strava_export import import_strava_export
 
@@ -107,7 +107,7 @@ def fc():
 
 @app.command("publicar-app")
 def publicar_app(pasta: Path = typer.Argument(
-        Path("web/android/app/build/outputs/apk/debug"), help="Pasta do build com o APK e o output-metadata.json")):
+        ROOT / "android/app/build/outputs/apk/debug", help="Pasta do build com o APK e o output-metadata.json")):
     """Publica o APK compilado para o app no celular oferecer a atualização (fase 7)."""
     try:
         _print(services.publish_app(get_settings(), pasta))

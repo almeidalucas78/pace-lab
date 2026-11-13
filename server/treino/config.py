@@ -6,9 +6,10 @@ from pydantic import field_validator
 from pydantic_settings import BaseSettings, SettingsConfigDict
 
 
-# Raiz do projeto: o .env e o SQLite relativo ficam aqui, de qualquer pasta que o comando seja chamado
-# (o Claude Desktop e o agy abrem o MCP a partir de outra pasta).
-ROOT = Path(__file__).resolve().parent.parent
+# Raiz do repositório (acima de server/): o .env, a pasta data/ e o painel compilado (web/dist) são
+# resolvidos daqui, de qualquer pasta que o comando seja chamado (o Claude Desktop e o agy abrem o MCP
+# a partir de outra pasta).
+ROOT = Path(__file__).resolve().parents[2]
 
 
 class Settings(BaseSettings):

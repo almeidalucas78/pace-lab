@@ -1,8 +1,8 @@
 ---
 paths:
-  - "treino/ingest/**"
-  - "treino/core/**"
-  - "tests/**"
+  - "server/treino/ingest/**"
+  - "server/treino/core/**"
+  - "server/tests/**"
 ---
 
 # Leitura de fontes, cálculos e testes

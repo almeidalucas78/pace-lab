@@ -1,6 +1,6 @@
 ---
 paths:
-  - "treino/ia/**"
+  - "server/treino/ia/**"
 ---
 
 # IA, ferramentas e MCP

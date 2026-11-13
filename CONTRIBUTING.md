@@ -9,18 +9,18 @@ Pré-requisitos: Python 3.11 ou mais novo, Node.js 18 ou mais novo, Git. No Wind
 ```powershell
 python -m venv .venv
 .\.venv\Scripts\Activate.ps1
-pip install -e ".[dev]"
+pip install -e "./server[dev]"
 copy .env.example .env
 cd web
 npm install
 ```
 
-O app Android (`web/android`) precisa também do Android Studio e do Samsung Health Data SDK, baixado à parte (não pode ser redistribuído, por isso não está no repositório); o passo a passo está em [docs/celular.md](docs/celular.md).
+O app Android (`android/`) precisa também do JDK 21, do Android SDK e do Samsung Health Data SDK, baixado à parte (não pode ser redistribuído, por isso não está no repositório); o passo a passo está em [docs/celular.md](docs/celular.md).
 
 ## Checagens antes de abrir um pull request
 
 ```powershell
-.\.venv\Scripts\python.exe -m pytest -q   # backend
+.\.venv\Scripts\python.exe -m pytest -q server   # backend
 cd web; npm run build; npm test           # painel: tipos, build e testes
 ```
 

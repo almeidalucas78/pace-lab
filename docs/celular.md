@@ -74,7 +74,7 @@ O app **Pace Lab** é o mesmo painel dentro de um aplicativo Android, e é ele q
 **Instalar (primeira vez, pelo cabo USB):**
 1. No celular: ative as opções do desenvolvedor e a **Depuração USB** (não confundir com Ancoragem USB).
 2. No Samsung Health: Configurações, Sobre o Samsung Health, toque várias vezes na versão para ligar o **modo desenvolvedor** do Health Data SDK e libere o acesso aos dados.
-3. No PC, na pasta `web`: `npm run build`, `npx cap sync android`; em `web/android`, `./gradlew.bat assembleDebug` e `adb install -r app/build/outputs/apk/debug/app-debug.apk` (precisa do JDK 21 e do Android SDK; o `.aar` do Samsung Health Data SDK fica em `web/android/app/libs`, fora do git).
+3. No PC, na pasta `web`: `npm run build`, `npx cap sync android`; em `android/`, `./gradlew.bat assembleDebug` e `adb install -r app/build/outputs/apk/debug/app-debug.apk` (precisa do JDK 21 e do Android SDK; o `.aar` do Samsung Health Data SDK fica em `android/app/libs`, fora do git).
 4. No painel do PC, em **Conectar celular**, o QR do app abre o Pace Lab já conectado ao servidor e ao token.
 
 **Atualizar sem cabo:** depois de compilar, rode `treino publicar-app`. Ao abrir o Pace Lab (ou voltar para ele) aparece "Versão nova do app" com o botão **Atualizar**: o app baixa o APK do PC e o Android pede para confirmar. Na primeira vez o Android pede também a permissão "instalar apps desconhecidos" para o Pace Lab. O Play Protect pode avisar que o app não é verificado; é seu app, compilado no seu PC, e dá para instalar mesmo assim (pendência no ROADMAP).

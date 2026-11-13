@@ -9,7 +9,7 @@ disable-model-invocation: true
 Pare no primeiro problema e mostre ao usuário. Não faça commit nem push sem o ok dele.
 
 ## 1. Testes
-Rode `.venv\Scripts\python.exe -m pytest -q`. Se algum falhar, pare e mostre a saída.
+Rode `.venv\Scripts\python.exe -m pytest -q server`. Se algum falhar, pare e mostre a saída.
 
 ## 2. Critério de pronto
 Abra `docs/fases/fase-$ARGUMENTS.md`:

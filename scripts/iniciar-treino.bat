@@ -1,6 +1,6 @@
 @echo off
 rem Abre o servico do Treino (painel + API para o app do celular). Feche a janela para parar.
-cd /d "%~dp0"
+cd /d "%~dp0.."
 title Treino
 if exist "web\dist\index.html" (
   rem abre o painel no navegador depois que o servico subir

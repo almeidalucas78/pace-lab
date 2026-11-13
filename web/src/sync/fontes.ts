@@ -1,5 +1,5 @@
 // Fontes de treinos no celular (ADR 0013). Hoje só o Samsung Health (plugin próprio em Kotlin,
-// web/android/app/src/main/java/app/pacelab/SamsungHealthPlugin.kt); o Health Connect entra quando o app
+// android/app/src/main/java/app/pacelab/SamsungHealthPlugin.kt); o Health Connect entra quando o app
 // for para outras pessoas. Todas devolvem o formato que a API recebe em POST /api/saude/treinos.
 
 import { registerPlugin } from '@capacitor/core'

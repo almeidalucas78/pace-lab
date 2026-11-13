@@ -1,13 +1,13 @@
 ---
 paths:
-  - "treino/db/**"
-  - "treino/migrations/**"
-  - "alembic.ini"
+  - "server/treino/db/**"
+  - "server/treino/migrations/**"
+  - "server/alembic.ini"
 ---
 
 # Banco e migrações
 
-- Toda mudança em `treino/db/models.py` precisa de migração nova: gerar com `alembic revision --autogenerate -m "descricao" --rev-id NNNN` apontando `DATABASE_URL` para um SQLite vazio no scratchpad (depois de `alembic upgrade head` nele), e revisar o arquivo gerado à mão.
+- Toda mudança em `server/treino/db/models.py` precisa de migração nova: gerar com `alembic -c server/alembic.ini revision --autogenerate -m "descricao" --rev-id NNNN` apontando `DATABASE_URL` para um SQLite vazio no scratchpad (depois de `alembic upgrade head` nele), e revisar o arquivo gerado à mão.
 - Mudar esquema é decisão cara: perguntar ao usuário antes.
 - Antes de migrar o banco real, copiar `data/treino.db` para `D:\dados\strava\` com a data no nome.
 - `sensations`, `conversations`, `chat_messages` e tabelas futuras de planos guardam dados que nenhum export recupera: nunca apagar nem recriar.

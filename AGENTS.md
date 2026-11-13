@@ -36,9 +36,9 @@ Antes de mexer numa área, leia a regra dela (o Claude Code carrega sozinho; out
 
 | Área | Regra |
 |---|---|
-| Banco e migrações (`treino/db/`, `treino/migrations/`) | `.claude/rules/banco.md` |
-| IA, ferramentas e MCP (`treino/ia/`) | `.claude/rules/ia.md` |
-| Leitores, cálculos e testes (`treino/ingest/`, `treino/core/`, `tests/`) | `.claude/rules/ingest-e-testes.md` |
+| Banco e migrações (`server/treino/db/`, `server/treino/migrations/`) | `.claude/rules/banco.md` |
+| IA, ferramentas e MCP (`server/treino/ia/`) | `.claude/rules/ia.md` |
+| Leitores, cálculos e testes (`server/treino/ingest/`, `server/treino/core/`, `server/tests/`) | `.claude/rules/ingest-e-testes.md` |
 | Painel web (`web/`) | `.claude/rules/web.md` |
 
 ## Onde está cada coisa
@@ -59,20 +59,23 @@ Antes de mexer numa área, leia a regra dela (o Claude Code carrega sozinho; out
 ## Mapa do código
 
 ```
-treino/
-  config.py      .env (resolvido pela raiz do projeto, config.ROOT)
-  core/          cálculo puro: parciais, limpeza de FC, zonas, TRIMP, fitness/fadiga/forma, aderência ao plano
-  ingest/        export do Strava, treinos do app Android (treinos_app: conversor e gravação), streams_store
-  db/            modelos SQLAlchemy, sessão, init_db() com Alembic
-  migrations/    versões do Alembic
-  services.py    única camada de regras e consultas
-  ia/            ferramentas (registro único), MCP, provedores Claude e Gemini, chat
-  api/           FastAPI com token: rotas em /api, painel compilado (web/dist) na raiz
-  notify.py      notificação do Windows
-  cli.py         comandos `treino ...`
-tests/           pytest com dados sintéticos
-web/             painel React + TypeScript + Vite (só fala com a API)
-web/android/     app Android (Capacitor) com o plugin do Samsung Health
+server/          backend Python (pyproject.toml, alembic.ini)
+  treino/
+    config.py      .env, data/ e web/dist resolvidos pela raiz do repositório (config.ROOT)
+    core/          cálculo puro: parciais, limpeza de FC, zonas, TRIMP, fitness/fadiga/forma, aderência ao plano
+    ingest/        export do Strava, treinos do app Android (treinos_app: conversor e gravação), streams_store
+    db/            modelos SQLAlchemy, sessão, init_db() com Alembic
+    migrations/    versões do Alembic
+    services.py    única camada de regras e consultas
+    ia/            ferramentas (registro único), MCP, provedores Claude e Gemini, chat
+    api/           FastAPI com token: rotas em /api, painel compilado (web/dist) na raiz
+    notify.py      notificação do Windows
+    cli.py         comandos `treino ...`
+  tests/         pytest com dados sintéticos
+web/             painel React + TypeScript + Vite (só fala com a API); capacitor.config.ts
+android/         app Android (Capacitor) com o plugin do Samsung Health
+scripts/         iniciar-treino.bat (sobe o serviço e abre o painel)
+data/            banco, APK publicado e sessões do chat (fora do git)
 ```
 
 ## Ambiente do usuário
@@ -86,10 +89,10 @@ web/android/     app Android (Capacitor) com o plugin do Samsung Health
 ## Comandos
 
 ```powershell
-.\.venv\Scripts\python.exe -m pytest -q
+.\.venv\Scripts\python.exe -m pytest -q server
 .\.venv\Scripts\treino.exe resumo
 .\.venv\Scripts\treino.exe importar-strava "D:\dados\strava\export_<número>.zip"
-.\.venv\Scripts\treino.exe servico      # painel + API para o app (iniciar-treino.bat)
+.\.venv\Scripts\treino.exe servico      # painel + API para o app (scripts/iniciar-treino.bat)
 .\.venv\Scripts\treino.exe publicar-app   # publica o APK compilado para o app se atualizar
 .\.venv\Scripts\treino.exe chat         # --provedor gemini, --conversa N
 .\.venv\Scripts\treino.exe mcp          # --http para 127.0.0.1:8001/mcp

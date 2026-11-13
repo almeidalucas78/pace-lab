@@ -11,7 +11,7 @@ No PowerShell, dentro da pasta do projeto:
 ```powershell
 python -m venv .venv
 .\.venv\Scripts\Activate.ps1
-pip install -e ".[dev]"
+pip install -e "./server[dev]"
 copy .env.example .env
 ```
 
@@ -32,7 +32,7 @@ npm run build
 
 ## Usar no dia a dia
 
-Dois cliques em `iniciar-treino.bat`. Ele sobe o serviço e abre o painel em http://127.0.0.1:8000. Na primeira vez o painel pede o `API_TOKEN` do `.env` (fica salvo no navegador). Feche a janela do serviço para parar.
+Dois cliques em `scripts\iniciar-treino.bat`. Ele sobe o serviço e abre o painel em http://127.0.0.1:8000. Na primeira vez o painel pede o `API_TOKEN` do `.env` (fica salvo no navegador). Feche a janela do serviço para parar.
 
 - **Visão geral:** fitness, fadiga e forma; gráfico de 90 dias; volume semanal; última corrida; semana do plano.
 - **Treinos:** lista por esporte e, em cada treino, mapa, gráficos de FC, ritmo e altitude, parciais, zonas e sensações.
@@ -144,22 +144,26 @@ O `.env` e o banco são encontrados pela pasta do projeto, então não importa d
 ## Estrutura
 
 ```
-treino/
-  config.py        configurações (.env)
-  db/              modelos e conexão (SQLite hoje, Postgres trocando DATABASE_URL)
-  migrations/      migrações do Alembic (gerar nova: `alembic revision --autogenerate -m "..."`)
-  ingest/          leitura de GPX, TCX, FIT, JSON, do activities.csv e dos treinos enviados pelo app Android
-  core/            cálculos puros: parciais, limpeza de FC, zonas, carga
-  services.py      regras e consultas usadas pela CLI, pela API, pelo MCP e pelo chat
-  ia/              ferramentas da IA (registro único), servidor MCP, provedores Claude e Gemini, chat
-  notify.py        notificações do Windows (só log em servidor)
-  api/             FastAPI com token (rotas em /api) e o painel compilado na raiz
-  cli.py           comandos `treino ...`
-tests/             testes com dados sintéticos (`pytest`)
-web/               painel React + TypeScript + Vite (só fala com a API)
-  src/api/         cliente com o token, tipos das respostas, consultas
-  src/paginas/     Visão geral, Treinos, Treino, Plano
-  src/componentes/ gráficos, mapa, semanas do plano, chat lateral
+server/              backend Python (pyproject.toml, alembic.ini)
+  treino/
+    config.py        configurações (.env na raiz do repositório)
+    db/              modelos e conexão (SQLite hoje, Postgres trocando DATABASE_URL)
+    migrations/      migrações do Alembic (gerar nova: `alembic -c server/alembic.ini revision --autogenerate -m "..."`)
+    ingest/          leitura de GPX, TCX, FIT, JSON, do activities.csv e dos treinos enviados pelo app Android
+    core/            cálculos puros: parciais, limpeza de FC, zonas, carga
+    services.py      regras e consultas usadas pela CLI, pela API, pelo MCP e pelo chat
+    ia/              ferramentas da IA (registro único), servidor MCP, provedores Claude e Gemini, chat
+    notify.py        notificações do Windows (só log em servidor)
+    api/             FastAPI com token (rotas em /api) e o painel compilado na raiz
+    cli.py           comandos `treino ...`
+  tests/             testes com dados sintéticos (`pytest -q server`)
+web/                 painel React + TypeScript + Vite (só fala com a API)
+  src/api/           cliente com o token, tipos das respostas, consultas
+  src/paginas/       Visão geral, Treinos, Treino, Plano
+  src/componentes/   gráficos, mapa, semanas do plano, chat lateral
+android/             app Android (Capacitor) com o plugin do Samsung Health
+scripts/             iniciar-treino.bat
+data/                banco, APK publicado e sessões do chat (fora do git)
 ```
 
 ## Documentação do projeto
