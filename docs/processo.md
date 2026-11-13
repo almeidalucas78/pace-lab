@@ -10,7 +10,7 @@ fase no ROADMAP → plano (docs/fases/fase-N.md) → milestone e issues no GitHu
   → fechamento da fase: docs, CHANGELOG, tag e Release
 ```
 
-> Transição: issues, milestones, pull requests e `main` protegida começam na fase 8, etapa 7. Até lá, o trabalho vai direto na `main`, com o ok do usuário a cada commit.
+> Desde 12/11/2026 (fase 8, etapa 7) a `main` é protegida: só recebe pull request com os três jobs do CI verdes e a branch em dia com a `main`; merge só por squash. Vale para todos, inclusive administradores.
 
 ## 1. Planejar a fase
 
