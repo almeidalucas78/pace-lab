@@ -9,6 +9,7 @@ O que mudou em cada fase, escrito para o usuário. Formato inspirado no [Keep a 
 - Regras do projeto em `AGENTS.md`, lidas pelo Claude Code e pelo Gemini CLI; fluxo de trabalho em `docs/processo.md`; `CONTRIBUTING.md` e `SECURITY.md`.
 - Repositório público, sem licença aberta (todos os direitos reservados).
 - CI no GitHub Actions em todo pull request e na `main`: Python (ruff, mypy, pytest, pip-audit), painel (oxlint, tipos, build, testes, npm audit), regras do projeto e gitleaks em todo o histórico.
+- Segurança no GitHub: Dependabot (atualizações semanais ou mensais, com 7 dias de espera), alertas de vulnerabilidade, varredura de segredos com bloqueio no push e relato privado de vulnerabilidade. Documento `docs/seguranca.md` e runbooks (segredo vazado, restaurar backup, tirar acesso dos aparelhos).
 - Checagens de qualidade: ruff e mypy no Python, oxlint no painel, `scripts/checagens.py` (travessão, arquivos proibidos, segredos) e pre-commit antes de cada commit.
 
 ### Corrigido

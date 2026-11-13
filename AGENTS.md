@@ -54,7 +54,7 @@ Antes de mexer numa área, leia a regra dela (o Claude Code carrega sozinho; out
 | Fatos sobre os dados reais do usuário | `docs/dados.md` |
 | O que mudou em cada versão | `CHANGELOG.md` |
 | Uso para o usuário (instalar, comandos, MCP) | `README.md` (celular: `docs/celular.md`) |
-| Segurança | `SECURITY.md` |
+| Segurança (o que protegemos, checklist da fase 9, runbooks) | `docs/seguranca.md`, `docs/runbooks/`, `SECURITY.md` |
 
 ## Mapa do código
 
