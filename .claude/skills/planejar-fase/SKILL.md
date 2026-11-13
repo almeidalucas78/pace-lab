@@ -43,4 +43,4 @@ Mostre ao usuário um resumo curto (objetivo, etapas, mudanças no banco) e as p
 4. Status `em andamento` no plano e 🚧 no ROADMAP, no mesmo pull request das decisões respondidas.
 5. Decisões tomadas viram ADR na hora (modelo em `docs/decisions/README.md`).
 
-Depois disso, cada etapa segue a seção 2 de `docs/processo.md`: branch `tipo/NUMERO-resumo`, commits no padrão, pull request com `Fecha #NUMERO`, CI verde, merge pelo usuário (ou com o ok dele) e a etapa marcada no plano.
+Depois disso, cada etapa segue a seção 2 de `docs/processo.md`: branch `tipo/NUMERO-resumo`, commits no padrão, pull request com `Closes #NUMERO`, CI verde, merge pelo usuário (ou com o ok dele) e a etapa marcada no plano.

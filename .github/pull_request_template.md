@@ -1,4 +1,5 @@
-Fecha #
+Closes #
+<!-- "Closes #NUMERO" fecha a issue no merge; o GitHub só reconhece as palavras em inglês (close, fix, resolve). -->
 
 ## O que muda
 <!-- Em poucas linhas, do ponto de vista de quem usa. -->
