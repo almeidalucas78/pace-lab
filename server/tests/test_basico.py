@@ -139,3 +139,8 @@ def test_importacao_zip_idempotente_e_duplicatas(engine, tmp_path):
         assert acts["12"].file_status == "ausente"
         # 22:00 UTC de 21/10 = 19:00 em São Paulo, mesmo dia
         assert acts["12"].start_utc.astimezone(settings.tz).date() == date(2026, 10, 21)
+
+
+def test_prova_do_ci_teste_quebrado():
+    """PR de teste da fase 8: este teste falha de propósito para provar que o CI bloqueia o merge."""
+    assert 1 + 1 == 3
