@@ -1,6 +1,6 @@
 # Fase 9: Pace Lab na nuvem com contas (Oracle, Postgres e login com Google)
 
-- Status: planejada
+- Status: em andamento (desde 16/11/2026)
 - Planejada em: 2026-11-11 · Concluída em: -
 
 ## Objetivo
@@ -39,22 +39,25 @@ Oracle Always Free; Postgres com os dados migrados; contas com login por Google 
 - **Risco:** é a mudança mais cara de desfazer até agora. Mitigação: o SQLite atual fica intacto como backup (e mais uma cópia em `D:\dados\strava\`); a migração é um script que conta linhas por tabela antes e depois e compara totais (km, carga, treinos por ano); só depois de conferido o app passa a enviar para o servidor.
 
 ## Etapas
-1. [ ] **Servidor**: conta Oracle (o usuário cria; eu guio), máquina A1 Ubuntu, só acesso por chave SSH, firewall, atualizações automáticas de segurança, Docker Compose (API + Postgres; Postgres sem porta aberta para fora), Tailscale e endereço público (decisão 1). Guia em `docs/servidor.md`.
-2. [ ] **Contas e login**: modelos `users` e `auth_sessions`, cadastro e login por e-mail e senha (hash Argon2, limite de tentativas), login com Google (projeto no Google Cloud, escopos básicos), tokens de acesso curtos e de renovação com rotação, sair e sair de todos os aparelhos; testes.
-3. [ ] **Dados por usuário**: `user_id` nos modelos e migração; `services.py`, rotas e ferramentas da IA recebem o usuário; FC máxima e preferências por usuário; testes que provam que o usuário A não lê nem altera nada do B (treinos, planos, conversas, carga).
-4. [ ] **Postgres**: Alembic rodando em Postgres, testes também contra Postgres (Docker local e um job com Postgres no CI da fase 8), ajustes de tipos (datas com fuso, JSON).
-5. [ ] **Migração dos dados**: script SQLite → Postgres na conta do usuário, com conferência de contagens e totais; backup antes; relatório.
-6. [ ] **Backup**: `pg_dump` diário guardado fora da máquina (armazenamento da Oracle e/ou cópia para o PC), retenção de 7 diários e 4 semanais, **restauração testada**.
-7. [ ] **Painel web**: telas de entrar, criar conta e "Entrar com Google"; menu da conta e sair; fim do pedido de `API_TOKEN`; cookie seguro; importação do export do Strava pelo painel (envio do `.zip`), no lugar do comando no PC.
-8. [ ] **App Android**: login (navegador do celular + `pacelab://`), token no armazenamento seguro, envio dos treinos para o servidor, atualização do app vinda do servidor (`publicar-app` envia o APK para lá); a versão nova é instalada pela última vez com o fluxo antigo.
-9. [ ] **Chat no servidor**: provedor Gemini com a chave do servidor, só para o dono por enquanto; Claude pela assinatura volta na fase 10 (desktop).
-10. [ ] **Entrega automática (CD)**: imagem Docker montada no GitHub Actions e guardada no GHCR; deploy ao criar uma versão (entra pelo Tailscale, faz backup, atualiza, roda migrações, confere `/health`, volta à versão anterior se falhar); segredos nos Secrets do GitHub; runbooks de deploy e de rollback.
-11. [ ] **Docs e limpeza**: ARCHITECTURE (novo diagrama), README, `docs/celular.md`, `docs/servidor.md`, CHANGELOG; `iniciar-treino.bat` e `treino servico` ficam só para desenvolvimento; ADRs 0009, 0011, 0012 e 0013 atualizados.
+Cada etapa é uma issue da milestone "Fase 9" (número entre parênteses). Ordem: as etapas 2, 3 e 4 (código, testáveis no PC com Postgres no Docker) andam enquanto a conta da Oracle (etapa 1) não fica pronta; a 5 em diante precisa do servidor.
+
+1. [ ] **Servidor** (#5): conta Oracle (o usuário cria; eu guio), máquina A1 Ubuntu, só acesso por chave SSH, firewall, atualizações automáticas de segurança, Docker Compose (API + Postgres; Postgres sem porta aberta para fora), Tailscale e endereço público (decisão 1). Guia em `docs/servidor.md`.
+2. [ ] **Contas e login** (#6): modelos `users` e `auth_sessions`, cadastro e login por e-mail e senha (hash Argon2, limite de tentativas), login com Google (projeto no Google Cloud, escopos básicos), tokens de acesso curtos e de renovação com rotação, sair e sair de todos os aparelhos; testes.
+3. [ ] **Dados por usuário** (#7): `user_id` nos modelos e migração; `services.py`, rotas e ferramentas da IA recebem o usuário; FC máxima e preferências por usuário; testes que provam que o usuário A não lê nem altera nada do B (treinos, planos, conversas, carga).
+4. [ ] **Postgres** (#8): Alembic rodando em Postgres, testes também contra Postgres (Docker local e um job com Postgres no CI da fase 8), ajustes de tipos (datas com fuso, JSON).
+5. [ ] **Migração dos dados** (#9): script SQLite → Postgres na conta do usuário, com conferência de contagens e totais; backup antes; relatório.
+6. [ ] **Backup** (#10): `pg_dump` diário guardado fora da máquina (armazenamento da Oracle e/ou cópia para o PC), retenção de 7 diários e 4 semanais, **restauração testada**.
+7. [ ] **Painel web** (#11): telas de entrar, criar conta e "Entrar com Google"; menu da conta e sair; fim do pedido de `API_TOKEN`; cookie seguro; importação do export do Strava pelo painel (envio do `.zip`), no lugar do comando no PC.
+8. [ ] **App Android** (#12): login (navegador do celular + `pacelab://`), token no armazenamento seguro, envio dos treinos para o servidor, atualização do app vinda do servidor (`publicar-app` envia o APK para lá); a versão nova é instalada pela última vez com o fluxo antigo.
+9. [ ] **Chat no servidor** (#13): provedor Gemini com a chave do servidor, só para o dono por enquanto; Claude pela assinatura volta na fase 10 (desktop).
+10. [ ] **Entrega automática (CD)** (#14): imagem Docker montada no GitHub Actions e guardada no GHCR; deploy ao criar uma versão (entra pelo Tailscale, faz backup, atualiza, roda migrações, confere `/health`, volta à versão anterior se falhar); segredos nos Secrets do GitHub; runbooks de deploy e de rollback.
+11. [ ] **Docs e limpeza** (#15): ARCHITECTURE (novo diagrama), README, `docs/celular.md`, `docs/servidor.md`, CHANGELOG; `iniciar-treino.bat` e `treino servico` ficam só para desenvolvimento; ADRs 0009, 0011, 0012 e 0013 atualizados.
 
 ## Critério de pronto
 - [ ] `pytest` (SQLite e Postgres), `npm run build` e `npm test` passando; testes novos: cadastro, login por senha, login com Google (com o Google simulado), renovação e revogação de token, isolamento entre dois usuários em todas as rotas e ferramentas, migração com um banco sintético.
 - [ ] Teste manual: com o **PC desligado**, fazer um treino curto, abrir o Pace Lab no celular (logado com a conta Google) e ver o treino no painel web pelo celular; no PC, entrar com a conta Google pelo navegador e ver o histórico completo, com os mesmos totais de antes da migração.
 - [ ] Teste manual de segurança: uma segunda conta de teste não vê nada da primeira; sem login, a API recusa tudo; a restauração do backup funciona num banco vazio.
+- [ ] Checklist da fase 9 em `docs/seguranca.md` (OWASP ASVS 5.0, nível 1) conferido item a item.
 - [ ] Docs atualizadas.
 
 ## Resultado (preenchido no fechamento)

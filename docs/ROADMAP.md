@@ -43,7 +43,7 @@ App Android Pace Lab (Capacitor, painel embutido) que lê os treinos do Samsung 
 ## Fase 8: fundação de engenharia ✅
 Repositório limpo e público; pastas `server/`, `web/`, `android/`, `scripts/`; `AGENTS.md` para qualquer IA (Claude, Gemini); ruff, mypy, oxlint, checagens do projeto e pre-commit (ADR 0016); CI no GitHub Actions; Dependabot e segurança do GitHub ligadas; issues, milestones e `main` protegida (tudo por pull request). Pendências viraram issues no GitHub. Detalhes em [fases/fase-8.md](fases/fase-8.md).
 
-## Fase 9: nuvem com contas 📝
+## Fase 9: nuvem com contas 🚧
 Servidor na Oracle Always Free (API, Postgres, painel web), contas com login por Google e por e-mail e senha, dados separados por usuário, os dados atuais migrados, app Android com login enviando direto ao servidor, backup diário. Decisões no [ADR 0014](decisions/0014-nuvem-com-contas-e-desktop.md); plano em [fases/fase-9.md](fases/fase-9.md). Inclui o deploy automático (CD).
 
 ## Fase 10: Pace Lab Desktop com IA ⬜
