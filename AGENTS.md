@@ -10,9 +10,11 @@ Pace Lab: sistema pessoal para analisar corridas (depois musculação) e montar 
 
 1. `docs/ROADMAP.md`: qual fase está em andamento (🚧) ou planejada (📝).
 2. `docs/fases/fase-N.md` dessa fase: etapas marcadas e o que falta.
-3. Issues abertas da fase: `gh issue list --milestone "Fase N"` (a partir da fase 8, etapa 7).
+3. Issues abertas da fase: `gh issue list --milestone "Fase N"`. Cada etapa do plano é uma issue; ao responder "qual a próxima tarefa?", cite o número da issue (sem o `gh`, veja em github.com/almeidalucas78/pace-lab/issues).
 4. `git log --oneline -10` e `git status`: o que foi feito por último e o que ficou sem commit.
 5. O processo completo (issue, branch, pull request, fechamento de fase) está em `docs/processo.md`.
+
+Planos ficam só em `docs/fases/fase-N.md` e decisões em `docs/decisions/`; não crie outros arquivos de plano (como `plans/`) nem pastas de anotações.
 
 ## Regras de trabalho (sempre)
 
