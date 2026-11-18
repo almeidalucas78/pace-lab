@@ -4,6 +4,8 @@
 *.cmd text eol=crlf
 gradlew text eol=lf
 *.sh text eol=lf
+# Vai para máquinas Linux (cloud-init); CRLF quebra os comandos.
+infra/** text eol=lf
 *.png binary
 *.ico binary
 *.jar binary

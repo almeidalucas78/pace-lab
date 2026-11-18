@@ -1,0 +1,46 @@
+#cloud-config
+# Primeiro boot do servidor do Pace Lab na Oracle (fase 9, etapa 1; guia em docs/servidor.md).
+# Roda uma vez, quando a máquina liga pela primeira vez. Sem segredos: o Tailscale é ligado à mão depois.
+
+timezone: America/Sao_Paulo
+
+# Só entra por chave SSH; nada de senha nem de root.
+ssh_pwauth: false
+disable_root: true
+
+package_update: true
+package_upgrade: true
+packages:
+  - unattended-upgrades
+  - ca-certificates
+  - curl
+
+write_files:
+  # Atualizações de segurança diárias (já é o padrão do Ubuntu; fica explícito aqui).
+  - path: /etc/apt/apt.conf.d/20auto-upgrades
+    content: |
+      APT::Periodic::Update-Package-Lists "1";
+      APT::Periodic::Unattended-Upgrade "1";
+  # Quando uma atualização pedir reinício, reinicia às 4h (horário de Brasília), sem esperar ninguém.
+  - path: /etc/apt/apt.conf.d/52pacelab-reinicio
+    content: |
+      Unattended-Upgrade::Automatic-Reboot "true";
+      Unattended-Upgrade::Automatic-Reboot-Time "04:00";
+
+runcmd:
+  # Docker pelo repositório oficial (docs.docker.com/engine/install/ubuntu).
+  - install -m 0755 -d /etc/apt/keyrings
+  - curl -fsSL https://download.docker.com/linux/ubuntu/gpg -o /etc/apt/keyrings/docker.asc
+  - chmod a+r /etc/apt/keyrings/docker.asc
+  - |
+    . /etc/os-release
+    printf 'Types: deb\nURIs: https://download.docker.com/linux/ubuntu\nSuites: %s\nComponents: stable\nSigned-By: /etc/apt/keyrings/docker.asc\n' "${UBUNTU_CODENAME:-$VERSION_CODENAME}" > /etc/apt/sources.list.d/docker.sources
+  # Tailscale pelo repositório oficial (pkgs.tailscale.com/stable).
+  - |
+    . /etc/os-release
+    curl -fsSL "https://pkgs.tailscale.com/stable/ubuntu/${VERSION_CODENAME}.noarmor.gpg" -o /usr/share/keyrings/tailscale-archive-keyring.gpg
+    curl -fsSL "https://pkgs.tailscale.com/stable/ubuntu/${VERSION_CODENAME}.tailscale-keyring.list" -o /etc/apt/sources.list.d/tailscale.list
+  - apt-get update
+  - apt-get install -y docker-ce docker-ce-cli containerd.io docker-buildx-plugin docker-compose-plugin tailscale
+  - usermod -aG docker ubuntu
+  - systemctl enable --now docker tailscaled
