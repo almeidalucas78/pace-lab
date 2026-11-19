@@ -17,6 +17,9 @@ dependencies = [
     "claude-agent-sdk>=0.2",    # chat com Claude (traz o Claude Code embutido)
     "google-genai>=2.0",        # chat com Gemini
     "tzdata",  # fusos horários no Windows (zoneinfo não traz a base no Windows)
+    "argon2-cffi>=25.1",        # hash das senhas (Argon2id)
+    "google-auth>=2.40",        # confere o id_token do login com Google
+    "requests>=2.32",           # transporte HTTP que o google-auth usa para baixar as chaves do Google
 ]
 
 [project.optional-dependencies]
@@ -33,7 +36,7 @@ build-backend = "setuptools.build_meta"
 include = ["treino*"]
 
 [tool.setuptools.package-data]
-treino = ["migrations/script.py.mako", "migrations/versions/*.py"]
+treino = ["migrations/script.py.mako", "migrations/versions/*.py", "auth/senhas_comuns.txt"]
 
 [tool.pytest.ini_options]
 testpaths = ["tests"]

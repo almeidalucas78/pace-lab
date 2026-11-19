@@ -1,5 +1,7 @@
 from .models import (
     Activity,
+    AuthPending,
+    AuthSession,
     Base,
     ChatMessage,
     Conversation,
@@ -10,11 +12,14 @@ from .models import (
     Split,
     SyncState,
     TrainingPlan,
+    User,
 )
 from .session import get_engine, init_db, session_scope
 
 __all__ = [
     "Activity",
+    "AuthPending",
+    "AuthSession",
     "Base",
     "ChatMessage",
     "Conversation",
@@ -25,6 +30,7 @@ __all__ = [
     "Split",
     "SyncState",
     "TrainingPlan",
+    "User",
     "get_engine",
     "init_db",
     "session_scope",
