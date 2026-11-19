@@ -22,6 +22,15 @@ class Settings(BaseSettings):
 
     notificacoes: bool = True
 
+    # Contas e login (fase 9, ADRs 0015 e 0017)
+    cadastro_emails: str = ""  # e-mails que podem criar conta, separados por vírgula (cadastro fechado)
+    acesso_minutos: int = 15  # validade do token de acesso
+    renovacao_dias: int = 30  # validade do token de renovação
+    cookie_seguro: bool = True  # cookies só por HTTPS; False só para desenvolvimento em http://localhost
+    google_client_id: str = ""  # login com Google (vazio = desligado)
+    google_client_secret: str = ""
+    url_publica: str = ""  # endereço público do servidor, ex.: https://pacelab.nome-da-rede.ts.net
+
     # Chat com IA
     ia_provedor: str = "claude"  # claude ou gemini
     claude_modelo: str = "claude-opus-5-5"
@@ -61,6 +70,14 @@ class Settings(BaseSettings):
     @property
     def tz(self) -> ZoneInfo:
         return ZoneInfo(self.timezone)
+
+    @property
+    def emails_cadastro(self) -> set[str]:
+        return {e.strip().lower() for e in self.cadastro_emails.split(",") if e.strip()}
+
+    @property
+    def google_ligado(self) -> bool:
+        return bool(self.google_client_id and self.google_client_secret and self.url_publica)
 
 
 @lru_cache

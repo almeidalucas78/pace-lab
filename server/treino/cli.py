@@ -26,6 +26,27 @@ def init():
     typer.echo(f"Banco pronto em {get_settings().database_url}")
 
 
+@app.command("criar-usuario")
+def criar_usuario(
+    email: str = typer.Argument(..., help="e-mail da conta"),
+    nome: str = typer.Option("", help="nome para mostrar"),
+    sem_senha: bool = typer.Option(False, "--sem-senha", help="conta só para entrar com o Google"),
+):
+    """Cria uma conta (sem passar pela lista de cadastro; quem roda tem o PC ou o servidor)."""
+    from .auth.contas import ErroConta
+    from .auth.contas import criar_usuario as criar
+
+    senha = None if sem_senha else typer.prompt("Senha", hide_input=True, confirmation_prompt="Repita a senha")
+    init_db()
+    try:
+        with session_scope() as s:
+            u = criar(s, get_settings(), email, senha, nome, livre=True)
+            typer.echo(f"Conta {u.id} criada: {u.email}")
+    except ErroConta as e:
+        typer.echo(f"Erro: {e}", err=True)
+        raise typer.Exit(1) from e
+
+
 @app.command("importar-strava")
 def importar_strava(
     caminho: Path = typer.Argument(..., help="Pasta descompactada do export do Strava ou o arquivo .zip"),

@@ -22,6 +22,7 @@ Regra do projeto: decisão com status **aceita** não é reaberta sem perguntar 
 | [0014](0014-nuvem-com-contas-e-desktop.md) | Nuvem com contas (Oracle, Postgres, login com Google) e desktop em Electron | aceita |
 | [0015](0015-acesso-publico-sessoes-e-testes.md) | Endereço público (Funnel), sessões com cookie seguro e testes em SQLite e Postgres | aceita |
 | [0016](0016-qualidade-de-codigo.md) | Qualidade de código: ruff, mypy gradual, oxlint, checagens do projeto e pre-commit | aceita |
+| [0017](0017-contas-e-login.md) | Contas e login: tokens opacos, Argon2id, cadastro fechado por lista e Google sem biblioteca de OAuth | aceita |
 
 ## Modelo
 
