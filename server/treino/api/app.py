@@ -2,10 +2,9 @@
 
 from __future__ import annotations
 
-import secrets
 from typing import Literal
 
-from fastapi import APIRouter, Depends, FastAPI, HTTPException, Query
+from fastapi import APIRouter, Depends, FastAPI, HTTPException, Query, Request
 from fastapi.middleware.cors import CORSMiddleware
 from fastapi.responses import FileResponse, JSONResponse
 from fastapi.security import HTTPAuthorizationCredentials, HTTPBearer
@@ -17,6 +16,7 @@ from ..db import session_scope
 from ..ia.chat import conversar
 from ..ia.provedores import ErroIA
 from ..notify import describe_new, notify
+from . import auth as rotas_auth
 
 app = FastAPI(
     title="Treino API", version="0.5.0", docs_url="/api/docs", openapi_url="/api/openapi.json", redoc_url=None
@@ -36,10 +36,12 @@ bearer = HTTPBearer(auto_error=False)
 
 
 def auth(
-    creds: HTTPAuthorizationCredentials | None = Depends(bearer), settings: Settings = Depends(get_settings)
+    request: Request,
+    creds: HTTPAuthorizationCredentials | None = Depends(bearer),
+    settings: Settings = Depends(get_settings),
 ) -> Settings:
-    if creds is None or not secrets.compare_digest(creds.credentials, settings.api_token):
-        raise HTTPException(status_code=401, detail="token inválido")
+    """Sessão de usuário (cabeçalho ou cookie) ou o API_TOKEN antigo, aceito até as etapas 7 e 8 (ADR 0017)."""
+    rotas_auth.autenticar(request, creds, settings)
     return settings
 
 
@@ -257,6 +259,7 @@ def painel_config(settings: Settings = Depends(auth)):
     return {"url_celular": settings.painel_url_celular.rstrip("/") or None}
 
 
+api.include_router(rotas_auth.router)
 app.include_router(api)
 
 

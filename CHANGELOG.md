@@ -4,6 +4,9 @@ O que mudou em cada fase, escrito para o usuário. Formato inspirado no [Keep a 
 
 ## [Não lançado]
 
+### Adicionado
+- Contas e login (fase 9, etapa 2): cadastro e login por e-mail e senha (Argon2id, senhas comuns recusadas, limite de tentativas), login com Google, sessões com renovação e detecção de reuso, sair e sair de todos os aparelhos, troca de senha; cadastro fechado pela lista `CADASTRO_EMAILS`; comando `treino criar-usuario` (ADR 0017). O `API_TOKEN` continua valendo até o painel e o app mudarem.
+
 ## [0.8.0] - 2026-11-12 (fase 8)
 
 ### Mudado

@@ -31,10 +31,10 @@ O que o Pace Lab protege, de quem e como. Para relatar um problema, veja o [SECU
 
 O ASVS (asvs.owasp.org, versão 5.0.0 de 30/05/2025) é a lista de verificação de segurança de aplicações da OWASP; o nível 1 é o mínimo para qualquer app na internet. Itens que a fase 9 precisa cumprir, em linguagem nossa (conferir cada um contra o texto do ASVS ao implementar):
 
-- [ ] **Senhas:** guardadas só com hash forte e lento (Argon2id ou bcrypt), mínimo de 8 caracteres, sem limite baixo de tamanho, checagem contra senhas vazadas comuns.
-- [ ] **Login:** limite de tentativas por conta e por IP; mesma mensagem para "conta não existe" e "senha errada".
-- [ ] **Google:** `state` e PKCE no OAuth; aceitar o `id_token` só com emissor, público e validade conferidos.
-- [ ] **Sessões:** cookie `HttpOnly`, `Secure`, `SameSite`; token de acesso curto e de renovação com rotação, guardado só como hash; "sair" invalida no servidor (ADR 0015).
+- [x] **Senhas:** guardadas só com hash forte e lento (Argon2id ou bcrypt), mínimo de 8 caracteres, sem limite baixo de tamanho, checagem contra senhas vazadas comuns.
+- [x] **Login:** limite de tentativas por conta e por IP; mesma mensagem para "conta não existe" e "senha errada".
+- [x] **Google:** `state` e PKCE no OAuth; aceitar o `id_token` só com emissor, público e validade conferidos.
+- [x] **Sessões:** cookie `HttpOnly`, `Secure`, `SameSite`; token de acesso curto e de renovação com rotação, guardado só como hash; "sair" invalida no servidor (ADR 0015).
 - [ ] **Separação de dados:** toda consulta filtrada pelo usuário logado; testes provando que um usuário não lê nem altera dados de outro.
 - [ ] **Entrada:** validação de tudo que chega na API (Pydantic), limites de tamanho no envio de treinos e no chat.
 - [ ] **Saída:** respostas sem dados internos; erros sem rastreamento de pilha em produção.
@@ -43,6 +43,10 @@ O ASVS (asvs.owasp.org, versão 5.0.0 de 30/05/2025) é a lista de verificação
 - [ ] **Segredos no servidor:** só em variáveis de ambiente ou arquivo com permissão restrita, nunca dentro da imagem do contêiner.
 - [ ] **Registros (logs):** login, falhas de login e mudanças de conta registrados, sem senhas, tokens nem GPS.
 - [ ] **Backup** diário criptografado e teste de restauração.
+
+## Controles contra força bruta (ASVS 6.1.1 e 6.3.1)
+
+Desde a fase 9 (ADR 0017): cada tentativa de senha passa pelo Argon2id (lento de propósito); as falhas são contadas em memória numa janela de 15 minutos, no máximo 5 por e-mail e IP e 20 por IP; passou do limite, a resposta é 429 com o tempo de espera. A conta nunca é bloqueada para todos, para ninguém travar a conta de outra pessoa. Senhas entre as cerca de 10 mil mais comuns são recusadas no cadastro e na troca.
 
 ## Runbooks
 

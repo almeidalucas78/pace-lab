@@ -70,8 +70,9 @@ server/          backend Python (pyproject.toml, alembic.ini)
     db/            modelos SQLAlchemy, sessão, init_db() com Alembic
     migrations/    versões do Alembic
     services.py    única camada de regras e consultas
+    auth/          contas, senhas (Argon2id), sessões com tokens opacos, login com Google, limite de tentativas
     ia/            ferramentas (registro único), MCP, provedores Claude e Gemini, chat
-    api/           FastAPI com token: rotas em /api, painel compilado (web/dist) na raiz
+    api/           FastAPI: rotas em /api (login em /api/auth), painel compilado (web/dist) na raiz
     notify.py      notificação do Windows
     cli.py         comandos `treino ...`
   tests/         pytest com dados sintéticos
@@ -97,6 +98,7 @@ data/            banco, APK publicado e sessões do chat (fora do git)
 cd server; ..\.venv\Scripts\mypy.exe; cd ..         # tipos (rigoroso em core/)
 .\.venv\Scripts\python.exe -m pytest -q server
 .\.venv\Scripts\treino.exe resumo
+.\.venv\Scripts\treino.exe criar-usuario seu@email   # conta nova (pede a senha)
 .\.venv\Scripts\treino.exe importar-strava "D:\dados\strava\export_<número>.zip"
 .\.venv\Scripts\treino.exe servico      # painel + API para o app (scripts/iniciar-treino.bat)
 .\.venv\Scripts\treino.exe publicar-app   # publica o APK compilado para o app se atualizar

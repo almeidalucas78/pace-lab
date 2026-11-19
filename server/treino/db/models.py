@@ -225,3 +225,52 @@ class DailyLoad(Base):
     fitness: Mapped[float] = mapped_column(Float)  # CTL, média exponencial 42 dias
     fatigue: Mapped[float] = mapped_column(Float)  # ATL, média exponencial 7 dias
     form: Mapped[float] = mapped_column(Float)  # TSB = fitness - fadiga do dia anterior
+
+
+# ---------- contas e login (fase 9, ADRs 0015 e 0017) ----------
+
+
+class User(Base):
+    """Conta de usuário. Entra por senha, pelo Google ou pelos dois."""
+
+    __tablename__ = "users"
+
+    id: Mapped[int] = mapped_column(primary_key=True)
+    email: Mapped[str] = mapped_column(String(254), unique=True)  # sempre em minúsculas
+    name: Mapped[str | None] = mapped_column(String(120))
+    google_sub: Mapped[str | None] = mapped_column(String(255), unique=True)  # id estável da conta Google
+    password_hash: Mapped[str | None] = mapped_column(String(255))  # Argon2id; nulo se só entra pelo Google
+    created_utc: Mapped[datetime] = mapped_column(UTCDateTime)
+    last_login_utc: Mapped[datetime | None] = mapped_column(UTCDateTime)
+
+
+class AuthSession(Base):
+    """Um par de tokens (acesso curto e renovação longa). Renovar revoga a linha e cria outra na mesma família;
+    os tokens ficam só como hash SHA-256."""
+
+    __tablename__ = "auth_sessions"
+
+    id: Mapped[int] = mapped_column(primary_key=True)
+    user_id: Mapped[int] = mapped_column(ForeignKey("users.id", ondelete="CASCADE"), index=True)
+    family: Mapped[str] = mapped_column(String(32), index=True)  # mesma família desde o login
+    access_hash: Mapped[str] = mapped_column(String(64), unique=True)
+    access_expires_utc: Mapped[datetime] = mapped_column(UTCDateTime)
+    refresh_hash: Mapped[str] = mapped_column(String(64), unique=True)
+    refresh_expires_utc: Mapped[datetime] = mapped_column(UTCDateTime)
+    device: Mapped[str | None] = mapped_column(String(120))  # web, app ou o navegador, para a lista de aparelhos
+    created_utc: Mapped[datetime] = mapped_column(UTCDateTime)
+    revoked_utc: Mapped[datetime | None] = mapped_column(UTCDateTime)
+    revoked_reason: Mapped[str | None] = mapped_column(String(20))  # renovada, saiu, sair_todos, reuso, senha
+
+
+class AuthPending(Base):
+    """Passo de login em andamento e de uso único: estado do login com Google (e, na etapa 8, o código do app)."""
+
+    __tablename__ = "auth_pending"
+
+    id: Mapped[int] = mapped_column(primary_key=True)
+    kind: Mapped[str] = mapped_column(String(20))  # google
+    key_hash: Mapped[str] = mapped_column(String(64), unique=True)
+    data: Mapped[dict] = mapped_column(JSON)
+    expires_utc: Mapped[datetime] = mapped_column(UTCDateTime)
+    used_utc: Mapped[datetime | None] = mapped_column(UTCDateTime)
