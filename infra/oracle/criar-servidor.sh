@@ -6,7 +6,8 @@
 #
 # - <seu-ip-de-casa>: único IP que pode abrir SSH até o Tailscale estar ligado (veja com `curl -s https://api.ipify.org`).
 # - [chave-publica]: padrão ~/.ssh/pacelab-oracle.pub.
-# - TENTATIVAS (padrão 1) e INTERVALO (segundos, padrão 600): quando a Oracle responde "Out of host capacity",
+# - TENTATIVAS (padrão 1) e INTERVALO (segundos, padrão 600): quando a Oracle responde "Out of host capacity"
+#   (ou "TooManyRequests", e aí espera o dobro),
 #   espera e tenta de novo, renovando a sessão da CLI a cada volta (a sessão renova até 24 h após o login).
 # - TAMANHOS (padrão "2:12 1:6"): OCPUs:GB de memória pedidos em rodízio, uma opção por tentativa
 #   (o menor às vezes sai quando o maior está em falta).
@@ -111,13 +112,18 @@ for ((t = 1; t <= TENTATIVAS; t++)); do
     INST="$(grep -m1 -o 'ocid1\.instance[^" ]*' <<<"$SAIDA")"
     break
   fi
+  ESPERA="$INTERVALO"
   if grep -q "Out of host capacity" <<<"$SAIDA"; then
     echo "  sem máquina livre na região (Out of host capacity)"
+  elif grep -q "TooManyRequests" <<<"$SAIDA"; then
+    # A Oracle limita pedidos repetidos (429): espera o dobro antes da próxima.
+    ESPERA=$((INTERVALO * 2))
+    echo "  a Oracle pediu para ir mais devagar (TooManyRequests); próxima em $((ESPERA / 60)) min"
   else
     echo "$SAIDA" >&2; exit 1
   fi
   if (( t < TENTATIVAS )); then
-    sleep "$INTERVALO"
+    sleep "$ESPERA"
     "$OCI" session refresh --profile "$PERFIL" >/dev/null 2>&1 || { echo "Sessão da CLI expirou; faça o login de novo e rode outra vez." >&2; exit 2; }
   fi
 done

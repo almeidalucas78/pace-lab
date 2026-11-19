@@ -65,7 +65,7 @@ Para abrir de novo numa emergência (Tailscale fora do ar), rode o mesmo comando
 
 ## Riscos conhecidos
 - **A Oracle pode recolher a máquina parada:** CPU, rede e memória abaixo de 20% por 7 dias. Decisão de 16/11/2026: ficar no Always Free e aceitar o risco; a defesa é o backup diário fora da máquina (etapa 6) e a máquina recriável por este guia. Se a Oracle avisar, reavaliar a conta Pay As You Go.
-- **Falta de máquina A1 na região** ("Out of host capacity"): São Paulo tem um só domínio de disponibilidade. Em 16/11/2026, 9 tentativas em 1h30 falharam. Tentar com o rodízio acima; sem login por chave de API (decisão do usuário), cada dia de tentativas começa com o login da CLI.
+- **Falta de máquina A1 na região** ("Out of host capacity"): São Paulo tem um só domínio de disponibilidade. Em 16/11/2026, 9 tentativas em 1h30 falharam; em 18/11, 11 tentativas (alternando os tamanhos) falharam e a Oracle passou a responder "TooManyRequests" (429), que o script agora trata esperando o dobro. Tentar com o rodízio acima; sem login por chave de API (decisão do usuário), cada dia de tentativas começa com o login da CLI.
 
 ## Nunca vai para o repositório
 IP público da máquina, OCIDs, nome da conta da Oracle, nome da máquina no Tailscale e o arquivo `~/.oci/config`. O `data/checagens-locais.txt` bloqueia os que forem anotados lá.
