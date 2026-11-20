@@ -23,7 +23,7 @@ dependencies = [
 ]
 
 [project.optional-dependencies]
-dev = ["pytest>=8", "ruff==0.17.4", "mypy>=2.4", "pre-commit>=4.7"]
+dev = ["pytest>=8", "ruff==0.17.5", "mypy>=2.4", "pre-commit>=4.7"]
 
 [project.scripts]
 treino = "treino.cli:app"
