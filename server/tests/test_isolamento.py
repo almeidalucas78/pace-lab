@@ -26,6 +26,7 @@ from treino.ia.ferramentas import executar
 
 A = {"Authorization": "Bearer teste"}  # API_TOKEN antigo = conta do dono (A), que tem os treinos sintéticos
 URL = "https://testserver"
+SENHA = "corrida-no-parque-42"  # sintética
 
 
 @pytest.fixture
@@ -36,7 +37,7 @@ def cli(db, monkeypatch):
     with TestClient(app, base_url=URL) as c:
         tok = c.post(
             "/api/auth/cadastro",
-            json={"email": "bia@exemplo.com", "senha": "trilha-da-serra-2026", "cliente": "app"},
+            json={"email": "bia@exemplo.com", "senha": SENHA, "cliente": "app"},
         ).json()
         c.b = {"Authorization": f"Bearer {tok['acesso']}"}  # type: ignore[attr-defined]
         yield c
@@ -181,10 +182,8 @@ def test_conta_provisoria_e_assumida_pelo_dono(db):
         dono = s.get(User, do_dono(s).user_id)
         dono.email = contas.CONTA_PROVISORIA  # como a migração deixa um banco antigo sem contas
     with session_scope() as s:
-        u = contas.assumir_provisoria(s, "Lucas@Exemplo.com", "corrida-no-parque-42", "Lucas")
-        assert (
-            u is not None and u.email == "lucas@exemplo.com" and senhas.confere(u.password_hash, "corrida-no-parque-42")
-        )
+        u = contas.assumir_provisoria(s, "Lucas@Exemplo.com", SENHA, "Lucas")
+        assert u is not None and u.email == "lucas@exemplo.com" and senhas.confere(u.password_hash, SENHA)
         assert s.scalar(select(func.count()).select_from(Activity).where(Activity.user_id == u.id)) == 3
     with session_scope() as s:
-        assert contas.assumir_provisoria(s, "outro@exemplo.com", "corrida-no-parque-42") is None
+        assert contas.assumir_provisoria(s, "outro@exemplo.com", SENHA) is None
