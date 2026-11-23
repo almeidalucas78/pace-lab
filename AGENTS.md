@@ -79,6 +79,7 @@ server/          backend Python (pyproject.toml, alembic.ini)
 web/             painel React + TypeScript + Vite (só fala com a API); capacitor.config.ts
 android/         app Android (Capacitor) com o plugin do Samsung Health
 scripts/         iniciar-treino.bat (sobe o serviço e abre o painel)
+infra/teste/     Postgres para rodar os testes no PC (docker compose; como usar em CONTRIBUTING.md)
 data/            banco, APK publicado e sessões do chat (fora do git)
 ```
 

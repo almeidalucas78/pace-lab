@@ -82,7 +82,7 @@ Tudo em `.env` (modelo em `.env.example`), lido por `config.Settings`. O `.env` 
 
 ## Qualidade e entrega
 
-Pastas: `server/` (Python), `web/` (painel), `android/` (app), `scripts/`. Todo trabalho entra na `main` por pull request com o CI verde (`.github/workflows/ci.yml`: ruff, mypy e pytest; oxlint, build e vitest; checagens do projeto e gitleaks); Dependabot propõe atualizações. Processo em [processo.md](processo.md), ferramentas no [ADR 0016](decisions/0016-qualidade-de-codigo.md), segurança em [seguranca.md](seguranca.md).
+Pastas: `server/` (Python), `web/` (painel), `android/` (app), `scripts/`. Todo trabalho entra na `main` por pull request com o CI verde (`.github/workflows/ci.yml`: ruff, mypy e pytest; pytest de novo em Postgres; oxlint, build e vitest; checagens do projeto e gitleaks); Dependabot propõe atualizações. Processo em [processo.md](processo.md), ferramentas no [ADR 0016](decisions/0016-qualidade-de-codigo.md), segurança em [seguranca.md](seguranca.md).
 
 ## Como escalar
 
