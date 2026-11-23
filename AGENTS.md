@@ -64,11 +64,12 @@ Antes de mexer numa área, leia a regra dela (o Claude Code carrega sozinho; out
 server/          backend Python (pyproject.toml, alembic.ini)
   treino/
     config.py      .env, data/ e web/dist resolvidos pela raiz do repositório (config.ROOT)
+    conta.py       Conta (usuário, FC, fuso) passada ao services; dono no PC e no MCP local (ADR 0018)
     core/          cálculo puro: parciais, limpeza de FC, zonas, TRIMP, fitness/fadiga/forma, aderência ao plano
     ingest/        export do Strava, treinos do app Android (treinos_app: conversor e gravação), streams_store
     db/            modelos SQLAlchemy, sessão, init_db() com Alembic
     migrations/    versões do Alembic
-    services.py    única camada de regras e consultas
+    services.py    única camada de regras e consultas; toda função de dados recebe a Conta e filtra por ela
     auth/          contas, senhas (Argon2id), sessões com tokens opacos, login com Google, limite de tentativas
     ia/            ferramentas (registro único), MCP, provedores Claude e Gemini, chat
     api/           FastAPI: rotas em /api (login em /api/auth), painel compilado (web/dist) na raiz
@@ -97,6 +98,7 @@ cd server; ..\.venv\Scripts\mypy.exe; cd ..         # tipos (rigoroso em core/)
 .\.venv\Scripts\python.exe -m pytest -q server
 .\.venv\Scripts\treino.exe resumo
 .\.venv\Scripts\treino.exe criar-usuario seu@email   # conta nova (pede a senha)
+.\.venv\Scripts\treino.exe ajustar-conta --fc-max N   # FC máxima, FC de repouso e fuso da conta
 .\.venv\Scripts\treino.exe importar-strava "D:\dados\strava\export_<número>.zip"
 .\.venv\Scripts\treino.exe servico      # painel + API para o app (scripts/iniciar-treino.bat)
 .\.venv\Scripts\treino.exe publicar-app   # publica o APK compilado para o app se atualizar

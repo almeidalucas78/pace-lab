@@ -3,7 +3,7 @@ from datetime import date
 import pytest
 
 from treino import services
-from treino.config import get_settings
+from treino.conta import do_dono
 from treino.db import session_scope
 from treino.db.models import TrainingPlan
 
@@ -20,14 +20,14 @@ def sessoes_base():
 
 def criar(s, **kw):
     return services.create_plan(
-        s, get_settings(), kw.pop("title", "Teste"), D(19), D(25), kw.pop("sessions", sessoes_base()), **kw
+        s, do_dono(s), kw.pop("title", "Teste"), D(19), D(25), kw.pop("sessions", sessoes_base()), **kw
     )
 
 
 def test_aderencia_com_dados_do_banco(db):
     with session_scope() as s:
         plano = criar(s, goal="10 km")
-        rep = services.plan_adherence(s, get_settings(), today=D(26))
+        rep = services.plan_adherence(s, do_dono(s), today=D(26))
     assert plano["status"] == "ativo" and [x["dia_semana"] for x in plano["sessoes"]] == ["ter", "qua", "qui"]
     assert plano["sessoes"][2]["ritmo"] == "5:00/km a 5:20/km"
     st = {l["dia"]: l["status"] for l in rep["sessoes"]}
@@ -46,27 +46,27 @@ def test_plano_novo_substitui_o_ativo(db):
         p2 = criar(s, title="Bloco 2")
         antigo = s.get(TrainingPlan, p1["id"])
         assert antigo.status == "substituido" and antigo.replaced_by == p2["id"]
-        assert services.active_plan(s).id == p2["id"]
-        assert [p["titulo"] for p in services.list_plans(s, get_settings())] == ["Bloco 2", "Bloco 1"]
+        assert services.active_plan(s, do_dono(s)).id == p2["id"]
+        assert [p["titulo"] for p in services.list_plans(s, do_dono(s))] == ["Bloco 2", "Bloco 1"]
 
 
 def test_ajustes_pontuais_e_validacoes(db):
     with session_scope() as s:
         plano = criar(s)
         sid = plano["sessoes"][2]["id"]
-        movida = services.update_session(s, get_settings(), sid, {"day": D(23), "target_pace_max_s_km": None})
+        movida = services.update_session(s, do_dono(s), sid, {"day": D(23), "target_pace_max_s_km": None})
         assert movida["dia"] == "2026-10-23" and movida["ritmo"] == "5:00/km a -"
-        assert services.update_session(s, get_settings(), sid, {}, cancel=True)["status"] == "cancelada"
+        assert services.update_session(s, do_dono(s), sid, {}, cancel=True)["status"] == "cancelada"
         nova = services.add_session(
-            s, get_settings(), None, {"day": D(25), "sport": "run", "kind": "longao", "target_distance_km": 12}
+            s, do_dono(s), None, {"day": D(25), "sport": "run", "kind": "longao", "target_distance_km": 12}
         )
         assert nova["tipo"] == "longao"
         with pytest.raises(ValueError, match="fora do plano"):
-            services.update_session(s, get_settings(), sid, {"day": D(30)})
+            services.update_session(s, do_dono(s), sid, {"day": D(30)})
         with pytest.raises(ValueError, match="invertida"):
             services.add_session(
                 s,
-                get_settings(),
+                do_dono(s),
                 None,
                 {
                     "day": D(24),
@@ -77,19 +77,19 @@ def test_ajustes_pontuais_e_validacoes(db):
                 },
             )
         with pytest.raises(ValueError, match="tipo inválido"):
-            services.add_session(s, get_settings(), None, {"day": D(24), "sport": "run", "kind": "fartlek"})
+            services.add_session(s, do_dono(s), None, {"day": D(24), "sport": "run", "kind": "fartlek"})
         with pytest.raises(ValueError, match="fim do plano"):
-            services.create_plan(s, get_settings(), "x", D(25), D(19), sessoes_base())
+            services.create_plan(s, do_dono(s), "x", D(25), D(19), sessoes_base())
 
 
 def test_arquivar_plano(db):
     with session_scope() as s:
         pid = criar(s)["id"]
-        assert services.archive_plan(s, get_settings(), None)["status"] == "arquivado"
-        assert services.active_plan(s) is None
-        assert services.get_plan(s, pid).status == "arquivado"  # continua consultável pelo id
+        assert services.archive_plan(s, do_dono(s), None)["status"] == "arquivado"
+        assert services.active_plan(s, do_dono(s)) is None
+        assert services.get_plan(s, do_dono(s), pid).status == "arquivado"  # continua consultável pelo id
         with pytest.raises(ValueError, match="nenhum plano ativo"):
-            services.archive_plan(s, get_settings(), None)
+            services.archive_plan(s, do_dono(s), None)
 
 
 def test_ritmo_em_texto():

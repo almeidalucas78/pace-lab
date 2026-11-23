@@ -23,6 +23,7 @@ Regra do projeto: decisão com status **aceita** não é reaberta sem perguntar 
 | [0015](0015-acesso-publico-sessoes-e-testes.md) | Endereço público (Funnel), sessões com cookie seguro e testes em SQLite e Postgres | aceita |
 | [0016](0016-qualidade-de-codigo.md) | Qualidade de código: ruff, mypy gradual, oxlint, checagens do projeto e pre-commit | aceita |
 | [0017](0017-contas-e-login.md) | Contas e login: tokens opacos, Argon2id, cadastro fechado por lista e Google sem biblioteca de OAuth | aceita |
+| [0018](0018-dados-por-usuario.md) | Dados por usuário: user_id em cada registro, conta passada ao services e dono no PC | aceita |
 
 ## Modelo
 

@@ -6,6 +6,7 @@ from google.genai import types
 
 from treino import services
 from treino.config import get_settings
+from treino.conta import do_dono
 from treino.db import session_scope
 from treino.ia import chat as chat_mod
 from treino.ia.chat import conversar
@@ -57,16 +58,16 @@ class ProvedorFalso:
 
 def test_chat_grava_e_retoma_conversa(db):
     falso = ProvedorFalso()
-    r1 = asyncio.run(conversar("como foi meu treino?", provedor="claude", fabrica=lambda n, s: falso))
-    r2 = asyncio.run(conversar("e a carga?", conversa_id=r1["conversa_id"], fabrica=lambda n, s: falso))
+    r1 = asyncio.run(conversar("como foi meu treino?", provedor="claude", fabrica=lambda *_: falso))
+    r2 = asyncio.run(conversar("e a carga?", conversa_id=r1["conversa_id"], fabrica=lambda *_: falso))
     assert r2["conversa_id"] == r1["conversa_id"] and r2["resposta"] == "resposta 2"
     msg, historico, sessao = falso.chamadas[1]
     assert historico == [("user", "como foi meu treino?"), ("assistant", "resposta 1")] and sessao == "s1"
     with session_scope() as s:
-        conv = services.conversation_detail(s, get_settings(), r1["conversa_id"])
+        conv = services.conversation_detail(s, do_dono(s), r1["conversa_id"])
     assert conv["provedor"] == "claude" and len(conv["mensagens"]) == 4
     with pytest.raises(ErroIA):
-        asyncio.run(conversar("oi", conversa_id=r1["conversa_id"], provedor="gemini", fabrica=lambda n, s: falso))
+        asyncio.run(conversar("oi", conversa_id=r1["conversa_id"], provedor="gemini", fabrica=lambda *_: falso))
 
 
 class GeminiFalso:
@@ -106,7 +107,7 @@ def test_servidor_mcp_expoe_o_registro():
 
 def test_api_de_chat(db, monkeypatch):
     falso = ProvedorFalso()
-    monkeypatch.setattr(chat_mod, "criar_provedor", lambda n, s: falso)
+    monkeypatch.setattr(chat_mod, "criar_provedor", lambda *_: falso)
     from treino.api.app import app
 
     with TestClient(app) as c:
@@ -116,7 +117,7 @@ def test_api_de_chat(db, monkeypatch):
         assert c.get("/api/chat/conversas", headers=h).json()[0]["titulo"] == "oi"
         assert c.post("/api/chat", json={"mensagem": "oi"}).status_code == 401
 
-        def falha(n, s):
+        def falha(*_):
             raise ErroIA("sem cota")
 
         monkeypatch.setattr(chat_mod, "criar_provedor", falha)
@@ -194,7 +195,7 @@ def test_plano_criado_no_chat_fica_ligado_a_conversa(db):
             )
             return await super().responder(mensagem, historico, sessao)
 
-    r = asyncio.run(conversar("pode salvar", provedor="claude", fabrica=lambda n, s: CriaPlano()))
+    r = asyncio.run(conversar("pode salvar", provedor="claude", fabrica=lambda *_: CriaPlano()))
     assert executar("plano_atual", {})["conversa_id"] == r["conversa_id"]
 
 
@@ -232,10 +233,10 @@ def test_contexto_do_painel_vai_para_a_ia_mas_nao_fica_gravado(db):
     falso = ProvedorFalso()
     r = asyncio.run(
         conversar(
-            "o que achou?", provedor="claude", fabrica=lambda n, s: falso, contexto="o usuário está vendo o treino #1"
+            "o que achou?", provedor="claude", fabrica=lambda *_: falso, contexto="o usuário está vendo o treino #1"
         )
     )
     assert falso.chamadas[0][0] == "[Contexto do painel: o usuário está vendo o treino #1]\n\no que achou?"
     with session_scope() as s:
-        conv = services.conversation_detail(s, get_settings(), r["conversa_id"])
+        conv = services.conversation_detail(s, do_dono(s), r["conversa_id"])
     assert conv["mensagens"][0]["texto"] == "o que achou?" and conv["titulo"] == "o que achou?"

@@ -59,18 +59,22 @@ Em uso normal, `treino servico` serve o build (`web/dist`) na raiz e a API em `/
 
 | Tabela | O que guarda | Recalculável? |
 |---|---|---|
-| `activities` | Um treino por fonte (`source`, `source_id`), totais, métricas, duplicata | sim, reimportando |
+| `users` | Conta: e-mail, senha (hash), Google, FC máxima, FC de repouso, fuso | **não** |
+| `auth_sessions`, `auth_pending` | Sessões de login (tokens só como hash) e passos do login com Google | não precisa |
+| `activities` | Um treino por conta e fonte (`user_id`, `source`, `source_id`), totais, métricas, duplicata | sim, reimportando |
 | `samples` | Leituras ao longo do treino (1/s) | sim |
 | `splits` | Parciais por km | sim |
 | `daily_load` | Carga diária, fitness, fadiga, forma | sim, `treino recalcular` |
-| `sync_state` | Última sincronização por fonte | não |
+| `sync_state` | Última sincronização por conta e fonte | não |
 | `sensations` | Como o usuário se sentiu (via chat) | **não** |
 | `conversations`, `chat_messages` | Histórico do chat | **não** |
 | `training_plans`, `planned_sessions` | Planos e sessões com metas (o casamento com treinos é calculado) | **não** |
 
 Tabelas marcadas "não" têm dados que nenhum export recupera: nunca apagar, e fazer backup antes de migração arriscada.
 
-Datas sempre em UTC com fuso (`UTCDateTime`); o fuso local (`TIMEZONE`) só é usado para agrupar por dia e semana e para mostrar.
+Cada dado tem dono (ADR 0018): `activities`, `sensations`, `conversations`, `training_plans`, `sync_state` e `daily_load` têm `user_id`; as outras herdam pelo registro pai. O `services` recebe a `Conta` (`treino/conta.py`) e filtra toda consulta por ela; a API usa a conta do login, e os comandos do PC e o MCP local usam a do dono (a primeira do banco).
+
+Datas sempre em UTC com fuso (`UTCDateTime`); o fuso da conta só é usado para agrupar por dia e semana e para mostrar.
 
 ## Configuração
 
