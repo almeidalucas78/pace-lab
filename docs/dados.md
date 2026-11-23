@@ -22,7 +22,7 @@ O que foi observado nos dados reais. Os arquivos reais nunca entram no repositó
 
 ## Frequência cardíaca
 - A FC sobe de forma contínua até 200 a 210 bpm em algumas corridas.
-- `FC_MAX` não está configurada; a estimativa automática deu **214** (maior média de 30 s nos treinos com FC "ok").
+- A FC máxima não está configurada (nem no `.env` antigo, nem na conta); a estimativa automática deu **214** (maior média de 30 s nos treinos com FC "ok").
 - Não é um treino isolado: 10 corridas diferentes (2024 a 2025) têm pico sustentado de 30 s entre 207 e 214, coerente com a FC máxima do resumo do Strava.
 - Não tratar como erro sem evidência, e sempre deixar claro que é estimativa.
 

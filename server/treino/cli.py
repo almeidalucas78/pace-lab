@@ -19,6 +19,17 @@ def _print(obj) -> None:
     typer.echo(json.dumps(obj, ensure_ascii=False, indent=2, default=str))
 
 
+def _dono(s):
+    """Os comandos no PC agem na conta do dono (a primeira do banco; ADR 0018)."""
+    from .conta import SemConta, do_dono
+
+    try:
+        return do_dono(s)
+    except SemConta as e:
+        typer.secho(str(e), fg=typer.colors.RED, err=True)
+        raise typer.Exit(1) from e
+
+
 @app.command()
 def init():
     """Cria o banco de dados (seguro rodar de novo)."""
@@ -32,19 +43,58 @@ def criar_usuario(
     nome: str = typer.Option("", help="nome para mostrar"),
     sem_senha: bool = typer.Option(False, "--sem-senha", help="conta só para entrar com o Google"),
 ):
-    """Cria uma conta (sem passar pela lista de cadastro; quem roda tem o PC ou o servidor)."""
-    from .auth.contas import ErroConta
+    """Cria uma conta (sem passar pela lista de cadastro; quem roda tem o PC ou o servidor). Se houver a conta
+    provisória do dono (criada pela migração 0006), ela é assumida por este e-mail, com os dados antigos."""
+    from .auth.contas import ErroConta, assumir_provisoria
     from .auth.contas import criar_usuario as criar
 
     senha = None if sem_senha else typer.prompt("Senha", hide_input=True, confirmation_prompt="Repita a senha")
     init_db()
     try:
         with session_scope() as s:
-            u = criar(s, get_settings(), email, senha, nome, livre=True)
-            typer.echo(f"Conta {u.id} criada: {u.email}")
+            u = assumir_provisoria(s, email, senha, nome)
+            if u is not None:
+                typer.echo(f"Conta provisória {u.id} (com os dados antigos) agora é de {u.email}")
+            else:
+                u = criar(s, get_settings(), email, senha, nome, livre=True)
+                typer.echo(f"Conta {u.id} criada: {u.email}")
     except ErroConta as e:
         typer.echo(f"Erro: {e}", err=True)
         raise typer.Exit(1) from e
+
+
+@app.command("ajustar-conta")
+def ajustar_conta(
+    fc_max: int = typer.Option(None, help="FC máxima medida, em bpm (0 = voltar a estimar pelos treinos)"),
+    fc_repouso: int = typer.Option(None, help="FC de repouso, em bpm (0 = apagar)"),
+    fuso: str = typer.Option(None, help="fuso horário, ex.: America/Sao_Paulo"),
+):
+    """Ajusta FC máxima, FC de repouso e fuso da conta do dono e recalcula zonas e carga."""
+    from zoneinfo import ZoneInfo, ZoneInfoNotFoundError
+
+    from .db.models import User
+
+    init_db()
+    with session_scope() as s:
+        u = s.get(User, _dono(s).user_id)
+        assert u is not None
+        if fc_max is not None:
+            if fc_max and not 120 <= fc_max <= 240:
+                typer.secho("FC máxima fora do razoável (120 a 240)", fg=typer.colors.RED, err=True)
+                raise typer.Exit(1)
+            u.fc_max = fc_max or None
+        if fc_repouso is not None:
+            u.fc_repouso = fc_repouso or None
+        if fuso is not None:
+            try:
+                ZoneInfo(fuso)
+            except (ZoneInfoNotFoundError, ValueError) as e:
+                typer.secho(f"fuso desconhecido: {fuso}", fg=typer.colors.RED, err=True)
+                raise typer.Exit(1) from e
+            u.timezone = fuso
+        s.flush()
+        rc = services.recompute(s, _dono(s))
+    typer.echo(f"FC máxima: {rc['fc_max']} ({rc['fc_max_origem']}); FC de repouso: {u.fc_repouso}; fuso: {u.timezone}")
 
 
 @app.command("importar-strava")
@@ -54,7 +104,6 @@ def importar_strava(
 ):
     """Importa (ou atualiza) todo o histórico do export do Strava e recalcula as métricas."""
     init_db()
-    settings = get_settings()
     with typer.progressbar(length=1, label="Importando") as bar:
         state = {"total": None}
 
@@ -65,15 +114,16 @@ def importar_strava(
             bar.update(1)
 
         with session_scope() as s:
-            rep = import_strava_export(s, caminho, with_streams=not sem_arquivos, progress=progress)
-            rep["recalculo"] = services.recompute(s, settings)
+            conta = _dono(s)
+            rep = import_strava_export(s, conta.user_id, caminho, with_streams=not sem_arquivos, progress=progress)
+            rep["recalculo"] = services.recompute(s, conta)
     _print(rep)
     rc = rep["recalculo"]
     if rc["fc_max_origem"] == "estimada":
         typer.secho(
             f"\nAtenção: FC máxima ESTIMADA em {rc['fc_max']:.0f} bpm a partir dos seus treinos. "
-            "Zonas e carga dependem dela; preencha FC_MAX no .env se tiver um valor medido "
-            "e rode `treino recalcular`.",
+            "Zonas e carga dependem dela; se tiver um valor medido, rode "
+            "`treino ajustar-conta --fc-max N`.",
             fg=typer.colors.YELLOW,
         )
 
@@ -82,22 +132,22 @@ def importar_strava(
 def recalcular():
     """Recalcula duplicatas, zonas, carga e fitness/fadiga/forma (use após mudar FC_MAX)."""
     with session_scope() as s:
-        _print(services.recompute(s, get_settings()))
+        _print(services.recompute(s, _dono(s)))
 
 
 @app.command()
 def resumo(semanas: int = typer.Option(8, help="Quantas semanas mostrar")):
     """Visão geral e volume semanal de corrida."""
-    settings = get_settings()
     with session_scope() as s:
-        _print(services.overview(s))
+        conta = _dono(s)
+        _print(services.overview(s, conta))
         typer.echo("\nCorrida por semana (segunda a domingo):")
-        for w in services.weekly_summary(s, settings, weeks=semanas):
+        for w in services.weekly_summary(s, conta, weeks=semanas):
             typer.echo(
                 f"  {w['semana']}  {w['treinos']} treino(s)  {w['km']:5.1f} km  "
                 f"ritmo {w['ritmo_medio'] or '-':>9}  maior {w['maior_treino_km']:4.1f} km  carga {w['carga']}"
             )
-        load = services.load_series(s, days=1)
+        load = services.load_series(s, conta, days=1)
         if load:
             d = load[-1]
             typer.echo(f"\nHoje: fitness {d['fitness']}  fadiga {d['fadiga']}  forma {d['forma']}")
@@ -109,7 +159,7 @@ def atividades(
 ):
     """Lista os treinos mais recentes."""
     with session_scope() as s:
-        rows = services.list_activities(s, get_settings(), None if esporte == "todos" else esporte, limite)
+        rows = services.list_activities(s, _dono(s), None if esporte == "todos" else esporte, limite)
     for r in rows:
         typer.echo(
             f"#{r['id']:<4} {r['data'][:16]}  {r['esporte']:<8} {r['distancia_km'] or 0:6.2f} km  "
@@ -121,7 +171,7 @@ def atividades(
 def atividade(id: int):
     """Detalhe de um treino: parciais por km, zonas e qualidade dos dados."""
     with session_scope() as s:
-        d = services.activity_detail(s, get_settings(), id)
+        d = services.activity_detail(s, _dono(s), id)
     if d is None:
         raise typer.Exit(code=1)
     _print(d)
@@ -131,7 +181,7 @@ def atividade(id: int):
 def fc():
     """Mostra a FC máxima usada nos cálculos e de onde ela veio."""
     with session_scope() as s:
-        v, src = services.resolve_fc_max(s, get_settings())
+        v, src = services.resolve_fc_max(s, _dono(s))
     typer.echo(f"FC máxima: {v} ({src})")
 
 
@@ -154,7 +204,7 @@ def reprocessar_app():
     """Refaz parciais, mapa e zonas dos treinos vindos do app (Samsung Health) com o conversor atual."""
     init_db()
     with session_scope() as s:
-        _print(services.reprocess_app_workouts(s, get_settings()))
+        _print(services.reprocess_app_workouts(s, _dono(s)))
 
 
 @app.command("status-sync")
@@ -162,7 +212,7 @@ def status_sync():
     """Mostra quando o app enviou treinos pela última vez e se deu erro."""
     init_db()
     with session_scope() as s:
-        _print(services.sync_status(s, get_settings()))
+        _print(services.sync_status(s, _dono(s)))
 
 
 STATUS_SESSAO = {
@@ -183,15 +233,15 @@ def plano(
 ):
     """Plano de treino com a situação de cada sessão (ok* = feita em dia vizinho, X = perdida)."""
     init_db()
-    settings = get_settings()
     with session_scope() as s:
+        conta = _dono(s)
         if listar:
-            for p in services.list_plans(s, settings):
+            for p in services.list_plans(s, conta):
                 typer.echo(f"#{p['id']:<3} {p['inicio']} a {p['fim']}  {p['status']:<11} {p['titulo']}")
             return
         try:
-            rep = services.plan_adherence(s, settings, id)
-            metas = {x["id"]: x for x in services.plan_dict(services.get_plan(s, id), settings)["sessoes"]}
+            rep = services.plan_adherence(s, conta, id)
+            metas = {x["id"]: x for x in services.plan_dict(services.get_plan(s, conta, id), conta)["sessoes"]}
         except ValueError as e:
             typer.secho(str(e), fg=typer.colors.YELLOW)
             raise typer.Exit(code=1) from e

@@ -6,6 +6,7 @@ O que mudou em cada fase, escrito para o usuário. Formato inspirado no [Keep a 
 
 ### Adicionado
 - Contas e login (fase 9, etapa 2): cadastro e login por e-mail e senha (Argon2id, senhas comuns recusadas, limite de tentativas), login com Google, sessões com renovação e detecção de reuso, sair e sair de todos os aparelhos, troca de senha; cadastro fechado pela lista `CADASTRO_EMAILS`; comando `treino criar-usuario` (ADR 0017). O `API_TOKEN` continua valendo até o painel e o app mudarem.
+- Dados por usuário (fase 9, etapa 3): cada treino, sensação, conversa, plano, sincronização e dia de carga tem dono; uma conta não vê nem altera nada de outra (API e ferramentas da IA). FC máxima, FC de repouso e fuso passam do `.env` para a conta (comando `treino ajustar-conta`). Migração 0006 leva os dados existentes para a primeira conta (ADR 0018).
 
 ## [0.8.0] - 2026-11-12 (fase 8)
 

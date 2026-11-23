@@ -34,9 +34,10 @@ class Base(DeclarativeBase):
 
 class Activity(Base):
     __tablename__ = "activities"
-    __table_args__ = (UniqueConstraint("source", "source_id", name="uq_activity_source"),)
+    __table_args__ = (UniqueConstraint("user_id", "source", "source_id", name="uq_activity_source"),)
 
     id: Mapped[int] = mapped_column(primary_key=True)
+    user_id: Mapped[int] = mapped_column(ForeignKey("users.id", ondelete="CASCADE"), index=True)
     source: Mapped[str] = mapped_column(String(20))  # strava, health_connect...
     source_id: Mapped[str] = mapped_column(String(64))
     sport: Mapped[str] = mapped_column(String(20), index=True)  # run, walk, ride, strength, workout, other
@@ -123,6 +124,7 @@ class SyncState(Base):
 
     __tablename__ = "sync_state"
 
+    user_id: Mapped[int] = mapped_column(ForeignKey("users.id", ondelete="CASCADE"), primary_key=True)
     source: Mapped[str] = mapped_column(String(30), primary_key=True)
     last_success_utc: Mapped[datetime | None] = mapped_column(UTCDateTime)  # fim da última janela lida com sucesso
     last_attempt_utc: Mapped[datetime | None] = mapped_column(UTCDateTime)
@@ -136,6 +138,7 @@ class Sensation(Base):
     __tablename__ = "sensations"
 
     id: Mapped[int] = mapped_column(primary_key=True)
+    user_id: Mapped[int] = mapped_column(ForeignKey("users.id", ondelete="CASCADE"), index=True)
     created_utc: Mapped[datetime] = mapped_column(UTCDateTime)
     day: Mapped[date] = mapped_column(Date, index=True)  # dia a que a sensação se refere (fuso local)
     activity_id: Mapped[int | None] = mapped_column(ForeignKey("activities.id", ondelete="SET NULL"))
@@ -148,6 +151,7 @@ class Conversation(Base):
     __tablename__ = "conversations"
 
     id: Mapped[int] = mapped_column(primary_key=True)
+    user_id: Mapped[int] = mapped_column(ForeignKey("users.id", ondelete="CASCADE"), index=True)
     created_utc: Mapped[datetime] = mapped_column(UTCDateTime)
     updated_utc: Mapped[datetime] = mapped_column(UTCDateTime, index=True)
     provider: Mapped[str] = mapped_column(String(20))  # claude, gemini
@@ -178,6 +182,7 @@ class TrainingPlan(Base):
     __tablename__ = "training_plans"
 
     id: Mapped[int] = mapped_column(primary_key=True)
+    user_id: Mapped[int] = mapped_column(ForeignKey("users.id", ondelete="CASCADE"), index=True)
     created_utc: Mapped[datetime] = mapped_column(UTCDateTime)
     updated_utc: Mapped[datetime] = mapped_column(UTCDateTime)
     title: Mapped[str] = mapped_column(String(200))
@@ -220,6 +225,7 @@ class PlannedSession(Base):
 class DailyLoad(Base):
     __tablename__ = "daily_load"
 
+    user_id: Mapped[int] = mapped_column(ForeignKey("users.id", ondelete="CASCADE"), primary_key=True)
     day: Mapped[date] = mapped_column(Date, primary_key=True)
     trimp: Mapped[float] = mapped_column(Float, default=0.0)
     fitness: Mapped[float] = mapped_column(Float)  # CTL, média exponencial 42 dias
@@ -240,6 +246,9 @@ class User(Base):
     name: Mapped[str | None] = mapped_column(String(120))
     google_sub: Mapped[str | None] = mapped_column(String(255), unique=True)  # id estável da conta Google
     password_hash: Mapped[str | None] = mapped_column(String(255))  # Argon2id; nulo se só entra pelo Google
+    fc_max: Mapped[int | None] = mapped_column(Integer)  # vazio = estimada pelos treinos
+    fc_repouso: Mapped[int | None] = mapped_column(Integer)
+    timezone: Mapped[str] = mapped_column(String(50), default="America/Sao_Paulo")
     created_utc: Mapped[datetime] = mapped_column(UTCDateTime)
     last_login_utc: Mapped[datetime | None] = mapped_column(UTCDateTime)
 

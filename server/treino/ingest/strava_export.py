@@ -72,7 +72,10 @@ def _store_json(a: Activity, raw: bytes, name: str) -> None:
     a.file_status = "ok"
 
 
-def import_strava_export(session: Session, path: str | Path, with_streams: bool = True, progress=None) -> dict:
+def import_strava_export(
+    session: Session, user_id: int, path: str | Path, with_streams: bool = True, progress=None
+) -> dict:
+    """Importa o export do Strava na conta `user_id` (rodar de novo só atualiza)."""
     src = ExportSource(path)
     raw_csv = src.read("activities.csv")
     if raw_csv is None:
@@ -82,10 +85,12 @@ def import_strava_export(session: Session, path: str | Path, with_streams: bool 
     errors: list[str] = []
 
     for n, c in enumerate(rows, 1):
-        a = session.scalar(select(Activity).where(Activity.source == "strava", Activity.source_id == c.id))
+        a = session.scalar(
+            select(Activity).where(Activity.user_id == user_id, Activity.source == "strava", Activity.source_id == c.id)
+        )
         is_new = a is None
         if a is None:
-            a = Activity(source="strava", source_id=c.id)
+            a = Activity(user_id=user_id, source="strava", source_id=c.id)
             session.add(a)
         _apply_summary(a, c)
         a.file_error = None

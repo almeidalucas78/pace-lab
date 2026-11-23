@@ -12,6 +12,7 @@ from pydantic import AwareDatetime, BaseModel, Field
 
 from .. import services
 from ..config import ROOT, Settings, get_settings
+from ..conta import Conta, SemConta, da_conta, do_dono
 from ..db import session_scope
 from ..ia.chat import conversar
 from ..ia.provedores import ErroIA
@@ -35,14 +36,31 @@ app.add_middleware(
 bearer = HTTPBearer(auto_error=False)
 
 
-def auth(
+def logado(
     request: Request,
     creds: HTTPAuthorizationCredentials | None = Depends(bearer),
     settings: Settings = Depends(get_settings),
 ) -> Settings:
-    """Sessão de usuário (cabeçalho ou cookie) ou o API_TOKEN antigo, aceito até as etapas 7 e 8 (ADR 0017)."""
+    """Só confere o login, para rotas sem dados de usuário (APK do app, configuração do painel)."""
     rotas_auth.autenticar(request, creds, settings)
     return settings
+
+
+def auth(
+    request: Request,
+    creds: HTTPAuthorizationCredentials | None = Depends(bearer),
+    settings: Settings = Depends(get_settings),
+) -> Conta:
+    """Conta de quem chama: a do login (cabeçalho ou cookie) ou, com o API_TOKEN antigo, aceito até as etapas
+    7 e 8 (ADR 0017), a do dono. Toda rota de dados filtra por ela (ADR 0018)."""
+    u = rotas_auth.autenticar(request, creds, settings)
+    if u is not None:
+        return da_conta(u, settings)
+    try:
+        with session_scope() as s:
+            return do_dono(s, settings)
+    except SemConta as e:
+        raise HTTPException(503, str(e)) from e
 
 
 @api.get("/health")
@@ -51,52 +69,53 @@ def health():
 
 
 @api.get("/overview")
-def overview(settings: Settings = Depends(auth)):
+def overview(conta: Conta = Depends(auth)):
     with session_scope() as s:
-        return services.overview(s)
+        return services.overview(s, conta)
 
 
 @api.get("/activities")
-def activities(
-    sport: str | None = None, limit: int = Query(20, le=200), offset: int = 0, settings: Settings = Depends(auth)
-):
+def activities(sport: str | None = None, limit: int = Query(20, le=200), offset: int = 0, conta: Conta = Depends(auth)):
     with session_scope() as s:
-        return services.list_activities(s, settings, sport, limit, offset)
+        return services.list_activities(s, conta, sport, limit, offset)
 
 
 @api.get("/activities/{activity_id}")
-def activity(activity_id: int, settings: Settings = Depends(auth)):
+def activity(activity_id: int, conta: Conta = Depends(auth)):
     with session_scope() as s:
-        d = services.activity_detail(s, settings, activity_id)
+        d = services.activity_detail(s, conta, activity_id)
         if d is not None:
-            d["sensacoes"] = services.list_sensations(s, settings, activity_id=activity_id)
+            d["sensacoes"] = services.list_sensations(s, conta, activity_id=activity_id)
     if d is None:
         raise HTTPException(404, "treino não encontrado")
     return d
 
 
 @api.get("/activities/{activity_id}/samples")
-def samples(activity_id: int, every_s: float = Query(5, ge=1), settings: Settings = Depends(auth)):
+def samples(activity_id: int, every_s: float = Query(5, ge=1), conta: Conta = Depends(auth)):
     with session_scope() as s:
-        return services.activity_samples(s, activity_id, every_s)
+        amostras = services.activity_samples(s, conta, activity_id, every_s)
+    if amostras is None:
+        raise HTTPException(404, "treino não encontrado")
+    return amostras
 
 
 @api.get("/weeks")
-def weeks(n: int = Query(12, le=104), sport: str = "run", settings: Settings = Depends(auth)):
+def weeks(n: int = Query(12, le=104), sport: str = "run", conta: Conta = Depends(auth)):
     with session_scope() as s:
-        return services.weekly_summary(s, settings, n, sport)
+        return services.weekly_summary(s, conta, n, sport)
 
 
 @api.get("/load")
-def load(days: int = Query(90, le=3650), settings: Settings = Depends(auth)):
+def load(days: int = Query(90, le=3650), conta: Conta = Depends(auth)):
     with session_scope() as s:
-        return services.load_series(s, days)
+        return services.load_series(s, conta, days)
 
 
 @api.get("/sync/status")
-def sync_status(settings: Settings = Depends(auth)):
+def sync_status(conta: Conta = Depends(auth)):
     with session_scope() as s:
-        return services.sync_status(s, settings)
+        return services.sync_status(s, conta)
 
 
 class ChatIn(BaseModel):
@@ -107,32 +126,34 @@ class ChatIn(BaseModel):
 
 
 @api.post("/chat")
-async def chat(body: ChatIn, settings: Settings = Depends(auth)):
+async def chat(body: ChatIn, conta: Conta = Depends(auth)):
     try:
-        return await conversar(body.mensagem, body.conversa_id, body.provedor, settings, contexto=body.contexto)
+        return await conversar(
+            body.mensagem, body.conversa_id, body.provedor, conta.settings, contexto=body.contexto, conta=conta
+        )
     except ErroIA as e:
         raise HTTPException(502, str(e)) from e
 
 
 @api.get("/chat/conversas")
-def conversas(limit: int = Query(30, le=200), settings: Settings = Depends(auth)):
+def conversas(limit: int = Query(30, le=200), conta: Conta = Depends(auth)):
     with session_scope() as s:
-        return services.list_conversations(s, settings, limit)
+        return services.list_conversations(s, conta, limit)
 
 
 @api.get("/chat/conversas/{conversa_id}")
-def conversa(conversa_id: int, settings: Settings = Depends(auth)):
+def conversa(conversa_id: int, conta: Conta = Depends(auth)):
     with session_scope() as s:
-        d = services.conversation_detail(s, settings, conversa_id)
+        d = services.conversation_detail(s, conta, conversa_id)
     if d is None:
         raise HTTPException(404, "conversa não encontrada")
     return d
 
 
 @api.get("/sensacoes")
-def sensacoes(dias: int = Query(30, le=3650), settings: Settings = Depends(auth)):
+def sensacoes(dias: int = Query(30, le=3650), conta: Conta = Depends(auth)):
     with session_scope() as s:
-        return services.list_sensations(s, settings, days=dias)
+        return services.list_sensations(s, conta, days=dias)
 
 
 def _plano(fn):
@@ -144,39 +165,39 @@ def _plano(fn):
 
 
 @api.get("/planos")
-def planos(limit: int = Query(20, le=200), settings: Settings = Depends(auth)):
+def planos(limit: int = Query(20, le=200), conta: Conta = Depends(auth)):
     with session_scope() as s:
-        return services.list_plans(s, settings, limit)
+        return services.list_plans(s, conta, limit)
 
 
 @api.get("/planos/ativo")
-def plano_ativo(settings: Settings = Depends(auth)):
-    return _plano(lambda s: services.plan_dict(services.get_plan(s, None), settings))
+def plano_ativo(conta: Conta = Depends(auth)):
+    return _plano(lambda s: services.plan_dict(services.get_plan(s, conta, None), conta))
 
 
 @api.get("/planos/ativo/aderencia")
-def aderencia_ativo(settings: Settings = Depends(auth)):
-    return _plano(lambda s: services.plan_adherence(s, settings, None))
+def aderencia_ativo(conta: Conta = Depends(auth)):
+    return _plano(lambda s: services.plan_adherence(s, conta, None))
 
 
 @api.get("/planos/{plano_id}")
-def plano(plano_id: int, settings: Settings = Depends(auth)):
-    return _plano(lambda s: services.plan_dict(services.get_plan(s, plano_id), settings))
+def plano(plano_id: int, conta: Conta = Depends(auth)):
+    return _plano(lambda s: services.plan_dict(services.get_plan(s, conta, plano_id), conta))
 
 
 @api.get("/planos/{plano_id}/aderencia")
-def aderencia(plano_id: int, settings: Settings = Depends(auth)):
-    return _plano(lambda s: services.plan_adherence(s, settings, plano_id))
+def aderencia(plano_id: int, conta: Conta = Depends(auth)):
+    return _plano(lambda s: services.plan_adherence(s, conta, plano_id))
 
 
 @api.get("/app/versao")
-def app_versao(settings: Settings = Depends(auth)):
+def app_versao(settings: Settings = Depends(logado)):
     """Versão do app Android publicada no PC; `codigo` nulo quando nada foi publicado."""
     return services.app_version(settings) or {"codigo": None}
 
 
 @api.get("/app/apk")
-def app_apk(settings: Settings = Depends(auth)):
+def app_apk(settings: Settings = Depends(logado)):
     caminho = services.app_apk_path(settings)
     if caminho is None:
         raise HTTPException(status_code=404, detail="nenhuma versão do app publicada; rode treino publicar-app")
@@ -184,15 +205,15 @@ def app_apk(settings: Settings = Depends(auth)):
 
 
 @api.get("/perfil")
-def perfil(settings: Settings = Depends(auth)):
+def perfil(conta: Conta = Depends(auth)):
     with session_scope() as s:
-        return services.athlete_profile(s, settings)
+        return services.athlete_profile(s, conta)
 
 
 @api.get("/carga/atual")
-def carga_atual(settings: Settings = Depends(auth)):
+def carga_atual(conta: Conta = Depends(auth)):
     with session_scope() as s:
-        return services.current_load(s, settings)
+        return services.current_load(s, conta)
 
 
 # ---------- treinos enviados pelo app Android (ADR 0013) ----------
@@ -238,24 +259,22 @@ class LoteTreinos(BaseModel):
 
 
 @api.post("/saude/treinos")
-def receber_treinos(lote: LoteTreinos, settings: Settings = Depends(auth)):
+def receber_treinos(lote: LoteTreinos, conta: Conta = Depends(auth)):
     for t in lote.treinos:
         if t.fim <= t.inicio:
             raise HTTPException(422, f"treino {t.id}: fim antes do início")
     with session_scope() as s:
-        rep = services.receive_app_workouts(
-            s, settings, lote.fonte, [t.model_dump() for t in lote.treinos], lote.apagados
-        )
+        rep = services.receive_app_workouts(s, conta, lote.fonte, [t.model_dump() for t in lote.treinos], lote.apagados)
     msg = describe_new(rep["treinos_novos"])
     if msg:
-        notify(*msg, enabled=settings.notificacoes)
+        notify(*msg, enabled=conta.settings.notificacoes)
     return {k: v for k, v in rep.items() if k != "treinos_novos"} | {
         "novos_ids": [t["id"] for t in rep["treinos_novos"]]
     }
 
 
 @api.get("/painel/config")
-def painel_config(settings: Settings = Depends(auth)):
+def painel_config(settings: Settings = Depends(logado)):
     return {"url_celular": settings.painel_url_celular.rstrip("/") or None}
 
 

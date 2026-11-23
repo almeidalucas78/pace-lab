@@ -5,6 +5,7 @@ from __future__ import annotations
 from datetime import datetime
 
 from ..config import Settings
+from ..conta import Conta
 
 SISTEMA = """Você é o treinador pessoal de corrida do usuário e conversa com ele em português do Brasil.
 
@@ -33,6 +34,7 @@ INSTRUCOES_MCP = (
 DIAS = ["segunda-feira", "terça-feira", "quarta-feira", "quinta-feira", "sexta-feira", "sábado", "domingo"]
 
 
-def com_data(mensagem: str, settings: Settings, agora: datetime | None = None) -> str:
-    agora = agora or datetime.now(settings.tz)
+def com_data(mensagem: str, fuso: Settings | Conta, agora: datetime | None = None) -> str:
+    """Data e hora no fuso da conta (ou do .env, fora de uma conta)."""
+    agora = agora or datetime.now(fuso.tz)
     return f"[Hoje é {DIAS[agora.weekday()]}, {agora:%d/%m/%Y}, {agora:%H:%M}.]\n\n{mensagem}"

@@ -12,6 +12,7 @@ from sqlalchemy import delete, func, insert, select
 from sqlalchemy.orm import Session, selectinload
 
 from .config import Settings
+from .conta import Conta
 from .core.aderencia import Sessao, Treino, aderencia
 from .core.formato import pace_str
 from .core.load import (
@@ -45,10 +46,21 @@ SOURCE_PRIORITY = {"strava": 0, "samsung_health": 1, "health_connect": 2}
 # ---------- recálculo ----------
 
 
-def mark_duplicates(session: Session) -> int:
+def _meus(conta: Conta):
+    """Filtro dos treinos da conta."""
+    return Activity.user_id == conta.user_id
+
+
+def _treino(session: Session, conta: Conta, activity_id: int) -> Activity | None:
+    """Treino pelo id, só se for da conta (de outra pessoa é como se não existisse)."""
+    a = session.get(Activity, activity_id)
+    return a if a is not None and a.user_id == conta.user_id else None
+
+
+def mark_duplicates(session: Session, conta: Conta) -> int:
     """Agrupa treinos do mesmo esporte que começam até 10 min depois do primeiro do grupo.
     Fica valendo o de fonte mais confiável (Strava antes do Health Connect); empate, o mais cedo."""
-    acts = session.scalars(select(Activity).order_by(Activity.start_utc, Activity.id)).all()
+    acts = session.scalars(select(Activity).where(_meus(conta)).order_by(Activity.start_utc, Activity.id)).all()
     groups: list[list[Activity]] = []
     open_group: dict[str, list[Activity]] = {}
     for a in acts:
@@ -69,11 +81,11 @@ def mark_duplicates(session: Session) -> int:
     return count
 
 
-def resolve_fc_max(session: Session, settings: Settings) -> tuple[float | None, str]:
-    if settings.fc_max:
-        return float(settings.fc_max), "configurada"
+def resolve_fc_max(session: Session, conta: Conta) -> tuple[float | None, str]:
+    if conta.fc_max:
+        return float(conta.fc_max), "configurada"
     vals = []
-    for a in session.scalars(select(Activity).where(Activity.hr_quality == "ok")):
+    for a in session.scalars(select(Activity).where(_meus(conta), Activity.hr_quality == "ok")):
         v = (a.extra or {}).get("fc_30s_max")
         if v:
             vals.append(v)
@@ -81,14 +93,14 @@ def resolve_fc_max(session: Session, settings: Settings) -> tuple[float | None, 
     return (float(est), "estimada") if est else (None, "indisponivel")
 
 
-def recompute(session: Session, settings: Settings) -> dict:
-    dups = mark_duplicates(session)
-    fc_max, fc_src = resolve_fc_max(session, settings)
-    tz = settings.tz
+def recompute(session: Session, conta: Conta) -> dict:
+    dups = mark_duplicates(session, conta)
+    fc_max, fc_src = resolve_fc_max(session, conta)
+    tz = conta.tz
     trimp_by_day: dict[date, float] = defaultdict(float)
     methods: defaultdict[str, int] = defaultdict(int)
 
-    acts = session.scalars(select(Activity).options(selectinload(Activity.samples))).all()
+    acts = session.scalars(select(Activity).where(_meus(conta)).options(selectinload(Activity.samples))).all()
     for a in acts:
         a.hr_zones_s = a.trimp = a.trimp_method = None
         if fc_max:
@@ -101,11 +113,11 @@ def recompute(session: Session, settings: Settings) -> dict:
         if a.trimp and a.sport in ENDURANCE_SPORTS and a.possible_duplicate_of is None:
             trimp_by_day[a.start_utc.astimezone(tz).date()] += a.trimp
 
-    session.execute(delete(DailyLoad))
+    session.execute(delete(DailyLoad).where(DailyLoad.user_id == conta.user_id))
     today = datetime.now(tz).date()
     series = daily_series(dict(trimp_by_day), end=today)
     if series:
-        session.execute(insert(DailyLoad), [d.__dict__ for d in series])
+        session.execute(insert(DailyLoad), [{"user_id": conta.user_id, **d.__dict__} for d in series])
     return {
         "duplicatas": dups,
         "fc_max": fc_max,
@@ -118,17 +130,17 @@ def recompute(session: Session, settings: Settings) -> dict:
 # ---------- consultas ----------
 
 
-def _local(dt: datetime, settings: Settings) -> str:
+def _local(dt: datetime, conta: Conta | Settings) -> str:
     if dt.tzinfo is None:
         dt = dt.replace(tzinfo=UTC)
-    return dt.astimezone(settings.tz).isoformat(timespec="minutes")
+    return dt.astimezone(conta.tz).isoformat(timespec="minutes")
 
 
-def activity_summary(a: Activity, settings: Settings) -> dict:
+def activity_summary(a: Activity, conta: Conta) -> dict:
     pace = (a.moving_s / (a.distance_m / 1000)) if a.moving_s and a.distance_m else None
     return {
         "id": a.id,
-        "data": _local(a.start_utc, settings),
+        "data": _local(a.start_utc, conta),
         "esporte": a.sport,
         "tipo_original": a.sport_raw,
         "nome": a.name,
@@ -151,28 +163,28 @@ def activity_summary(a: Activity, settings: Settings) -> dict:
 
 def list_activities(
     session: Session,
-    settings: Settings,
+    conta: Conta,
     sport: str | None = None,
     limit: int = 20,
     offset: int = 0,
     since: date | None = None,
     include_duplicates: bool = True,
 ) -> list[dict]:
-    q = select(Activity).order_by(Activity.start_utc.desc()).limit(limit).offset(offset)
+    q = select(Activity).where(_meus(conta)).order_by(Activity.start_utc.desc()).limit(limit).offset(offset)
     if sport:
         q = q.where(Activity.sport == sport)
     if since:
-        q = q.where(Activity.start_utc >= datetime.combine(since, datetime.min.time(), tzinfo=settings.tz))
+        q = q.where(Activity.start_utc >= datetime.combine(since, datetime.min.time(), tzinfo=conta.tz))
     if not include_duplicates:
         q = q.where(Activity.possible_duplicate_of.is_(None))
-    return [activity_summary(a, settings) for a in session.scalars(q)]
+    return [activity_summary(a, conta) for a in session.scalars(q)]
 
 
-def activity_detail(session: Session, settings: Settings, activity_id: int) -> dict | None:
-    a = session.get(Activity, activity_id)
+def activity_detail(session: Session, conta: Conta, activity_id: int) -> dict | None:
+    a = _treino(session, conta, activity_id)
     if a is None:
         return None
-    out = activity_summary(a, settings)
+    out = activity_summary(a, conta)
     out["descricao"] = a.description
     out["percepcao_esforco"] = a.rpe
     out["zonas_fc_min"] = {k: round(v / 60, 1) for k, v in (a.hr_zones_s or {}).items()} or None
@@ -191,7 +203,9 @@ def activity_detail(session: Session, settings: Settings, activity_id: int) -> d
     return out
 
 
-def activity_samples(session: Session, activity_id: int, every_s: float = 5) -> list[dict]:
+def activity_samples(session: Session, conta: Conta, activity_id: int, every_s: float = 5) -> list[dict] | None:
+    if _treino(session, conta, activity_id) is None:
+        return None
     rows = session.scalars(select(Sample).where(Sample.activity_id == activity_id).order_by(Sample.t_s)).all()
     out, last = [], None
     for s in rows:
@@ -212,14 +226,14 @@ def activity_samples(session: Session, activity_id: int, every_s: float = 5) -> 
     return out
 
 
-def weekly_summary(session: Session, settings: Settings, weeks: int = 12, sport: str = "run") -> list[dict]:
-    tz = settings.tz
+def weekly_summary(session: Session, conta: Conta, weeks: int = 12, sport: str = "run") -> list[dict]:
+    tz = conta.tz
     today = datetime.now(tz).date()
     start_week = today - timedelta(days=today.weekday()) - timedelta(weeks=weeks - 1)
     since = datetime.combine(start_week, datetime.min.time(), tzinfo=tz)
     acts = session.scalars(
         select(Activity).where(
-            Activity.sport == sport, Activity.start_utc >= since, Activity.possible_duplicate_of.is_(None)
+            _meus(conta), Activity.sport == sport, Activity.start_utc >= since, Activity.possible_duplicate_of.is_(None)
         )
     ).all()
     buckets = {
@@ -255,18 +269,23 @@ def weekly_summary(session: Session, settings: Settings, weeks: int = 12, sport:
     return out
 
 
-def load_series(session: Session, days: int = 90) -> list[dict]:
-    rows = session.scalars(select(DailyLoad).order_by(DailyLoad.day.desc()).limit(days)).all()
+def load_series(session: Session, conta: Conta, days: int = 90) -> list[dict]:
+    rows = session.scalars(
+        select(DailyLoad).where(DailyLoad.user_id == conta.user_id).order_by(DailyLoad.day.desc()).limit(days)
+    ).all()
     return [
         {"dia": r.day.isoformat(), "carga": r.trimp, "fitness": r.fitness, "fadiga": r.fatigue, "forma": r.form}
         for r in reversed(rows)
     ]
 
 
-def overview(session: Session) -> dict:
-    by_sport = dict(session.execute(select(Activity.sport, func.count()).group_by(Activity.sport)).all())
-    first, last = session.execute(select(func.min(Activity.start_utc), func.max(Activity.start_utc))).one()
-    files = dict(session.execute(select(Activity.file_status, func.count()).group_by(Activity.file_status)).all())
+def overview(session: Session, conta: Conta) -> dict:
+    meus = _meus(conta)
+    by_sport = dict(session.execute(select(Activity.sport, func.count()).where(meus).group_by(Activity.sport)).all())
+    first, last = session.execute(select(func.min(Activity.start_utc), func.max(Activity.start_utc)).where(meus)).one()
+    files = dict(
+        session.execute(select(Activity.file_status, func.count()).where(meus).group_by(Activity.file_status)).all()
+    )
     return {
         "por_esporte": by_sport,
         "primeira": first.isoformat() if first else None,
@@ -278,18 +297,18 @@ def overview(session: Session) -> dict:
 # ---------- situação da sincronização do app ----------
 
 
-def sync_status(session: Session, settings: Settings) -> dict:
+def sync_status(session: Session, conta: Conta) -> dict:
     """Última sincronização de cada fonte do app Android (o celular envia; o PC só registra)."""
     fontes = []
     for fonte in ("samsung_health", "health_connect"):
-        st = session.get(SyncState, fonte)
+        st = session.get(SyncState, (conta.user_id, fonte))
         if st is None:
             continue
         fontes.append(
             {
                 "fonte": fonte,
-                "ultimo_sucesso": _local(st.last_success_utc, settings) if st.last_success_utc else None,
-                "ultima_tentativa": _local(st.last_attempt_utc, settings) if st.last_attempt_utc else None,
+                "ultimo_sucesso": _local(st.last_success_utc, conta) if st.last_success_utc else None,
+                "ultima_tentativa": _local(st.last_attempt_utc, conta) if st.last_attempt_utc else None,
                 "ultimo_erro": st.last_error,
                 "ultimo_resultado": st.last_result,
             }
@@ -300,35 +319,40 @@ def sync_status(session: Session, settings: Settings) -> dict:
 # ---------- fichas para a IA (resumidas, sem dados brutos) ----------
 
 
-def last_activity_id(session: Session, sport: str | None = "run") -> int | None:
-    q = select(Activity.id).where(Activity.possible_duplicate_of.is_(None)).order_by(Activity.start_utc.desc()).limit(1)
+def last_activity_id(session: Session, conta: Conta, sport: str | None = "run") -> int | None:
+    q = (
+        select(Activity.id)
+        .where(_meus(conta), Activity.possible_duplicate_of.is_(None))
+        .order_by(Activity.start_utc.desc())
+        .limit(1)
+    )
     if sport:
         q = q.where(Activity.sport == sport)
     return session.scalar(q)
 
 
-def activity_card(session: Session, settings: Settings, activity_id: int) -> dict | None:
+def activity_card(session: Session, conta: Conta, activity_id: int) -> dict | None:
     """Detalhe do treino sem as notas técnicas de importação, com as sensações registradas."""
-    d = activity_detail(session, settings, activity_id)
+    d = activity_detail(session, conta, activity_id)
     if d is None:
         return None
     obs = d.pop("observacoes_dados", {}) or {}
     d["fc_colada_cadencia_pct"] = obs.get("fc_colada_cadencia_pct")
-    atividade = session.get(Activity, activity_id)
+    atividade = _treino(session, conta, activity_id)
     d["fonte"] = atividade.source if atividade else None
     for k in [k for k, v in d.items() if v is None]:
         del d[k]
-    d["sensacoes"] = list_sensations(session, settings, activity_id=activity_id)
+    d["sensacoes"] = list_sensations(session, conta, activity_id=activity_id)
     return d
 
 
-def current_load(session: Session, settings: Settings) -> dict:
+def current_load(session: Session, conta: Conta) -> dict:
     """Fitness, fadiga e forma de hoje, comparados com 7 e 28 dias atrás, e a carga dos últimos 14 dias."""
-    rows = load_series(session, days=29)
+    rows = load_series(session, conta, days=29)
     if not rows:
         return {"aviso": "sem dados de carga"}
     today = rows[-1]
-    fc_max, origem = resolve_fc_max(session, settings)
+    fc_max, origem = resolve_fc_max(session, conta)
 
     def at(n):
         return rows[-1 - n] if len(rows) > n else None
@@ -347,8 +371,8 @@ def current_load(session: Session, settings: Settings) -> dict:
     }
 
 
-def athlete_profile(session: Session, settings: Settings) -> dict:
-    fc_max, origem = resolve_fc_max(session, settings)
+def athlete_profile(session: Session, conta: Conta) -> dict:
+    fc_max, origem = resolve_fc_max(session, conta)
     zones = None
     if fc_max:
         bounds: list[float | None] = [lo for _, lo in ZONES] + [None]
@@ -364,10 +388,10 @@ def athlete_profile(session: Session, settings: Settings) -> dict:
             if origem == "estimada"
             else None
         ),
-        "fc_repouso": settings.fc_repouso,
+        "fc_repouso": conta.fc_repouso,
         "zonas_fc": zones,
-        "historico": overview(session),
-        "fuso": settings.timezone,
+        "historico": overview(session, conta),
+        "fuso": conta.timezone,
     }
 
 
@@ -376,7 +400,7 @@ def athlete_profile(session: Session, settings: Settings) -> dict:
 
 def add_sensation(
     session: Session,
-    settings: Settings,
+    conta: Conta,
     text: str,
     rpe: float | None = None,
     activity_id: int | None = None,
@@ -384,15 +408,16 @@ def add_sensation(
     tags: list[str] | None = None,
 ) -> dict:
     if activity_id is not None:
-        a = session.get(Activity, activity_id)
+        a = _treino(session, conta, activity_id)
         if a is None:
             raise ValueError(f"treino {activity_id} não existe")
-        day = day or a.start_utc.astimezone(settings.tz).date()
+        day = day or a.start_utc.astimezone(conta.tz).date()
     if rpe is not None and not 1 <= rpe <= 10:
         raise ValueError("percepção de esforço vai de 1 a 10")
     s = Sensation(
+        user_id=conta.user_id,
         created_utc=datetime.now(UTC),
-        day=day or datetime.now(settings.tz).date(),
+        day=day or datetime.now(conta.tz).date(),
         activity_id=activity_id,
         rpe=rpe,
         text=text.strip(),
@@ -415,22 +440,24 @@ def _sensation_dict(s: Sensation) -> dict:
 
 
 def list_sensations(
-    session: Session, settings: Settings, days: int | None = None, activity_id: int | None = None
+    session: Session, conta: Conta, days: int | None = None, activity_id: int | None = None
 ) -> list[dict]:
-    q = select(Sensation).order_by(Sensation.day.desc(), Sensation.id.desc())
+    q = select(Sensation).where(Sensation.user_id == conta.user_id).order_by(Sensation.day.desc(), Sensation.id.desc())
     if activity_id is not None:
         q = q.where(Sensation.activity_id == activity_id)
     if days is not None:
-        q = q.where(Sensation.day >= datetime.now(settings.tz).date() - timedelta(days=days))
+        q = q.where(Sensation.day >= datetime.now(conta.tz).date() - timedelta(days=days))
     return [_sensation_dict(s) for s in session.scalars(q)]
 
 
 # ---------- conversas do chat ----------
 
 
-def create_conversation(session: Session, provider: str, title: str | None = None) -> Conversation:
+def create_conversation(session: Session, conta: Conta, provider: str, title: str | None = None) -> Conversation:
     now = datetime.now(UTC)
-    c = Conversation(created_utc=now, updated_utc=now, provider=provider, title=(title or "")[:200] or None)
+    c = Conversation(
+        user_id=conta.user_id, created_utc=now, updated_utc=now, provider=provider, title=(title or "")[:200] or None
+    )
     session.add(c)
     session.flush()
     return c
@@ -447,6 +474,12 @@ def add_chat_message(
     return m
 
 
+def get_conversation(session: Session, conta: Conta, conversation_id: int) -> Conversation | None:
+    """Conversa pelo id, só se for da conta."""
+    c = session.get(Conversation, conversation_id)
+    return c if c is not None and c.user_id == conta.user_id else None
+
+
 def chat_history(session: Session, conversation_id: int) -> list[tuple[str, str]]:
     rows = session.execute(
         select(ChatMessage.role, ChatMessage.content)
@@ -456,28 +489,33 @@ def chat_history(session: Session, conversation_id: int) -> list[tuple[str, str]
     return [(r, c) for r, c in rows]
 
 
-def list_conversations(session: Session, settings: Settings, limit: int = 30) -> list[dict]:
-    q = select(Conversation).order_by(Conversation.updated_utc.desc()).limit(limit)
+def list_conversations(session: Session, conta: Conta, limit: int = 30) -> list[dict]:
+    q = (
+        select(Conversation)
+        .where(Conversation.user_id == conta.user_id)
+        .order_by(Conversation.updated_utc.desc())
+        .limit(limit)
+    )
     return [
-        {"id": c.id, "titulo": c.title, "provedor": c.provider, "atualizada": _local(c.updated_utc, settings)}
+        {"id": c.id, "titulo": c.title, "provedor": c.provider, "atualizada": _local(c.updated_utc, conta)}
         for c in session.scalars(q)
     ]
 
 
-def conversation_detail(session: Session, settings: Settings, conversation_id: int) -> dict | None:
-    c = session.get(Conversation, conversation_id)
+def conversation_detail(session: Session, conta: Conta, conversation_id: int) -> dict | None:
+    c = get_conversation(session, conta, conversation_id)
     if c is None:
         return None
     return {
         "id": c.id,
         "titulo": c.title,
         "provedor": c.provider,
-        "criada": _local(c.created_utc, settings),
+        "criada": _local(c.created_utc, conta),
         "mensagens": [
             {
                 "papel": m.role,
                 "texto": m.content,
-                "quando": _local(m.created_utc, settings),
+                "quando": _local(m.created_utc, conta),
                 "ferramentas": (m.meta or {}).get("ferramentas"),
             }
             for m in c.messages
@@ -564,7 +602,7 @@ def _session_dict(s: PlannedSession) -> dict:
     return {k: v for k, v in d.items() if v is not None}
 
 
-def plan_dict(plan: TrainingPlan, settings: Settings, with_sessions: bool = True) -> dict:
+def plan_dict(plan: TrainingPlan, conta: Conta, with_sessions: bool = True) -> dict:
     d = {
         "id": plan.id,
         "titulo": plan.title,
@@ -575,7 +613,7 @@ def plan_dict(plan: TrainingPlan, settings: Settings, with_sessions: bool = True
         "substituido_por": plan.replaced_by,
         "conversa_id": plan.conversation_id,
         "notas": plan.notes,
-        "criado": _local(plan.created_utc, settings),
+        "criado": _local(plan.created_utc, conta),
     }
     d = {k: v for k, v in d.items() if v is not None}
     if with_sessions:
@@ -585,7 +623,7 @@ def plan_dict(plan: TrainingPlan, settings: Settings, with_sessions: bool = True
 
 def create_plan(
     session: Session,
-    settings: Settings,
+    conta: Conta,
     title: str,
     start: date,
     end: date,
@@ -603,6 +641,7 @@ def create_plan(
         raise ValueError("plano sem sessões")
     now = datetime.now(UTC)
     plan = TrainingPlan(
+        user_id=conta.user_id,
         created_utc=now,
         updated_utc=now,
         title=title.strip()[:200],
@@ -617,36 +656,43 @@ def create_plan(
         s = PlannedSession(status="planejada", **{k: raw.get(k) for k in SESSION_FIELDS})
         _check_session(s, plan)
         plan.sessions.append(s)
-    previous = session.scalars(select(TrainingPlan).where(TrainingPlan.status == "ativo")).all()
+    previous = session.scalars(
+        select(TrainingPlan).where(TrainingPlan.user_id == conta.user_id, TrainingPlan.status == "ativo")
+    ).all()
     session.add(plan)
     session.flush()
     for p in previous:
         p.status, p.replaced_by, p.updated_utc = "substituido", plan.id, now
     session.flush()
-    return plan_dict(plan, settings)
+    return plan_dict(plan, conta)
 
 
-def active_plan(session: Session) -> TrainingPlan | None:
+def active_plan(session: Session, conta: Conta) -> TrainingPlan | None:
     return session.scalar(
-        select(TrainingPlan).where(TrainingPlan.status == "ativo").order_by(TrainingPlan.id.desc()).limit(1)
+        select(TrainingPlan)
+        .where(TrainingPlan.user_id == conta.user_id, TrainingPlan.status == "ativo")
+        .order_by(TrainingPlan.id.desc())
+        .limit(1)
     )
 
 
-def get_plan(session: Session, plan_id: int | None) -> TrainingPlan:
-    """Plano pelo id, ou o ativo quando plan_id é None."""
-    plan = active_plan(session) if plan_id is None else session.get(TrainingPlan, plan_id)
+def get_plan(session: Session, conta: Conta, plan_id: int | None) -> TrainingPlan:
+    """Plano pelo id (só da conta), ou o ativo quando plan_id é None."""
+    plan = active_plan(session, conta) if plan_id is None else session.get(TrainingPlan, plan_id)
+    if plan is not None and plan.user_id != conta.user_id:
+        plan = None
     if plan is None:
         raise ValueError("nenhum plano ativo" if plan_id is None else f"plano {plan_id} não existe")
     return plan
 
 
-def list_plans(session: Session, settings: Settings, limit: int = 20) -> list[dict]:
-    q = select(TrainingPlan).order_by(TrainingPlan.id.desc()).limit(limit)
-    return [plan_dict(p, settings, with_sessions=False) for p in session.scalars(q)]
+def list_plans(session: Session, conta: Conta, limit: int = 20) -> list[dict]:
+    q = select(TrainingPlan).where(TrainingPlan.user_id == conta.user_id).order_by(TrainingPlan.id.desc()).limit(limit)
+    return [plan_dict(p, conta, with_sessions=False) for p in session.scalars(q)]
 
 
-def add_session(session: Session, settings: Settings, plan_id: int | None, data: dict) -> dict:
-    plan = get_plan(session, plan_id)
+def add_session(session: Session, conta: Conta, plan_id: int | None, data: dict) -> dict:
+    plan = get_plan(session, conta, plan_id)
     s = PlannedSession(status="planejada", **{k: data.get(k) for k in SESSION_FIELDS})
     _check_session(s, plan)
     plan.sessions.append(s)
@@ -656,11 +702,11 @@ def add_session(session: Session, settings: Settings, plan_id: int | None, data:
 
 
 def update_session(
-    session: Session, settings: Settings, session_id: int, changes: dict, cancel: bool = False, reactivate: bool = False
+    session: Session, conta: Conta, session_id: int, changes: dict, cancel: bool = False, reactivate: bool = False
 ) -> dict:
     """Ajuste pontual: muda só os campos presentes em `changes` (valor None limpa a meta)."""
     s = session.get(PlannedSession, session_id)
-    if s is None:
+    if s is None or s.plan.user_id != conta.user_id:
         raise ValueError(f"sessão {session_id} não existe")
     for k, v in changes.items():
         if k not in SESSION_FIELDS:
@@ -676,30 +722,34 @@ def update_session(
     return _session_dict(s)
 
 
-def archive_plan(session: Session, settings: Settings, plan_id: int | None) -> dict:
+def archive_plan(session: Session, conta: Conta, plan_id: int | None) -> dict:
     """Encerra o plano sem apagar (fica no histórico). Sem plano ativo até salvar outro."""
-    plan = get_plan(session, plan_id)
+    plan = get_plan(session, conta, plan_id)
     plan.status, plan.updated_utc = "arquivado", datetime.now(UTC)
     session.flush()
-    return plan_dict(plan, settings, with_sessions=False)
+    return plan_dict(plan, conta, with_sessions=False)
 
 
-def link_plans_to_conversation(session: Session, conversation_id: int, since: datetime) -> None:
+def link_plans_to_conversation(session: Session, conta: Conta, conversation_id: int, since: datetime) -> None:
     """Planos criados durante uma resposta do chat ficam ligados à conversa em que nasceram."""
     for p in session.scalars(
-        select(TrainingPlan).where(TrainingPlan.conversation_id.is_(None), TrainingPlan.created_utc >= since)
+        select(TrainingPlan).where(
+            TrainingPlan.user_id == conta.user_id,
+            TrainingPlan.conversation_id.is_(None),
+            TrainingPlan.created_utc >= since,
+        )
     ):
         p.conversation_id = conversation_id
 
 
-def plan_adherence(session: Session, settings: Settings, plan_id: int | None = None, today: date | None = None) -> dict:
-    plan = get_plan(session, plan_id)
-    tz = settings.tz
+def plan_adherence(session: Session, conta: Conta, plan_id: int | None = None, today: date | None = None) -> dict:
+    plan = get_plan(session, conta, plan_id)
+    tz = conta.tz
     lo = datetime.combine(plan.start_date - timedelta(days=1), datetime.min.time(), tzinfo=tz)
     hi = datetime.combine(plan.end_date + timedelta(days=2), datetime.min.time(), tzinfo=tz)
     acts = session.scalars(
         select(Activity).where(
-            Activity.start_utc >= lo, Activity.start_utc < hi, Activity.possible_duplicate_of.is_(None)
+            _meus(conta), Activity.start_utc >= lo, Activity.start_utc < hi, Activity.possible_duplicate_of.is_(None)
         )
     ).all()
     treinos = []
@@ -736,8 +786,8 @@ def plan_adherence(session: Session, settings: Settings, plan_id: int | None = N
         for s in plan.sessions
     ]
     rep = aderencia(sessoes, treinos, plan.start_date, plan.end_date, today or datetime.now(tz).date())
-    _, origem = resolve_fc_max(session, settings)
-    out = {"plano": plan_dict(plan, settings, with_sessions=False), **rep}
+    _, origem = resolve_fc_max(session, conta)
+    out = {"plano": plan_dict(plan, conta, with_sessions=False), **rep}
     if origem == "estimada":
         out["observacao"] = "zonas de FC calculadas com FC máxima ESTIMADA"
     return out
@@ -748,7 +798,7 @@ def plan_adherence(session: Session, settings: Settings, plan_id: int | None = N
 
 def receive_app_workouts(
     session: Session,
-    settings: Settings,
+    conta: Conta,
     fonte: str,
     treinos: list[dict],
     apagados: list[str] | None = None,
@@ -758,10 +808,10 @@ def receive_app_workouts(
     Devolve os treinos novos que não são duplicata (para a notificação)."""
     now = now or datetime.now(UTC)
     recebidos = [converter_treino_app(fonte, t) for t in treinos]
-    rep = gravar_treinos_app(session, recebidos, [(fonte, i) for i in apagados or []])
-    rc = recompute(session, settings)
+    rep = gravar_treinos_app(session, conta.user_id, recebidos, [(fonte, i) for i in apagados or []])
+    rc = recompute(session, conta)
     novos = [
-        activity_summary(a, settings)
+        activity_summary(a, conta)
         for a in session.scalars(
             select(Activity)
             .where(Activity.id.in_(rep["novos_ids"]), Activity.possible_duplicate_of.is_(None))
@@ -779,14 +829,14 @@ def receive_app_workouts(
         "fc_max": rc["fc_max"],
         "fc_max_origem": rc["fc_max_origem"],
     }
-    st = session.get(SyncState, fonte) or SyncState(source=fonte)
+    st = session.get(SyncState, (conta.user_id, fonte)) or SyncState(user_id=conta.user_id, source=fonte)
     session.add(st)
     st.last_attempt_utc = st.last_success_utc = now
     st.last_error, st.last_result = None, result
     return {**result, "treinos_novos": novos}
 
 
-def reprocess_app_workouts(session: Session, settings: Settings) -> dict:
+def reprocess_app_workouts(session: Session, conta: Conta) -> dict:
     """Refaz amostras, parciais e qualidade dos treinos vindos do app a partir das leituras guardadas
     (ex.: depois de corrigir o conversor). Não precisa reenviar nada do celular."""
     from .ingest.files import Point
@@ -794,7 +844,7 @@ def reprocess_app_workouts(session: Session, settings: Settings) -> dict:
     from .ingest.treinos_app import FONTES, gps_valido, mesclar_proximos
 
     feitos = 0
-    for a in session.scalars(select(Activity).where(Activity.source.in_(FONTES))).all():
+    for a in session.scalars(select(Activity).where(_meus(conta), Activity.source.in_(FONTES))).all():
         amostras = session.scalars(select(Sample).where(Sample.activity_id == a.id).order_by(Sample.t_s)).all()
         if not amostras:
             continue
@@ -816,7 +866,7 @@ def reprocess_app_workouts(session: Session, settings: Settings) -> dict:
         extra["pontos_gps"] = sum(1 for p in pontos if p.lat is not None)
         a.extra = extra
         feitos += 1
-    rc = recompute(session, settings)
+    rc = recompute(session, conta)
     return {"reprocessados": feitos, "fc_max": rc["fc_max"]}
 
 

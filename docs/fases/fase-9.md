@@ -43,7 +43,7 @@ Cada etapa é uma issue da milestone "Fase 9" (número entre parênteses). Ordem
 
 1. [ ] **Servidor** (#5): conta Oracle (o usuário cria; eu guio), máquina A1 Ubuntu, só acesso por chave SSH, firewall, atualizações automáticas de segurança, Docker Compose (API + Postgres; Postgres sem porta aberta para fora), Tailscale e endereço público (decisão 1). Guia em `docs/servidor.md`.
 2. [x] **Contas e login** (#6): modelos `users` e `auth_sessions`, cadastro e login por e-mail e senha (hash Argon2, limite de tentativas), login com Google (projeto no Google Cloud, escopos básicos), tokens de acesso curtos e de renovação com rotação, sair e sair de todos os aparelhos; testes.
-3. [ ] **Dados por usuário** (#7): `user_id` nos modelos e migração; `services.py`, rotas e ferramentas da IA recebem o usuário; FC máxima e preferências por usuário; testes que provam que o usuário A não lê nem altera nada do B (treinos, planos, conversas, carga).
+3. [x] **Dados por usuário** (#7): `user_id` nos modelos e migração; `services.py`, rotas e ferramentas da IA recebem o usuário; FC máxima e preferências por usuário; testes que provam que o usuário A não lê nem altera nada do B (treinos, planos, conversas, carga).
 4. [ ] **Postgres** (#8): Alembic rodando em Postgres, testes também contra Postgres (Docker local e um job com Postgres no CI da fase 8), ajustes de tipos (datas com fuso, JSON).
 5. [ ] **Migração dos dados** (#9): script SQLite → Postgres na conta do usuário, com conferência de contagens e totais; backup antes; relatório.
 6. [ ] **Backup** (#10): `pg_dump` diário guardado fora da máquina (armazenamento da Oracle e/ou cópia para o PC), retenção de 7 diários e 4 semanais, **restauração testada**.

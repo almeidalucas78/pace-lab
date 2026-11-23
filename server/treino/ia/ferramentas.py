@@ -16,7 +16,7 @@ from typing import Annotated, Any, Literal
 from pydantic import BaseModel, Field, ValidationError, create_model
 
 from .. import services
-from ..config import get_settings
+from ..conta import Conta, atual, usando
 from ..db import session_scope
 
 Esporte = Annotated[
@@ -86,14 +86,18 @@ def _esporte(esporte: str) -> str | None:
     return None if esporte == "todos" else esporte
 
 
-def executar(nome: str, args: dict | None) -> Any:
-    """Valida os argumentos e roda a ferramenta. Erro vira {"erro": ...} para a IA poder reagir."""
+def executar(nome: str, args: dict | None, conta: Conta | None = None) -> Any:
+    """Valida os argumentos e roda a ferramenta com os dados de `conta` (sem ela, a do dono, como no MCP local).
+    Erro vira {"erro": ...} para a IA poder reagir."""
     f = next((f for f in REGISTRO if f.nome == nome), None)
     if f is None:
         return {"erro": f"ferramenta desconhecida: {nome}"}
     try:
         validados = f.modelo.model_validate(args or {})
-        return f.funcao(**validados.model_dump())
+        if conta is None:
+            return f.funcao(**validados.model_dump())
+        with usando(conta):
+            return f.funcao(**validados.model_dump())
     except ValidationError as e:
         return {
             "erro": "argumentos inválidos: "
@@ -112,10 +116,11 @@ def executar(nome: str, args: dict | None) -> Any:
 )
 def ultimo_treino(esporte: Esporte = "run") -> dict:
     with session_scope() as s:
-        aid = services.last_activity_id(s, _esporte(esporte))
+        c = atual(s)
+        aid = services.last_activity_id(s, c, _esporte(esporte))
         if aid is None:
             return {"aviso": "nenhum treino encontrado"}
-        return services.activity_card(s, get_settings(), aid) or {"aviso": "nenhum treino encontrado"}
+        return services.activity_card(s, c, aid) or {"aviso": "nenhum treino encontrado"}
 
 
 @ferramenta(
@@ -124,7 +129,7 @@ def ultimo_treino(esporte: Esporte = "run") -> dict:
 )
 def detalhe_treino(treino_id: Annotated[int, Field(description="id do treino")]) -> dict:
     with session_scope() as s:
-        card = services.activity_card(s, get_settings(), treino_id)
+        card = services.activity_card(s, atual(s), treino_id)
     return card or {"erro": f"treino {treino_id} não encontrado"}
 
 
@@ -137,7 +142,7 @@ def listar_treinos(
     with session_scope() as s:
         rows = services.list_activities(
             s,
-            get_settings(),
+            atual(s),
             _esporte(esporte),
             limite,
             since=date.fromisoformat(desde) if desde else None,
@@ -164,7 +169,7 @@ def resumo_semanas(
     esporte: Esporte = "run",
 ) -> list[dict]:
     with session_scope() as s:
-        return services.weekly_summary(s, get_settings(), semanas, esporte if esporte != "todos" else "run")
+        return services.weekly_summary(s, atual(s), semanas, esporte if esporte != "todos" else "run")
 
 
 @ferramenta(
@@ -173,7 +178,7 @@ def resumo_semanas(
 )
 def carga_atual() -> dict:
     with session_scope() as s:
-        return services.current_load(s, get_settings())
+        return services.current_load(s, atual(s))
 
 
 @ferramenta(
@@ -182,7 +187,7 @@ def carga_atual() -> dict:
 )
 def perfil_atleta() -> dict:
     with session_scope() as s:
-        return services.athlete_profile(s, get_settings())
+        return services.athlete_profile(s, atual(s))
 
 
 @ferramenta(
@@ -199,14 +204,14 @@ def registrar_sensacao(
 ) -> dict:
     with session_scope() as s:
         return services.add_sensation(
-            s, get_settings(), texto, rpe, treino_id, date.fromisoformat(data) if data else None, tags
+            s, atual(s), texto, rpe, treino_id, date.fromisoformat(data) if data else None, tags
         )
 
 
 @ferramenta("Sensações registradas nos últimos dias (cansaço, dores, percepção de esforço).")
 def ver_sensacoes(dias: Annotated[int, Field(ge=1, le=365, description="quantos dias para trás")] = 30) -> list[dict]:
     with session_scope() as s:
-        return services.list_sensations(s, get_settings(), days=dias)
+        return services.list_sensations(s, atual(s), days=dias)
 
 
 @ferramenta(
@@ -215,7 +220,7 @@ def ver_sensacoes(dias: Annotated[int, Field(ge=1, le=365, description="quantos 
 )
 def status_sincronizacao() -> dict:
     with session_scope() as s:
-        return services.sync_status(s, get_settings())
+        return services.sync_status(s, atual(s))
 
 
 # ---------- planos de treino (ADR 0010) ----------
@@ -278,7 +283,7 @@ def salvar_plano(
     with session_scope() as s:
         return services.create_plan(
             s,
-            get_settings(),
+            atual(s),
             titulo,
             date.fromisoformat(inicio),
             date.fromisoformat(fim),
@@ -291,7 +296,8 @@ def salvar_plano(
 @ferramenta("Plano de treino ativo (ou outro, pelo id) com todas as sessões e metas.")
 def plano_atual(plano_id: PlanoId = None) -> dict:
     with session_scope() as s:
-        return services.plan_dict(services.get_plan(s, plano_id), get_settings())
+        c = atual(s)
+        return services.plan_dict(services.get_plan(s, c, plano_id), c)
 
 
 @ferramenta(
@@ -301,7 +307,7 @@ def plano_atual(plano_id: PlanoId = None) -> dict:
 )
 def aderencia_plano(plano_id: PlanoId = None) -> dict:
     with session_scope() as s:
-        return services.plan_adherence(s, get_settings(), plano_id)
+        return services.plan_adherence(s, atual(s), plano_id)
 
 
 @ferramenta(
@@ -356,13 +362,13 @@ def alterar_sessao(
     }
     mudancas.update({nomes[c]: None for c in limpar or []})
     with session_scope() as s:
-        return services.update_session(s, get_settings(), sessao_id, mudancas, cancel=cancelar, reactivate=reativar)
+        return services.update_session(s, atual(s), sessao_id, mudancas, cancel=cancelar, reactivate=reativar)
 
 
 @ferramenta("Acrescenta uma sessão a um plano existente (por padrão, o ativo).", somente_leitura=False)
 def adicionar_sessao(sessao: SessaoIn, plano_id: PlanoId = None) -> dict:
     with session_scope() as s:
-        return services.add_session(s, get_settings(), plano_id, _sessao_para_servico(sessao))
+        return services.add_session(s, atual(s), plano_id, _sessao_para_servico(sessao))
 
 
 @ferramenta(
@@ -372,10 +378,10 @@ def adicionar_sessao(sessao: SessaoIn, plano_id: PlanoId = None) -> dict:
 )
 def arquivar_plano(plano_id: PlanoId = None) -> dict:
     with session_scope() as s:
-        return services.archive_plan(s, get_settings(), plano_id)
+        return services.archive_plan(s, atual(s), plano_id)
 
 
 @ferramenta("Histórico de planos (ativo, substituídos e arquivados), sem as sessões.")
 def listar_planos(limite: Annotated[int, Field(ge=1, le=50)] = 10) -> list[dict]:
     with session_scope() as s:
-        return services.list_plans(s, get_settings(), limite)
+        return services.list_plans(s, atual(s), limite)
