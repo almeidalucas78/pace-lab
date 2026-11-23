@@ -20,6 +20,7 @@ dependencies = [
     "argon2-cffi>=25.1",        # hash das senhas (Argon2id)
     "google-auth>=2.40",        # confere o id_token do login com Google
     "requests>=2.32",           # transporte HTTP que o google-auth usa para baixar as chaves do Google
+    "psycopg[binary]==3.3.8",   # Postgres no servidor (postgresql+psycopg://); 3.3.9 tinha menos de 2 semanas
 ]
 
 [project.optional-dependencies]
@@ -58,7 +59,7 @@ ignore = [
 
 [tool.ruff.lint.isort]
 known-first-party = ["treino"]
-known-local-folder = ["test_basico", "test_ia"]
+known-local-folder = ["apoio", "test_basico", "test_ia"]
 
 [tool.mypy]
 # Gradual (fase 8, decisão 4): rigoroso em core/; o resto só confere o que já tem anotação.
