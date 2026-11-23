@@ -9,12 +9,14 @@ from treino import services
 from treino.api.app import app
 from treino.config import get_settings
 
+from apoio import url_banco
+
 H = {"Authorization": "Bearer teste"}
 
 
 @pytest.fixture
 def pastas(tmp_path, monkeypatch):
-    monkeypatch.setenv("DATABASE_URL", f"sqlite:///{tmp_path.as_posix()}/v.db")
+    monkeypatch.setenv("DATABASE_URL", url_banco(tmp_path, "v.db"))
     monkeypatch.setenv("API_TOKEN", "teste")
     monkeypatch.setenv("PASTA_APP", str(tmp_path / "app"))
     get_settings.cache_clear()

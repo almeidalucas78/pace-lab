@@ -16,6 +16,8 @@ from treino.ingest.files import parse_activity_file
 from treino.ingest.strava_csv import parse_date, read_activities_csv
 from treino.ingest.strava_export import import_strava_export
 
+from apoio import url_banco
+
 T0 = datetime(2026, 10, 20, 10, 0, 0, tzinfo=UTC)
 HEADER = (
     "ID da atividade,Data da atividade,Nome da atividade,Tipo de atividade,Tempo decorrido,Distância,"
@@ -116,7 +118,7 @@ def test_fitness_e_fadiga():
 @pytest.fixture
 def engine(tmp_path):
     get_engine.cache_clear()
-    eng = get_engine(f"sqlite:///{tmp_path}/t.db")
+    eng = get_engine(url_banco(tmp_path))
     init_db(eng)
     yield eng
     get_engine.cache_clear()
@@ -148,3 +150,10 @@ def test_importacao_zip_idempotente_e_duplicatas(engine, tmp_path):
         assert acts["12"].file_status == "ausente"
         # 22:00 UTC de 21/10 = 19:00 em São Paulo, mesmo dia
         assert acts["12"].start_utc.astimezone(conta.tz).date() == date(2026, 10, 21)
+
+
+def test_banco_dos_testes_e_o_pedido(engine):
+    """Com TESTE_POSTGRES_URL (job do CI e Docker local), os testes rodam mesmo no Postgres."""
+    from apoio import POSTGRES
+
+    assert engine.dialect.name == ("postgresql" if POSTGRES else "sqlite")
