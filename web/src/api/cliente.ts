@@ -1,7 +1,9 @@
-// Cliente da API: guarda o token no navegador e o envia em toda chamada (ADR 0011).
-// No app Android (ADR 0013) o painel roda em https://localhost e fala com o PC pelo endereço do Tailscale.
+// Cliente da API. No navegador, o login fica em cookies HttpOnly que o JavaScript não lê (ADRs 0015 e 0017):
+// aqui só guardamos quem entrou, para a tela, e renovamos a sessão quando o acesso de 15 min vence.
+// No app Android (ADR 0013) o painel roda em https://localhost e manda o token no cabeçalho (até a etapa 8).
 
 import { ehApp } from '../plataforma'
+import type { Usuario } from './tipos'
 
 const CHAVE_TOKEN = 'pace-lab.token'
 const CHAVE_SERVIDOR = 'pace-lab.servidor'
@@ -31,6 +33,46 @@ export function salvarToken(token: string | null): void {
   }
   window.dispatchEvent(new Event('pace-lab:token'))
 }
+
+// ---------- quem entrou (navegador) ----------
+
+const CHAVE_CONTA = 'pace-lab.conta'
+const CHAVE_ULTIMA = 'pace-lab.ultima-conta'
+
+export function lerSessao(): Usuario | null {
+  try {
+    const v = localStorage.getItem(CHAVE_CONTA)
+    return v ? (JSON.parse(v) as Usuario) : null
+  } catch {
+    return null
+  }
+}
+
+/** Marca (ou desmarca) quem entrou neste navegador. O login de verdade está no cookie. */
+export function salvarSessao(u: Usuario | null): void {
+  try {
+    if (u) {
+      localStorage.setItem(CHAVE_CONTA, JSON.stringify(u))
+      localStorage.setItem(CHAVE_ULTIMA, String(u.id))
+    } else localStorage.removeItem(CHAVE_CONTA)
+  } catch {
+    // sem armazenamento: vale só enquanto a aba estiver aberta
+  }
+  window.dispatchEvent(new Event('pace-lab:sessao'))
+}
+
+/** Id da última conta que entrou aqui, mesmo depois de a sessão vencer (para não mostrar dados de outra pessoa). */
+export function ultimaConta(): number | null {
+  try {
+    const v = localStorage.getItem(CHAVE_ULTIMA)
+    return v ? Number(v) : null
+  } catch {
+    return null
+  }
+}
+
+/** No app vale o token; no navegador, a marca de quem entrou. */
+export const entrou = (): boolean => (ehApp() ? lerToken() !== null : lerSessao() !== null)
 
 /** Endereço do PC (ex.: https://pacelab.rede.ts.net). Só usado no app; no navegador a API é o próprio site. */
 export function lerServidor(): string | null {
@@ -72,20 +114,6 @@ export function conectarPorLink(url: string): boolean {
   if (!servidor || !token || !servidor.startsWith('https://')) return false
   salvarServidor(servidor)
   salvarToken(token)
-  return true
-}
-
-/**
- * QR code do "Conectar celular" abre o painel com `#token=...` (o fragmento não vai ao servidor).
- * Salva o token e tira da barra de endereço. Devolve true se havia token.
- * Na página /abrir-app o token é repassado ao app, então não é guardado no navegador.
- */
-export function lerTokenDaUrl(): boolean {
-  if (window.location.pathname === '/abrir-app') return false
-  const m = window.location.hash.match(/(?:^#|&)token=([^&]+)/)
-  if (!m) return false
-  salvarToken(decodeURIComponent(m[1]))
-  window.history.replaceState(null, '', window.location.pathname + window.location.search)
   return true
 }
 
@@ -135,14 +163,48 @@ async function doBackend(resp: Response): Promise<boolean> {
   }
 }
 
-export async function api<T>(caminho: string, init: RequestInit = {}): Promise<T> {
+async function mensagemDe(resp: Response): Promise<string> {
+  try {
+    const corpo = await resp.json()
+    if (typeof corpo?.detail === 'string') return corpo.detail
+  } catch {
+    // resposta sem JSON
+  }
+  return `erro ${resp.status}`
+}
+
+// Rotas em que 401 é a resposta da própria tela (senha errada), não sessão vencida.
+const SEM_RENOVAR = new Set(['/auth/entrar', '/auth/cadastro', '/auth/renovar'])
+
+type Renovacao = 'ok' | 'expirou' | 'sem-rede'
+let renovando: Promise<Renovacao> | null = null
+
+/** Troca o cookie de renovação por um acesso novo. Chamadas simultâneas esperam a mesma renovação. */
+export function renovarSessao(): Promise<Renovacao> {
+  renovando ??= fetch('/api/auth/renovar', { method: 'POST', credentials: 'same-origin' })
+    .then((r): Renovacao => (r.ok ? 'ok' : r.status === 401 || r.status === 403 ? 'expirou' : 'sem-rede'))
+    .catch((): Renovacao => 'sem-rede')
+    .finally(() => { renovando = null })
+  return renovando
+}
+
+function buscar(caminho: string, init: RequestInit): Promise<Response> {
   const headers = new Headers(init.headers)
-  const token = lerToken()
+  const token = ehApp() ? lerToken() : null
   if (token) headers.set('Authorization', `Bearer ${token}`)
-  if (init.body && !headers.has('Content-Type')) headers.set('Content-Type', 'application/json')
+  if (typeof init.body === 'string' && !headers.has('Content-Type')) headers.set('Content-Type', 'application/json')
+  return fetch(`${baseApi()}/api${caminho}`, { ...init, headers, credentials: 'same-origin' })
+}
+
+export async function api<T>(caminho: string, init: RequestInit = {}): Promise<T> {
   let resp: Response
   try {
-    resp = await fetch(`${baseApi()}/api${caminho}`, { ...init, headers })
+    resp = await buscar(caminho, init)
+    if (resp.status === 401 && !ehApp() && !SEM_RENOVAR.has(caminho)) {
+      const r = await renovarSessao()
+      if (r === 'sem-rede') throw new Error('sem rede')
+      if (r === 'ok') resp = await buscar(caminho, init)
+    }
   } catch {
     mudarConexao(false) // celular sem rede, Tailscale desligado ou PC desligado
     throw new ErroApi(0, 'PC fora do ar')
@@ -154,19 +216,11 @@ export async function api<T>(caminho: string, init: RequestInit = {}): Promise<T
   }
   mudarConexao(true)
   if (resp.status === 401) {
-    salvarToken(null) // token errado ou trocado no .env: volta para a tela do token
-    throw new ErroApi(401, 'token inválido')
+    // sessão vencida (ou token trocado no .env, no app): volta para a tela de entrar
+    if (ehApp()) salvarToken(null)
+    else if (!SEM_RENOVAR.has(caminho)) salvarSessao(null)
   }
-  if (!resp.ok) {
-    let mensagem = `erro ${resp.status}`
-    try {
-      const corpo = await resp.json()
-      if (typeof corpo?.detail === 'string') mensagem = corpo.detail
-    } catch {
-      // resposta sem JSON
-    }
-    throw new ErroApi(resp.status, mensagem)
-  }
+  if (!resp.ok) throw new ErroApi(resp.status, await mensagemDe(resp))
   return (await resp.json()) as T
 }
 

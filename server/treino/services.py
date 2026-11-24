@@ -12,7 +12,7 @@ from sqlalchemy import delete, func, insert, select
 from sqlalchemy.orm import Session, selectinload
 
 from .config import Settings
-from .conta import Conta
+from .conta import Conta, da_conta
 from .core.aderencia import Sessao, Treino, aderencia
 from .core.formato import pace_str
 from .core.load import (
@@ -34,7 +34,9 @@ from .db.models import (
     Sensation,
     SyncState,
     TrainingPlan,
+    User,
 )
+from .ingest.strava_export import import_strava_export
 from .ingest.treinos_app import converter as converter_treino_app
 from .ingest.treinos_app import gravar as gravar_treinos_app
 
@@ -393,6 +395,49 @@ def athlete_profile(session: Session, conta: Conta) -> dict:
         "historico": overview(session, conta),
         "fuso": conta.timezone,
     }
+
+
+FC_MAX_FAIXA = (120, 240)
+FC_REPOUSO_FAIXA = (30, 120)
+
+
+def ajustar_conta(
+    session: Session, conta: Conta, fc_max: int | None = None, fc_repouso: int | None = None, fuso: str | None = None
+) -> dict:
+    """Muda FC máxima, FC de repouso e fuso da conta (None = não mexe; 0 = apagar, e a FC máxima volta a ser
+    estimada pelos treinos) e recalcula zonas e carga. Devolve o perfil novo. Valor fora da faixa: ValueError."""
+    from zoneinfo import ZoneInfo, ZoneInfoNotFoundError
+
+    u = session.get(User, conta.user_id)
+    if u is None:
+        raise ValueError("conta não existe")
+    if fc_max is not None:
+        if fc_max and not FC_MAX_FAIXA[0] <= fc_max <= FC_MAX_FAIXA[1]:
+            raise ValueError(f"FC máxima fora do razoável ({FC_MAX_FAIXA[0]} a {FC_MAX_FAIXA[1]} bpm)")
+        u.fc_max = fc_max or None
+    if fc_repouso is not None:
+        if fc_repouso and not FC_REPOUSO_FAIXA[0] <= fc_repouso <= FC_REPOUSO_FAIXA[1]:
+            raise ValueError(f"FC de repouso fora do razoável ({FC_REPOUSO_FAIXA[0]} a {FC_REPOUSO_FAIXA[1]} bpm)")
+        u.fc_repouso = fc_repouso or None
+    if fuso is not None:
+        try:
+            ZoneInfo(fuso)
+        except (ZoneInfoNotFoundError, ValueError) as e:
+            raise ValueError(f"fuso desconhecido: {fuso}") from e
+        u.timezone = fuso
+    session.flush()
+    nova = da_conta(u, conta.settings)
+    recompute(session, nova)
+    return athlete_profile(session, nova)
+
+
+def importar_strava(
+    session: Session, conta: Conta, caminho: str | Path, with_streams: bool = True, progress=None
+) -> dict:
+    """Importa (ou atualiza) o export do Strava na conta e recalcula as métricas."""
+    rep = import_strava_export(session, conta.user_id, caminho, with_streams=with_streams, progress=progress)
+    rep["recalculo"] = recompute(session, conta)
+    return rep
 
 
 # ---------- sensações ----------

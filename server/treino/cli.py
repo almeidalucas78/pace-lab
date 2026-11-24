@@ -10,7 +10,6 @@ import typer
 from . import services
 from .config import ROOT, get_settings
 from .db import init_db, session_scope
-from .ingest.strava_export import import_strava_export
 
 app = typer.Typer(add_completion=False, help="Painel de treinos: importação, métricas e API.")
 
@@ -70,31 +69,14 @@ def ajustar_conta(
     fuso: str = typer.Option(None, help="fuso horário, ex.: America/Sao_Paulo"),
 ):
     """Ajusta FC máxima, FC de repouso e fuso da conta do dono e recalcula zonas e carga."""
-    from zoneinfo import ZoneInfo, ZoneInfoNotFoundError
-
-    from .db.models import User
-
     init_db()
     with session_scope() as s:
-        u = s.get(User, _dono(s).user_id)
-        assert u is not None
-        if fc_max is not None:
-            if fc_max and not 120 <= fc_max <= 240:
-                typer.secho("FC máxima fora do razoável (120 a 240)", fg=typer.colors.RED, err=True)
-                raise typer.Exit(1)
-            u.fc_max = fc_max or None
-        if fc_repouso is not None:
-            u.fc_repouso = fc_repouso or None
-        if fuso is not None:
-            try:
-                ZoneInfo(fuso)
-            except (ZoneInfoNotFoundError, ValueError) as e:
-                typer.secho(f"fuso desconhecido: {fuso}", fg=typer.colors.RED, err=True)
-                raise typer.Exit(1) from e
-            u.timezone = fuso
-        s.flush()
-        rc = services.recompute(s, _dono(s))
-    typer.echo(f"FC máxima: {rc['fc_max']} ({rc['fc_max_origem']}); FC de repouso: {u.fc_repouso}; fuso: {u.timezone}")
+        try:
+            p = services.ajustar_conta(s, _dono(s), fc_max, fc_repouso, fuso)
+        except ValueError as e:
+            typer.secho(str(e), fg=typer.colors.RED, err=True)
+            raise typer.Exit(1) from e
+    typer.echo(f"FC máxima: {p['fc_max']} ({p['fc_max_origem']}); FC de repouso: {p['fc_repouso']}; fuso: {p['fuso']}")
 
 
 @app.command("importar-strava")
@@ -115,8 +97,7 @@ def importar_strava(
 
         with session_scope() as s:
             conta = _dono(s)
-            rep = import_strava_export(s, conta.user_id, caminho, with_streams=not sem_arquivos, progress=progress)
-            rep["recalculo"] = services.recompute(s, conta)
+            rep = services.importar_strava(s, conta, caminho, with_streams=not sem_arquivos, progress=progress)
     _print(rep)
     rc = rep["recalculo"]
     if rc["fc_max_origem"] == "estimada":

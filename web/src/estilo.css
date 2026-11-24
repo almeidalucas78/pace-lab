@@ -122,6 +122,19 @@ td.num, th.num { text-align: right; }
 /* estados */
 .carregando, .vazio { color: var(--texto-2); padding: 20px 0; }
 .erro-caixa { background: var(--erro-suave); color: var(--erro); padding: 12px 14px; border-radius: 8px; }
+.ok-caixa { background: var(--ok-suave); color: var(--ok); padding: 12px 14px; border-radius: 8px; }
+
+/* formulários (entrar, conta) */
+.rotulo { display: flex; flex-direction: column; gap: 4px; font-size: 0.9rem; color: var(--texto-2); }
+.rotulo .campo { color: var(--texto); font-size: 1rem; min-height: 40px; }
+.grade-campos { display: grid; grid-template-columns: repeat(auto-fit, minmax(180px, 1fr)); gap: 12px; }
+.cartao.pilha h2 { margin: 0; }
+.botao, .botao-sec { min-height: 36px; }
+.botao-google { text-align: center; text-decoration: none; font-weight: 600; display: flex; align-items: center; justify-content: center; }
+.botao-google:hover { text-decoration: none; }
+.link-botao { background: none; border: 0; color: var(--destaque); cursor: pointer; padding: 8px; min-height: 40px; }
+.separador { display: flex; align-items: center; gap: 10px; color: var(--texto-2); font-size: 0.85rem; }
+.separador::before, .separador::after { content: ''; flex: 1; border-top: 1px solid var(--borda); }
 
 /* plano */
 .semana-plano { display: grid; grid-template-columns: repeat(7, minmax(0, 1fr)); gap: 8px; }
@@ -218,3 +231,5 @@ td.num, th.num { text-align: right; }
 /* sincronização do app Android (ADR 0013) */
 .sincronizacao { display: flex; gap: 10px; align-items: center; justify-content: space-between; background: var(--superficie); border: 1px solid var(--borda); border-radius: var(--raio); padding: 8px 12px; margin-bottom: 12px; }
 .erro-texto { color: var(--erro); }
+.email-menu { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; padding: 0 4px; }
+.topo-celular a.botao-sec { color: var(--texto); text-decoration: none; display: inline-flex; align-items: center; }

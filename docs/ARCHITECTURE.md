@@ -32,7 +32,7 @@ O painel web (`web/`, ADR 0011) é um app React separado que fala só com a API,
 
 | Pasta | Papel |
 |---|---|
-| `web/src/api/` | `cliente.ts` (token no navegador, prefixo `/api`, 401 volta para a tela do token), `tipos.ts` (tipos das respostas, escritos à mão), `consultas.ts` (TanStack Query) |
+| `web/src/api/` | `cliente.ts` (prefixo `/api`; no navegador, login em cookie HttpOnly com uma renovação automática quando o acesso vence e volta para a tela de entrar se ela falhar; no app, token no cabeçalho), `sessao.ts` (entrar e sair; apaga os dados guardados quando outra conta entra), `tipos.ts` (tipos das respostas, escritos à mão), `consultas.ts` (TanStack Query) |
 | `web/src/paginas/` | Visão geral, Treinos, Treino, Plano, Token |
 | `web/src/componentes/` | gráficos (Recharts), mapa (Leaflet + OpenStreetMap), semanas do plano, chat lateral |
 | `web/src/contexto.tsx` | o que está aberto na tela; o chat manda como `contexto` para a IA |
@@ -43,7 +43,7 @@ Em uso normal, `treino servico` serve o build (`web/dist`) na raiz e a API em `/
 
 ## Fluxo dos dados
 
-**Histórico (Strava):** `treino importar-strava export.zip` → `ingest/strava_export.py` lê o `activities.csv` (`strava_csv.py`) e cada arquivo (`files.py`: GPX, TCX, FIT, com ou sem .gz) → `streams_store.save_streams()` → `core/streams.process_points()` limpa e gera amostras e parciais → banco → `services.recompute()`.
+**Histórico (Strava):** `treino importar-strava export.zip` ou o envio do `.zip` pelo painel (`POST /api/importar/strava`, até 1 GB, uma importação por conta de cada vez; cada arquivo descompactado tem teto de 200 MB) → `services.importar_strava()` → `ingest/strava_export.py` lê o `activities.csv` (`strava_csv.py`) e cada arquivo (`files.py`: GPX, TCX, FIT, com ou sem .gz) → `streams_store.save_streams()` → `core/streams.process_points()` limpa e gera amostras e parciais → banco → `services.recompute()`.
 
 **Treinos novos (app Android, ADR 0013):** o plugin `SamsungHealthPlugin.kt` lê o Samsung Health Data SDK (modo desenvolvedor) → `web/src/sync/sincronizar.ts` envia em lotes para `POST /api/saude/treinos` (a marca da última leitura e os treinos já enviados ficam no aparelho) → `services.receive_app_workouts()` → `ingest/treinos_app.converter()` (cálculo puro; ignora GPS (0, 0) de esteira) → `gravar()` (idempotente pelo par fonte e id) → `streams_store.save_streams()` → `recompute()` → notificação dos treinos novos que não são duplicata.
 

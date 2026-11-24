@@ -4,7 +4,7 @@ import { createRoot } from 'react-dom/client'
 import { afterEach, describe, expect, it, vi } from 'vitest'
 import { AbrirApp } from '../paginas/AbrirApp'
 import { ehApp } from '../plataforma'
-import { api, baseApi, conectarPorLink, lerServidor, lerToken, lerTokenDaUrl, salvarServidor, salvarToken } from './cliente'
+import { api, baseApi, conectarPorLink, lerServidor, lerToken, salvarServidor, salvarToken } from './cliente'
 
 vi.mock('../plataforma', () => ({ ehApp: vi.fn(() => false) }))
 ;(globalThis as { IS_REACT_ACT_ENVIRONMENT?: boolean }).IS_REACT_ACT_ENVIRONMENT = true
@@ -30,6 +30,17 @@ describe('app Android', () => {
     expect(f.mock.calls[0][0]).toBe('https://pacelab.rede.ts.net/api/perfil')
   })
 
+  it('no app o token vai no cabeçalho e 401 apaga o token, sem tentar renovar', async () => {
+    comoApp(true)
+    salvarServidor('https://pacelab.rede.ts.net')
+    salvarToken('t')
+    const f = vi.spyOn(globalThis, 'fetch').mockResolvedValue(new Response('{"detail":"token inválido"}', { status: 401 }))
+    await expect(api('/perfil')).rejects.toMatchObject({ status: 401 })
+    expect(new Headers(f.mock.calls[0][1]?.headers).get('Authorization')).toBe('Bearer t')
+    expect(f).toHaveBeenCalledTimes(1)
+    expect(lerToken()).toBeNull()
+  })
+
   it('link pacelab://conectar guarda endereço e token', () => {
     expect(conectarPorLink('pacelab://conectar?servidor=https%3A%2F%2Fpacelab.rede.ts.net&token=abc%2F1')).toBe(true)
     expect(lerServidor()).toBe('https://pacelab.rede.ts.net')
@@ -47,7 +58,6 @@ describe('app Android', () => {
 
   it('/abrir-app repassa o token ao app e não o guarda no navegador', async () => {
     window.history.replaceState(null, '', '/abrir-app#token=abc%2F1')
-    expect(lerTokenDaUrl()).toBe(false)   // não salva no navegador
     const div = document.createElement('div')
     document.body.appendChild(div)
     const raiz = createRoot(div)

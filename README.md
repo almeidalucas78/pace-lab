@@ -34,7 +34,7 @@ npm run build
 
 ## Usar no dia a dia
 
-Dois cliques em `scripts\iniciar-treino.bat`. Ele sobe o serviço e abre o painel em http://127.0.0.1:8000. Na primeira vez o painel pede o `API_TOKEN` do `.env` (fica salvo no navegador). Feche a janela do serviço para parar.
+Dois cliques em `scripts\iniciar-treino.bat`. Ele sobe o serviço e abre o painel em http://127.0.0.1:8000. Na primeira vez, entre com o e-mail e a senha da conta criada por `treino criar-usuario` (o login fica num cookie seguro do navegador; ou **Entrar com Google**, quando configurado). Em **Conta** ficam FC máxima, FC de repouso, fuso, troca de senha e sair. Feche a janela do serviço para parar.
 
 - **Visão geral:** fitness, fadiga e forma; gráfico de 90 dias; volume semanal; última corrida; semana do plano.
 - **Treinos:** lista por esporte e, em cada treino, mapa, gráficos de FC, ritmo e altitude, parciais, zonas e sensações.
@@ -55,7 +55,7 @@ Dois terminais: `.\.venv\Scripts\treino.exe api` e, na pasta `web`, `npm run dev
 
 ## Importar o histórico do Strava
 
-Pode apontar para o `.zip` do export direto, sem descompactar:
+Pelo painel: **Conta > Importar do Strava**, escolha o `.zip` do export e toque em **Enviar**. Ou pelo PC, apontando para o `.zip` direto, sem descompactar:
 
 ```powershell
 treino importar-strava "C:\Users\voce\Downloads\export_12345.zip"
@@ -156,11 +156,11 @@ server/              backend Python (pyproject.toml, alembic.ini)
     services.py      regras e consultas usadas pela CLI, pela API, pelo MCP e pelo chat
     ia/              ferramentas da IA (registro único), servidor MCP, provedores Claude e Gemini, chat
     notify.py        notificações do Windows (só log em servidor)
-    api/             FastAPI com token (rotas em /api) e o painel compilado na raiz
+    api/             FastAPI com login (rotas em /api, contas em /api/auth) e o painel compilado na raiz
     cli.py           comandos `treino ...`
   tests/             testes com dados sintéticos (`pytest -q server`)
 web/                 painel React + TypeScript + Vite (só fala com a API)
-  src/api/           cliente com o token, tipos das respostas, consultas
+  src/api/           cliente (cookie de login e renovação), sessão, tipos das respostas, consultas
   src/paginas/       Visão geral, Treinos, Treino, Plano
   src/componentes/   gráficos, mapa, semanas do plano, chat lateral
 android/             app Android (Capacitor) com o plugin do Samsung Health
