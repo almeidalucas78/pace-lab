@@ -45,10 +45,10 @@ PAINEL_URL_CELULAR=https://pacelab.nome-da-rede.ts.net
 ## 4. Conectar o celular
 
 1. No PC, abra o painel e vá em **Conectar celular**, depois **Mostrar QR code**.
-2. No celular, com o Tailscale ligado, aponte a câmera para o QR e abra o link. O painel já entra conectado (o token vai no link e é apagado da barra de endereço).
+2. No celular, com o Tailscale ligado, aponte a câmera para o QR do navegador, abra o link e entre com a sua conta.
 3. No Chrome do celular: menu ⋮, **Instalar app** (ou **Adicionar à tela inicial**).
 
-O QR code contém o token de acesso: não compartilhe nem tire foto dele. Se ele vazar, troque o `API_TOKEN` no `.env` e conecte de novo.
+O QR do navegador só tem o endereço. O do app Android (aparece quando o painel roda no app) ainda leva o token de acesso: não compartilhe nem tire foto dele; se vazar, troque o `API_TOKEN` no `.env` e conecte de novo.
 
 ## Como funciona no dia a dia
 
@@ -65,7 +65,7 @@ O QR code contém o token de acesso: não compartilhe nem tire foto dele. Se ele
 | "PC fora do ar" com o PC ligado | Confira se o Tailscale está ligado no celular e se a janela do Treino está aberta no PC. |
 | O link não abre | Rode `tailscale serve --bg 8000` de novo no PC e confira o endereço no `.env`. |
 | Não aparece "Instalar app" | Só aparece em HTTPS (endereço `https://...ts.net`), não pelo IP. Use o Chrome. |
-| Pede o token de novo | O `API_TOKEN` do `.env` mudou: conecte de novo pelo QR code. |
+| Pede para entrar de novo | A sessão venceu (30 dias sem abrir) ou alguém usou **Sair de todos os aparelhos**: entre com a conta. No app Android, o `API_TOKEN` do `.env` mudou: conecte de novo. |
 
 ## App Android (fase 7, ADR 0013)
 

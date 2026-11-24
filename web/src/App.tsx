@@ -1,14 +1,13 @@
-import { useQueryClient } from '@tanstack/react-query'
 import { lazy, Suspense, useEffect, useState } from 'react'
 import { NavLink, Route, Routes } from 'react-router'
-import { lerToken, salvarToken } from './api/cliente'
-import { apagarDadosGuardados } from './api/persistencia'
+import { entrou, lerSessao } from './api/cliente'
 import { AvisoConexao, BotaoAtualizar } from './componentes/Conexao'
 import { ErroTela } from './componentes/ErroTela'
 import { AtualizacaoApp } from './componentes/AtualizacaoApp'
 import { Sincronizacao } from './componentes/Sincronizacao'
 import { VersaoNova } from './componentes/VersaoNova'
 import { AbrirApp } from './paginas/AbrirApp'
+import { Entrar } from './paginas/Entrar'
 import { Token } from './paginas/Token'
 import { ehApp } from './plataforma'
 
@@ -18,32 +17,33 @@ const Treinos = lazy(() => import('./paginas/Treinos').then((m) => ({ default: m
 const Treino = lazy(() => import('./paginas/Treino').then((m) => ({ default: m.Treino })))
 const Plano = lazy(() => import('./paginas/Plano').then((m) => ({ default: m.Plano })))
 const Conectar = lazy(() => import('./paginas/Conectar').then((m) => ({ default: m.Conectar })))
+const Conta = lazy(() => import('./paginas/Conta').then((m) => ({ default: m.Conta })))
 const Chat = lazy(() => import('./componentes/Chat').then((m) => ({ default: m.Chat })))
 
 const carregando = <div className="carregando">Carregando...</div>
 
-function useToken() {
-  const [token, setToken] = useState(lerToken)
+/** Se há alguém logado: token no app, marca da sessão no navegador (o login em si fica no cookie). */
+function useEntrou() {
+  const [sim, setSim] = useState(entrou)
   useEffect(() => {
-    const atualizar = () => setToken(lerToken())
+    const atualizar = () => setSim(entrou())
     window.addEventListener('pace-lab:token', atualizar)
-    return () => window.removeEventListener('pace-lab:token', atualizar)
+    window.addEventListener('pace-lab:sessao', atualizar)
+    return () => {
+      window.removeEventListener('pace-lab:token', atualizar)
+      window.removeEventListener('pace-lab:sessao', atualizar)
+    }
   }, [])
-  return token
+  return sim
 }
 
 export function App() {
-  const token = useToken()
-  const qc = useQueryClient()
+  const logado = useEntrou()
   const [chatAberto, setChatAberto] = useState(false)
   // página pública: leva endereço e token do navegador do celular para o app Android
   if (window.location.pathname === '/abrir-app' && !ehApp()) return <AbrirApp />
-  if (!token) return <Token />
-
-  async function sair() {
-    await apagarDadosGuardados(qc) // dados guardados neste aparelho também saem
-    salvarToken(null)
-  }
+  if (!logado) return ehApp() ? <Token /> : <Entrar />
+  const usuario = ehApp() ? null : lerSessao()
 
   return (
     <div className={`app ${chatAberto ? 'com-chat' : ''}`}>
@@ -53,11 +53,12 @@ export function App() {
         <NavLink to="/treinos">Treinos</NavLink>
         <NavLink to="/plano">Plano</NavLink>
         <NavLink to="/conectar">Conectar celular</NavLink>
+        <NavLink to="/conta" title={usuario?.email}>Conta</NavLink>
         <div className="rodape">
           <button className={chatAberto ? 'botao-sec' : 'botao'} onClick={() => setChatAberto(!chatAberto)}>
             {chatAberto ? 'Fechar chat' : 'Treinador (chat)'}
           </button>
-          <button className="botao-sec pequeno" onClick={sair}>Sair</button>
+          {usuario && <div className="fraco pequeno email-menu" title={usuario.email}>{usuario.email}</div>}
         </div>
       </nav>
 
@@ -66,7 +67,7 @@ export function App() {
           <div className="marca"><img src="/favicon.svg" width={22} height={22} alt="" /> Pace Lab</div>
           <div className="linha" style={{ gap: 6 }}>
             <BotaoAtualizar />
-            <button className="botao-sec pequeno" onClick={sair}>Sair</button>
+            <NavLink to="/conta" className="botao-sec pequeno">Conta</NavLink>
           </div>
         </div>
         {ehApp() && <Sincronizacao />}
@@ -81,6 +82,7 @@ export function App() {
             <Route path="/plano/:id" element={<Plano />} />
             <Route path="/chat" element={<Chat pagina />} />
             <Route path="/conectar" element={<Conectar />} />
+            <Route path="/conta" element={<Conta />} />
             <Route path="*" element={<div className="vazio">Página não encontrada.</div>} />
           </Routes>
         </Suspense>

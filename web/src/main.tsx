@@ -4,7 +4,7 @@ import { StrictMode } from 'react'
 import { createRoot } from 'react-dom/client'
 import { BrowserRouter } from 'react-router'
 import { App as AppNativo } from '@capacitor/app'
-import { conectarPorLink, ErroApi, lerTokenDaUrl } from './api/cliente'
+import { conectarPorLink, ErroApi, salvarToken } from './api/cliente'
 import { opcoesPersistencia } from './api/persistencia'
 import { App } from './App'
 import { ErroTela } from './componentes/ErroTela'
@@ -12,9 +12,8 @@ import { ProvedorContexto } from './contexto'
 import './estilo.css'
 import { ehApp } from './plataforma'
 
-lerTokenDaUrl() // celular aberto pelo QR code do "Conectar celular"
-
-if (ehApp()) {
+if (!ehApp()) salvarToken(null) // no navegador o login agora é por conta, em cookie; o token antigo sai daqui
+else {
   // app aberto pelo link pacelab://conectar (página /abrir-app): guarda endereço do PC e token
   AppNativo.getLaunchUrl().then((l) => { if (l?.url) conectarPorLink(l.url) })
   AppNativo.addListener('appUrlOpen', (e) => { conectarPorLink(e.url) })

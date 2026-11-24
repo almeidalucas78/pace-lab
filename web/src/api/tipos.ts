@@ -96,6 +96,26 @@ export interface Perfil {
   fc_max_observacao: string | null
   fc_repouso: number | null
   zonas_fc: Record<string, string> | null
+  fuso: string
+}
+
+/** GET /api/auth/eu (`contas.usuario_dict`). */
+export interface Usuario {
+  id: number
+  email: string
+  nome: string | null
+  google: boolean // conta ligada ao Google
+  senha: boolean // tem senha (conta só do Google não tem)
+}
+
+/** POST /api/importar/strava */
+export interface RelatorioImportacao {
+  atividades: number
+  novas?: number
+  atualizadas?: number
+  erros: string[]
+  fc_max: number | null
+  fc_max_origem: Perfil['fc_max_origem']
 }
 
 export interface SessaoPlano {

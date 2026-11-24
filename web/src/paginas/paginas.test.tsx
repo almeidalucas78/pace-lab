@@ -3,8 +3,8 @@ import { QueryClient, QueryClientProvider } from '@tanstack/react-query'
 import { act } from 'react'
 import { createRoot } from 'react-dom/client'
 import { MemoryRouter } from 'react-router'
-import { afterEach, beforeAll, describe, expect, it, vi } from 'vitest'
-import { salvarToken } from '../api/cliente'
+import { afterEach, beforeAll, beforeEach, describe, expect, it, vi } from 'vitest'
+import { salvarSessao } from '../api/cliente'
 import { App } from '../App'
 import { ProvedorContexto } from '../contexto'
 
@@ -34,6 +34,9 @@ const amostras = Array.from({ length: 60 }, (_, i) => ({
   t: i * 5, lat: -23.5 + i * 1e-4, lon: -46.6, ele: 700 + i, fc: 140 + (i % 10), cad: 170, vel: 3.3, dist: i * 16.5,
 }))
 
+const USUARIO = { id: 1, email: 'bia@exemplo.com', nome: 'Bia', google: false, senha: true }
+let logadoNoServidor = true // cookie válido (o JavaScript não vê; o servidor responde /auth/eu)
+
 const ROTAS: [RegExp, unknown][] = [
   [/\/api\/carga\/atual/, { hoje: dia('2026-10-28'), ha_7_dias: dia('2026-10-21'), ha_28_dias: null, carga_7_dias: 0, fc_max_usada: 214, fc_max_origem: 'estimada' }],
   [/\/api\/load/, [dia('2026-10-27'), dia('2026-10-28')]],
@@ -43,7 +46,9 @@ const ROTAS: [RegExp, unknown][] = [
     parciais: [{ km: 1, distancia_m: 1000, ritmo: '5:27/km', fc_media: 135, elevacao_m: 2 }], observacoes_dados: {},
     sensacoes: [{ id: 1, dia: '2026-10-20', treino_id: 4, rpe: 7, texto: 'pernas pesadas', tags: null }] }],
   [/\/api\/activities/, [treino]],
-  [/\/api\/perfil/, { fc_max: 214, fc_max_origem: 'estimada', fc_max_observacao: '', fc_repouso: null, zonas_fc: { z2: '128 a 149 bpm' } }],
+  [/\/api\/perfil/, { fc_max: 214, fc_max_origem: 'estimada', fc_max_observacao: '', fc_repouso: null, zonas_fc: { z2: '128 a 149 bpm' }, fuso: 'America/Sao_Paulo' }],
+  [/\/api\/auth\/opcoes/, { google: true }],
+  [/\/api\/auth\/eu/, USUARIO],
   [/\/api\/planos\/ativo\/aderencia/, aderencia],
   [/\/api\/planos\/ativo/, plano],
   [/\/api\/planos$/, [plano]],
@@ -54,10 +59,17 @@ const ROTAS: [RegExp, unknown][] = [
 beforeAll(() => {
   globalThis.ResizeObserver ??= class { observe() {} unobserve() {} disconnect() {} } as unknown as typeof ResizeObserver
   vi.spyOn(globalThis, 'fetch').mockImplementation(async (url) => {
+    if (!logadoNoServidor && /\/api\/auth\/(eu|renovar)/.test(String(url))) {
+      return new Response(JSON.stringify({ detail: 'faça login' }), { status: 401 })
+    }
     const rota = ROTAS.find(([re]) => re.test(String(url)))
     return new Response(JSON.stringify(rota ? rota[1] : {}), { status: rota ? 200 : 404 })
   })
-  salvarToken('teste')
+})
+
+beforeEach(() => {
+  logadoNoServidor = true
+  salvarSessao(USUARIO)
 })
 
 let raiz: ReturnType<typeof createRoot> | null = null
@@ -113,12 +125,43 @@ describe('páginas', { timeout: 30_000 }, () => {
     expect(txt).toContain('Enviar')
   })
 
-  it('conectar celular mostra o endereço e o botão do QR code', async () => {
+  it('conectar celular mostra o endereço e o QR do navegador, sem token', async () => {
     const txt = await renderizar('/conectar')
     expect(txt).toContain('https://pacelab.teste.ts.net')
-    expect(txt).toContain('QR do app Android')
     expect(txt).toContain('QR do navegador')
-    expect(txt).toContain('Não compartilhe')
+    expect(txt).toContain('entre com a sua conta')
+    expect(txt).not.toContain('QR do app Android') // o navegador não tem token para passar ao app
+  })
+
+  it('conta: e-mail, FC, fuso, importação, senha e sair', async () => {
+    const txt = await renderizar('/conta')
+    expect(txt).toContain('bia@exemplo.com')
+    expect(txt).toContain('Frequência cardíaca e fuso')
+    expect((document.querySelector('input[placeholder="estimada: 214"]'))).not.toBeNull()
+    expect((document.querySelector('select') as HTMLSelectElement | null)?.value).toBe('America/Sao_Paulo')
+    expect(txt).toContain('Importar do Strava')
+    expect(document.querySelector('input[type="file"]')).not.toBeNull()
+    expect(txt).toContain('Trocar senha')
+    expect(txt).toContain('Sair de todos os aparelhos')
+    expect(document.querySelector('.topo-celular a[href="/conta"]')).not.toBeNull() // celular
+    expect(document.querySelector('.menu a[href="/conta"]')).not.toBeNull() // PC
+  })
+
+  it('sem login mostra a tela de entrar, com o Google e o criar conta', async () => {
+    logadoNoServidor = false
+    salvarSessao(null)
+    const txt = await renderizar('/')
+    expect(txt).toContain('Entre na sua conta')
+    expect(document.querySelector('a[href="/api/auth/google/iniciar"]')).not.toBeNull()
+    expect(txt).toContain('Criar conta')
+    expect(txt).not.toContain('API_TOKEN')
+    expect(txt).not.toContain('Fitness')
+  })
+
+  it('volta do Google: o servidor diz quem entrou e o painel abre', async () => {
+    salvarSessao(null) // o cookie existe, mas o navegador ainda não marcou quem entrou
+    const txt = await renderizar('/')
+    expect(txt).toContain('Fitness')
   })
 
   it('treinos têm cartões para o celular e tabela para o PC', async () => {

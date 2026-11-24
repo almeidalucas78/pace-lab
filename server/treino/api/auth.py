@@ -109,6 +109,12 @@ def _erro(e: contas.ErroConta) -> HTTPException:
     return HTTPException(e.status, str(e))
 
 
+@router.get("/opcoes")
+def opcoes(settings: Settings = Depends(get_settings)):
+    """Público: o que a tela de entrar mostra."""
+    return {"google": settings.google_ligado}
+
+
 # ---------- senha ----------
 
 

@@ -2,9 +2,13 @@
 
 from __future__ import annotations
 
+import tempfile
+import zipfile
+from pathlib import Path
 from typing import Literal
 
 from fastapi import APIRouter, Depends, FastAPI, HTTPException, Query, Request
+from fastapi.concurrency import run_in_threadpool
 from fastapi.middleware.cors import CORSMiddleware
 from fastapi.responses import FileResponse, JSONResponse
 from fastapi.security import HTTPAuthorizationCredentials, HTTPBearer
@@ -210,6 +214,22 @@ def perfil(conta: Conta = Depends(auth)):
         return services.athlete_profile(s, conta)
 
 
+class AjustesIn(BaseModel):
+    fc_max: int | None = Field(None, ge=0, le=300, description="bpm; 0 = voltar a estimar pelos treinos")
+    fc_repouso: int | None = Field(None, ge=0, le=300, description="bpm; 0 = apagar")
+    fuso: str | None = Field(None, max_length=64, description="ex.: America/Sao_Paulo")
+
+
+@api.post("/perfil/ajustes")
+def ajustar_perfil(body: AjustesIn, conta: Conta = Depends(auth)):
+    """FC máxima, FC de repouso e fuso da conta; recalcula zonas e carga e devolve o perfil novo."""
+    try:
+        with session_scope() as s:
+            return services.ajustar_conta(s, conta, body.fc_max, body.fc_repouso, body.fuso)
+    except ValueError as e:
+        raise HTTPException(422, str(e)) from e
+
+
 @api.get("/carga/atual")
 def carga_atual(conta: Conta = Depends(auth)):
     with session_scope() as s:
@@ -271,6 +291,48 @@ def receber_treinos(lote: LoteTreinos, conta: Conta = Depends(auth)):
     return {k: v for k, v in rep.items() if k != "treinos_novos"} | {
         "novos_ids": [t["id"] for t in rep["treinos_novos"]]
     }
+
+
+# ---------- export do Strava enviado pelo painel ----------
+
+MAXIMO_EXPORT = 1024**3  # 1 GB; o export de anos de treino tem dezenas de MB
+_importando: set[int] = set()  # uma importação por conta de cada vez
+
+
+def _importar_strava(conta: Conta, caminho: Path) -> dict:
+    try:
+        with session_scope() as s:
+            rep = services.importar_strava(s, conta, caminho)
+    except (FileNotFoundError, zipfile.BadZipFile, ValueError) as e:
+        raise HTTPException(400, f"não parece o export do Strava: {e}") from e
+    rc = rep.pop("recalculo")
+    return rep | {"fc_max": rc["fc_max"], "fc_max_origem": rc["fc_max_origem"]}
+
+
+@api.post("/importar/strava")
+async def importar_strava(request: Request, conta: Conta = Depends(auth)):
+    """Recebe o .zip do export do Strava no corpo da requisição e importa na conta (rodar de novo só atualiza)."""
+    tamanho = request.headers.get("content-length", "")
+    if tamanho.isdigit() and int(tamanho) > MAXIMO_EXPORT:
+        raise HTTPException(413, "arquivo grande demais (máximo 1 GB)")
+    if conta.user_id in _importando:
+        raise HTTPException(409, "já há uma importação em andamento")
+    _importando.add(conta.user_id)
+    try:
+        with tempfile.TemporaryDirectory(prefix="pacelab-import-") as pasta:
+            caminho = Path(pasta) / "export.zip"
+            total = 0
+            with caminho.open("wb") as f:
+                async for parte in request.stream():
+                    total += len(parte)
+                    if total > MAXIMO_EXPORT:
+                        raise HTTPException(413, "arquivo grande demais (máximo 1 GB)")
+                    f.write(parte)
+            if not zipfile.is_zipfile(caminho):
+                raise HTTPException(400, "envie o arquivo .zip do export do Strava")
+            return await run_in_threadpool(_importar_strava, conta, caminho)
+    finally:
+        _importando.discard(conta.user_id)
 
 
 @api.get("/painel/config")
