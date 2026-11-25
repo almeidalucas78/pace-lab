@@ -8,6 +8,7 @@ from dataclasses import dataclass, field
 from typing import Protocol
 
 from ..config import ROOT, Settings
+from ..conta import Conta
 from .ferramentas import REGISTRO, executar
 from .prompt import SISTEMA, com_data
 
@@ -46,8 +47,9 @@ class Claude:
 
     nome = "claude"
 
-    def __init__(self, settings: Settings):
+    def __init__(self, settings: Settings, conta: Conta | None = None):
         self.settings = settings
+        self.conta = conta  # dona dos dados que as ferramentas leem e gravam
 
     def _servidor(self):
         from claude_agent_sdk import ToolAnnotations, create_sdk_mcp_server, tool
@@ -56,7 +58,7 @@ class Claude:
         for f in REGISTRO:
 
             async def handler(args, nome=f.nome):
-                res = await asyncio.to_thread(executar, nome, args)
+                res = await asyncio.to_thread(executar, nome, args, self.conta)
                 out = {"content": [{"type": "text", "text": _texto_resultado(res)}]}
                 if isinstance(res, dict) and "erro" in res:
                     out["is_error"] = True
@@ -96,7 +98,7 @@ class Claude:
         )
         usadas, resultado = [], None
         try:
-            async for msg in query(prompt=com_data(mensagem, self.settings), options=options):
+            async for msg in query(prompt=com_data(mensagem, self.conta or self.settings), options=options):
                 if isinstance(msg, AssistantMessage):
                     usadas += [
                         b.name.removeprefix(f"mcp__{SERVIDOR_MCP}__")
@@ -134,8 +136,9 @@ class Gemini:
 
     nome = "gemini"
 
-    def __init__(self, settings: Settings, client=None):
+    def __init__(self, settings: Settings, client=None, conta: Conta | None = None):
         self.settings = settings
+        self.conta = conta
         if client is None:
             if not settings.gemini_api_key:
                 raise ErroIA(
@@ -190,7 +193,9 @@ class Gemini:
             types.Content(role="user" if papel == "user" else "model", parts=[types.Part(text=texto)])
             for papel, texto in historico
         ]
-        contents.append(types.Content(role="user", parts=[types.Part(text=com_data(mensagem, self.settings))]))
+        contents.append(
+            types.Content(role="user", parts=[types.Part(text=com_data(mensagem, self.conta or self.settings))])
+        )
         config = self._config()
         for _ in range(self.settings.chat_max_turnos):
             resp = await self.client.aio.models.generate_content(model=modelo, contents=contents, config=config)
@@ -208,7 +213,7 @@ class Gemini:
             partes = []
             for fc in chamadas:
                 usadas.append(fc.name)
-                res = await asyncio.to_thread(executar, fc.name, dict(fc.args or {}))
+                res = await asyncio.to_thread(executar, fc.name, dict(fc.args or {}), self.conta)
                 parte = types.Part.from_function_response(name=fc.name, response={"resultado": res})
                 if fc.id:
                     parte.function_response.id = fc.id
@@ -217,9 +222,9 @@ class Gemini:
         raise ErroIA("limite de chamadas de ferramenta atingido nesta resposta")
 
 
-def criar_provedor(nome: str, settings: Settings) -> Provedor:
+def criar_provedor(nome: str, settings: Settings, conta: Conta | None = None) -> Provedor:
     if nome == "claude":
-        return Claude(settings)
+        return Claude(settings, conta)
     if nome == "gemini":
-        return Gemini(settings)
+        return Gemini(settings, conta=conta)
     raise ErroIA(f"provedor desconhecido: {nome} (use claude ou gemini)")

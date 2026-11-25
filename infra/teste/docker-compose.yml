@@ -1,0 +1,19 @@
+# Postgres só para os testes (fase 9, etapa 4; ADR 0015). Sem volume nomeado: os dados somem no `down -v`.
+#   docker compose -f infra/teste/docker-compose.yml up -d
+#   $env:TESTE_POSTGRES_URL = "postgresql+psycopg://teste:teste@127.0.0.1:55432/teste"
+#   .\.venv\Scripts\python.exe -m pytest -q server
+#   docker compose -f infra/teste/docker-compose.yml down -v
+services:
+  postgres:
+    image: postgres:18-alpine
+    environment:
+      POSTGRES_USER: teste
+      POSTGRES_PASSWORD: teste
+      POSTGRES_DB: teste
+    ports:
+      - "127.0.0.1:55432:5432"
+    healthcheck:
+      test: ["CMD", "pg_isready", "-U", "teste"]
+      interval: 2s
+      timeout: 3s
+      retries: 15

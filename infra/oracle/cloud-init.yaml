@@ -8,6 +8,12 @@ timezone: America/Sao_Paulo
 ssh_pwauth: false
 disable_root: true
 
+# Memória de troca no disco: na E2.1.Micro (1 GB) o Postgres e a API não cabem só na memória.
+swap:
+  filename: /swapfile
+  size: 2G
+  maxsize: 2G
+
 package_update: true
 package_upgrade: true
 packages:
@@ -22,6 +28,10 @@ write_files:
       APT::Periodic::Update-Package-Lists "1";
       APT::Periodic::Unattended-Upgrade "1";
   # Quando uma atualização pedir reinício, reinicia às 4h (horário de Brasília), sem esperar ninguém.
+  # Usa a troca só quando a memória acaba de fato (o disco é bem mais lento).
+  - path: /etc/sysctl.d/90-pacelab.conf
+    content: |
+      vm.swappiness = 10
   - path: /etc/apt/apt.conf.d/52pacelab-reinicio
     content: |
       Unattended-Upgrade::Automatic-Reboot "true";

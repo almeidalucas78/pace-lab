@@ -6,15 +6,17 @@ import pytest
 from sqlalchemy import select
 
 from treino import services
-from treino.config import Settings
+from treino.conta import Conta, da_conta
 from treino.core.load import daily_series, trimp_from_zones, zones_from_samples
 from treino.core.streams import process_points
 from treino.db import init_db, session_scope
-from treino.db.models import Activity
+from treino.db.models import Activity, User
 from treino.db.session import get_engine
 from treino.ingest.files import parse_activity_file
 from treino.ingest.strava_csv import parse_date, read_activities_csv
 from treino.ingest.strava_export import import_strava_export
+
+from apoio import url_banco
 
 T0 = datetime(2026, 10, 20, 10, 0, 0, tzinfo=UTC)
 HEADER = (
@@ -22,6 +24,14 @@ HEADER = (
     "Frequência cardíaca máxima,Nome do arquivo,Tempo decorrido,Tempo de movimentação,Distância,"
     "Cadência média,Frequência cardíaca média"
 )
+
+
+def criar_conta(s, email: str = "dono@exemplo.com", fc_max: int | None = None) -> Conta:
+    """Conta sintética para os testes (a primeira criada é a do dono)."""
+    u = User(email=email, created_utc=datetime.now(UTC), fc_max=fc_max, timezone="America/Sao_Paulo")
+    s.add(u)
+    s.flush()
+    return da_conta(u)
 
 
 def make_gpx(n=600, speed=3.0, hr=150):
@@ -108,7 +118,7 @@ def test_fitness_e_fadiga():
 @pytest.fixture
 def engine(tmp_path):
     get_engine.cache_clear()
-    eng = get_engine(f"sqlite:///{tmp_path}/t.db")
+    eng = get_engine(url_banco(tmp_path))
     init_db(eng)
     yield eng
     get_engine.cache_clear()
@@ -126,11 +136,12 @@ def test_importacao_zip_idempotente_e_duplicatas(engine, tmp_path):
     with zipfile.ZipFile(zpath, "w") as z:
         z.writestr("export_123/activities.csv", csv_text)
         z.writestr("export_123/activities/10.gpx.gz", gzip.compress(make_gpx(n=700)))
-    settings = Settings(fc_max=190, timezone="America/Sao_Paulo")
+    with session_scope(engine) as s:
+        conta = criar_conta(s, fc_max=190)
     for _ in range(2):
         with session_scope(engine) as s:
-            rep = import_strava_export(s, zpath)
-            services.recompute(s, settings)
+            rep = import_strava_export(s, conta.user_id, zpath)
+            services.recompute(s, conta)
     assert rep["atualizadas"] == 3
     with session_scope(engine) as s:
         acts = {a.source_id: a for a in s.scalars(select(Activity))}
@@ -138,4 +149,11 @@ def test_importacao_zip_idempotente_e_duplicatas(engine, tmp_path):
         assert acts["11"].possible_duplicate_of == acts["10"].id
         assert acts["12"].file_status == "ausente"
         # 22:00 UTC de 21/10 = 19:00 em São Paulo, mesmo dia
-        assert acts["12"].start_utc.astimezone(settings.tz).date() == date(2026, 10, 21)
+        assert acts["12"].start_utc.astimezone(conta.tz).date() == date(2026, 10, 21)
+
+
+def test_banco_dos_testes_e_o_pedido(engine):
+    """Com TESTE_POSTGRES_URL (job do CI e Docker local), os testes rodam mesmo no Postgres."""
+    from apoio import POSTGRES
+
+    assert engine.dialect.name == ("postgresql" if POSTGRES else "sqlite")

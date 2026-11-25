@@ -7,6 +7,7 @@ from datetime import UTC, datetime
 
 from .. import services
 from ..config import Settings, get_settings
+from ..conta import Conta, do_dono
 from ..db import Conversation, session_scope
 from .provedores import ErroIA, Provedor, criar_provedor
 
@@ -16,18 +17,21 @@ async def conversar(
     conversa_id: int | None = None,
     provedor: str | None = None,
     settings: Settings | None = None,
-    fabrica: Callable[[str, Settings], Provedor] | None = None,
+    fabrica: Callable[[str, Settings, Conta], Provedor] | None = None,
     contexto: str | None = None,
+    conta: Conta | None = None,
 ) -> dict:
-    """`contexto` (ex.: "o usuário está vendo o treino #356") vai para a IA, mas não fica gravado na conversa."""
+    """Uma troca de mensagens na conversa da `conta` (sem ela, a do dono, como no `treino chat`).
+    `contexto` (ex.: "o usuário está vendo o treino #356") vai para a IA, mas não fica gravado na conversa."""
     settings = settings or get_settings()
     fabrica = fabrica or criar_provedor
     mensagem = mensagem.strip()
     if not mensagem:
         raise ErroIA("mensagem vazia")
     with session_scope() as s:
+        conta = conta or do_dono(s, settings)
         if conversa_id is not None:
-            c = s.get(Conversation, conversa_id)
+            c = services.get_conversation(s, conta, conversa_id)
             if c is None:
                 raise ErroIA(f"conversa {conversa_id} não existe")
             if provedor and provedor != c.provider:
@@ -36,11 +40,11 @@ async def conversar(
             historico = services.chat_history(s, c.id)
         else:
             nome, sessao, historico = provedor or settings.ia_provedor, None, []
-            conversa_id = services.create_conversation(s, nome, title=mensagem[:80]).id
+            conversa_id = services.create_conversation(s, conta, nome, title=mensagem[:80]).id
 
     inicio = datetime.now(UTC)
     para_ia = f"[Contexto do painel: {contexto.strip()}]\n\n{mensagem}" if contexto and contexto.strip() else mensagem
-    resposta = await fabrica(nome, settings).responder(para_ia, historico, sessao)
+    resposta = await fabrica(nome, settings, conta).responder(para_ia, historico, sessao)
 
     with session_scope() as s:
         c = s.get(Conversation, conversa_id)
@@ -50,7 +54,7 @@ async def conversar(
         )
         if resposta.sessao:
             c.provider_session_id = resposta.sessao
-        services.link_plans_to_conversation(s, conversa_id, inicio)
+        services.link_plans_to_conversation(s, conta, conversa_id, inicio)
     return {
         "conversa_id": conversa_id,
         "provedor": nome,

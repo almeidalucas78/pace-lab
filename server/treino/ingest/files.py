@@ -2,9 +2,9 @@
 
 from __future__ import annotations
 
-import gzip
 import io
 import xml.etree.ElementTree as ET
+import zlib
 from dataclasses import dataclass, field
 from datetime import UTC, datetime
 
@@ -159,10 +159,28 @@ def parse_fit(raw: bytes) -> ParsedFile:
     return ParsedFile(fmt="fit", sport_hint=sport, points=pts)
 
 
+# Teto do que um arquivo descompactado pode ocupar: um treino real tem poucos MB. Protege a memória contra
+# arquivos maliciosos (bomba de compressão), agora que o export pode chegar pelo painel.
+LIMITE_DESCOMPACTADO = 200 * 1024 * 1024
+
+
+class ArquivoGrande(ValueError):
+    pass
+
+
+def gunzip(raw: bytes, limite: int = LIMITE_DESCOMPACTADO) -> bytes:
+    """Descompacta gzip sem passar de `limite` bytes."""
+    d = zlib.decompressobj(wbits=16 + zlib.MAX_WBITS)
+    out = d.decompress(raw, limite + 1)
+    if len(out) > limite or d.unconsumed_tail:
+        raise ArquivoGrande(f"arquivo descompactado passa de {limite} bytes")
+    return out
+
+
 def parse_activity_file(name: str, raw: bytes) -> ParsedFile:
     lower = name.lower()
     if lower.endswith(".gz"):
-        raw = gzip.decompress(raw)
+        raw = gunzip(raw)
         lower = lower[:-3]
     if lower.endswith(".gpx"):
         return parse_gpx(raw)

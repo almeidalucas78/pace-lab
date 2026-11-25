@@ -7,6 +7,7 @@ from sqlalchemy import select
 
 from treino.api import app as app_mod
 from treino.api.app import app
+from treino.conta import do_dono
 from treino.db import session_scope
 from treino.db.models import Activity, SyncState
 from treino.ingest.treinos_app import converter, esporte, juntar_pontos
@@ -102,7 +103,7 @@ def test_recebe_corrida_com_mapa_parciais_e_carga(db, monkeypatch):
         assert sum(1 for a in amostras if a["lat"]) == len(amostras) == 200
     assert avisos and "Corrida" in avisos[0][1]
     with session_scope() as s:
-        st = s.get(SyncState, "samsung_health")
+        st = s.get(SyncState, (do_dono(s).user_id, "samsung_health"))
         assert st.last_success_utc and st.last_result["novos"] == 1
 
 
@@ -174,7 +175,6 @@ def test_musculacao_com_gps_zerado_fica_sem_gps(db):
 
 def test_reprocessar_treinos_ja_gravados_com_gps_zerado(db):
     from treino import services
-    from treino.config import get_settings
     from treino.db.models import Sample
 
     # simula o que ficou no banco antes da correção: amostras com lat/lon 0 e sem distância
@@ -184,7 +184,7 @@ def test_reprocessar_treinos_ja_gravados_com_gps_zerado(db):
         for amostra in s.scalars(select(Sample).where(Sample.activity_id == tid)):
             amostra.lat, amostra.lon, amostra.dist_m = 0.0, 0.0, 0.0
     with session_scope() as s:
-        assert services.reprocess_app_workouts(s, get_settings())["reprocessados"] == 1
+        assert services.reprocess_app_workouts(s, do_dono(s))["reprocessados"] == 1
     with session_scope() as s:
         a = s.get(Activity, tid)
         assert [sp.km for sp in a.splits] == [1, 2, 3, 4] and a.extra["pontos_gps"] == 0

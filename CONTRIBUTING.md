@@ -30,7 +30,16 @@ cd server; ..\.venv\Scripts\mypy.exe; cd ..          # tipos do Python
 cd web; npm run lint; npm run build; npm test         # painel: lint, tipos, build e testes
 ```
 
-O CI do GitHub roda as mesmas checagens em todo pull request. Por que cada ferramenta: [ADR 0016](docs/decisions/0016-qualidade-de-codigo.md).
+Os testes rodam em SQLite por padrão. Antes de fechar uma etapa que mexe no banco, rode também em Postgres (precisa do Docker Desktop aberto; ADR 0015):
+
+```powershell
+docker compose -f infra/teste/docker-compose.yml up -d
+$env:TESTE_POSTGRES_URL = "postgresql+psycopg://teste:teste@127.0.0.1:55432/teste"
+.\.venv\Scripts\python.exe -m pytest -q server
+Remove-Item Env:TESTE_POSTGRES_URL; docker compose -f infra/teste/docker-compose.yml down -v
+```
+
+O CI do GitHub roda as mesmas checagens em todo pull request, com os testes nos dois bancos. Por que cada ferramenta: [ADR 0016](docs/decisions/0016-qualidade-de-codigo.md).
 
 ### Padrões privados
 Para o `scripts/checagens.py` barrar também dados seus que não podem aparecer no repositório (nome da sua rede, do seu aparelho), escreva um por linha em `data/checagens-locais.txt`. A pasta `data/` nunca vai para o git.

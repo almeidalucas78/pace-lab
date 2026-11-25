@@ -11,13 +11,14 @@ from treino.db import init_db, session_scope
 from treino.db.session import get_engine
 from treino.ingest.strava_export import import_strava_export
 
-from test_basico import make_csv, make_gpx
+from apoio import url_banco
+from test_basico import criar_conta, make_csv, make_gpx
 
 
 @pytest.fixture
 def db(tmp_path, monkeypatch):
     """Banco temporário com duas corridas sintéticas (a segunda é duplicata da primeira) e uma caminhada."""
-    monkeypatch.setenv("DATABASE_URL", f"sqlite:///{tmp_path.as_posix()}/ia.db")
+    monkeypatch.setenv("DATABASE_URL", url_banco(tmp_path, "ia.db"))
     monkeypatch.setenv("FC_MAX", "190")
     monkeypatch.setenv("API_TOKEN", "teste")
     get_settings.cache_clear()
@@ -37,8 +38,9 @@ def db(tmp_path, monkeypatch):
         )
         z.writestr("activities/10.gpx.gz", gzip.compress(make_gpx(n=700)))
     with session_scope() as s:
-        import_strava_export(s, zpath)
-        services.recompute(s, get_settings())
+        conta = criar_conta(s, fc_max=190)
+        import_strava_export(s, conta.user_id, zpath)
+        services.recompute(s, conta)
     yield
     get_settings.cache_clear()
     get_engine.cache_clear()

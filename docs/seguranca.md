@@ -35,11 +35,11 @@ O ASVS (asvs.owasp.org, versão 5.0.0 de 30/05/2025) é a lista de verificação
 - [x] **Login:** limite de tentativas por conta e por IP; mesma mensagem para "conta não existe" e "senha errada".
 - [x] **Google:** `state` e PKCE no OAuth; aceitar o `id_token` só com emissor, público e validade conferidos.
 - [x] **Sessões:** cookie `HttpOnly`, `Secure`, `SameSite`; token de acesso curto e de renovação com rotação, guardado só como hash; "sair" invalida no servidor (ADR 0015).
-- [ ] **Separação de dados:** toda consulta filtrada pelo usuário logado; testes provando que um usuário não lê nem altera dados de outro.
+- [x] **Separação de dados:** toda consulta filtrada pelo usuário logado; testes provando que um usuário não lê nem altera dados de outro.
 - [ ] **Entrada:** validação de tudo que chega na API (Pydantic), limites de tamanho no envio de treinos e no chat.
 - [ ] **Saída:** respostas sem dados internos; erros sem rastreamento de pilha em produção.
 - [ ] **HTTPS em tudo**, com HSTS; cabeçalhos de segurança no painel (CSP, `X-Content-Type-Options`, `Referrer-Policy`).
-- [ ] **CSRF:** `SameSite` no cookie e checagem de origem nas rotas que gravam.
+- [x] **CSRF:** `SameSite=Strict` no cookie e checagem de origem em toda rota que grava com cookie (`api/auth.py`, `_origem_confiavel`); o painel usa o cookie desde a etapa 7.
 - [ ] **Segredos no servidor:** só em variáveis de ambiente ou arquivo com permissão restrita, nunca dentro da imagem do contêiner.
 - [ ] **Registros (logs):** login, falhas de login e mudanças de conta registrados, sem senhas, tokens nem GPS.
 - [ ] **Backup** diário criptografado e teste de restauração.

@@ -9,7 +9,9 @@
 # - TENTATIVAS (padrão 1) e INTERVALO (segundos, padrão 600): quando a Oracle responde "Out of host capacity"
 #   (ou "TooManyRequests", e aí espera o dobro),
 #   espera e tenta de novo, renovando a sessão da CLI a cada volta (a sessão renova até 24 h após o login).
-# - TAMANHOS (padrão "2:12 1:6"): OCPUs:GB de memória pedidos em rodízio, uma opção por tentativa
+# - TIPO (padrão "a1"): "a1" é a VM.Standard.A1.Flex (ARM, até 2 OCPUs e 12 GB grátis), que vive em falta;
+#   "micro" é a VM.Standard.E2.1.Micro (AMD, 1/8 de OCPU e 1 GB), também Always Free e mais fácil de achar.
+# - TAMANHOS (só A1, padrão "2:12 1:6"): OCPUs:GB de memória pedidos em rodízio, uma opção por tentativa
 #   (o menor às vezes sai quando o maior está em falta).
 # Pode rodar de novo: reaproveita a rede, o firewall e a sub-rede que já existirem com os mesmos nomes.
 # Nada de IP, OCID ou chave é gravado no repositório; o script só imprime no terminal.
@@ -23,11 +25,20 @@ TENTATIVAS="${TENTATIVAS:-1}"
 INTERVALO="${INTERVALO:-600}"
 AQUI="$(cd "$(dirname "$0")" && pwd)"
 
-# Formas e tamanhos (Always Free: até 2 OCPUs e 12 GB de A1; 200 GB de disco no total).
-FORMA="VM.Standard.A1.Flex"
-read -r -a TAMANHOS <<<"${TAMANHOS:-2:12 1:6}"
+# Formas e tamanhos (Always Free: até 2 OCPUs e 12 GB de A1, duas E2.1.Micro; 200 GB de disco no total).
+TIPO="${TIPO:-a1}"
+case "$TIPO" in
+  a1)
+    FORMA="VM.Standard.A1.Flex"
+    IMAGEM_PREFIXO="Canonical-Ubuntu-26.04-aarch64-"
+    read -r -a TAMANHOS <<<"${TAMANHOS:-2:12 1:6}" ;;
+  micro)
+    FORMA="VM.Standard.E2.1.Micro"  # forma fixa: sem --shape-config
+    IMAGEM_PREFIXO="${IMAGEM_PREFIXO:-Canonical-Ubuntu-26.04-Minimal-}"  # a versão mínima gasta menos dos 1 GB
+    TAMANHOS=("fixa") ;;
+  *) echo "TIPO deve ser a1 ou micro" >&2; exit 1 ;;
+esac
 DISCO_GB=50
-IMAGEM_PREFIXO="Canonical-Ubuntu-26.04-aarch64-"
 
 [[ "$IP_CASA" =~ ^[0-9]+\.[0-9]+\.[0-9]+\.[0-9]+$ ]] || { echo "IP inválido: $IP_CASA" >&2; exit 1; }
 [[ -f "$CHAVE_PUB" ]] || { echo "Chave pública não encontrada: $CHAVE_PUB" >&2; exit 1; }
@@ -100,10 +111,16 @@ echo "6/6 Máquina pacelab ($FORMA, disco de $DISCO_GB GB)"
 INST=""
 for ((t = 1; t <= TENTATIVAS; t++)); do
   TAM="${TAMANHOS[$(((t - 1) % ${#TAMANHOS[@]}))]}"
-  OCPUS="${TAM%%:*}"; MEMORIA_GB="${TAM##*:}"
-  echo "  tentativa $t de $TENTATIVAS ($(date '+%d/%m %H:%M')): $OCPUS OCPUs, $MEMORIA_GB GB"
+  CONFIG=()
+  if [[ "$TAM" == *:* ]]; then
+    OCPUS="${TAM%%:*}"; MEMORIA_GB="${TAM##*:}"
+    CONFIG=(--shape-config "{\"ocpus\":$OCPUS,\"memoryInGBs\":$MEMORIA_GB}")
+    echo "  tentativa $t de $TENTATIVAS ($(date '+%d/%m %H:%M')): $OCPUS OCPUs, $MEMORIA_GB GB"
+  else
+    echo "  tentativa $t de $TENTATIVAS ($(date '+%d/%m %H:%M')): $FORMA"
+  fi
   if SAIDA="$(oci_ compute instance launch -c "$TENANCY" --availability-domain "$AD" --display-name pacelab \
-      --shape "$FORMA" --shape-config "{\"ocpus\":$OCPUS,\"memoryInGBs\":$MEMORIA_GB}" \
+      --shape "$FORMA" "${CONFIG[@]}" \
       --image-id "$IMAGEM" --subnet-id "$SUBNET" --assign-public-ip true --hostname-label pacelab \
       --boot-volume-size-in-gbs "$DISCO_GB" \
       --ssh-authorized-keys-file "$(caminho "$CHAVE_PUB")" \

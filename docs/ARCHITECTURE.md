@@ -32,7 +32,7 @@ O painel web (`web/`, ADR 0011) é um app React separado que fala só com a API,
 
 | Pasta | Papel |
 |---|---|
-| `web/src/api/` | `cliente.ts` (token no navegador, prefixo `/api`, 401 volta para a tela do token), `tipos.ts` (tipos das respostas, escritos à mão), `consultas.ts` (TanStack Query) |
+| `web/src/api/` | `cliente.ts` (prefixo `/api`; no navegador, login em cookie HttpOnly com uma renovação automática quando o acesso vence e volta para a tela de entrar se ela falhar; no app, token no cabeçalho), `sessao.ts` (entrar e sair; apaga os dados guardados quando outra conta entra), `tipos.ts` (tipos das respostas, escritos à mão), `consultas.ts` (TanStack Query) |
 | `web/src/paginas/` | Visão geral, Treinos, Treino, Plano, Token |
 | `web/src/componentes/` | gráficos (Recharts), mapa (Leaflet + OpenStreetMap), semanas do plano, chat lateral |
 | `web/src/contexto.tsx` | o que está aberto na tela; o chat manda como `contexto` para a IA |
@@ -43,7 +43,7 @@ Em uso normal, `treino servico` serve o build (`web/dist`) na raiz e a API em `/
 
 ## Fluxo dos dados
 
-**Histórico (Strava):** `treino importar-strava export.zip` → `ingest/strava_export.py` lê o `activities.csv` (`strava_csv.py`) e cada arquivo (`files.py`: GPX, TCX, FIT, com ou sem .gz) → `streams_store.save_streams()` → `core/streams.process_points()` limpa e gera amostras e parciais → banco → `services.recompute()`.
+**Histórico (Strava):** `treino importar-strava export.zip` ou o envio do `.zip` pelo painel (`POST /api/importar/strava`, até 1 GB, uma importação por conta de cada vez; cada arquivo descompactado tem teto de 200 MB) → `services.importar_strava()` → `ingest/strava_export.py` lê o `activities.csv` (`strava_csv.py`) e cada arquivo (`files.py`: GPX, TCX, FIT, com ou sem .gz) → `streams_store.save_streams()` → `core/streams.process_points()` limpa e gera amostras e parciais → banco → `services.recompute()`.
 
 **Treinos novos (app Android, ADR 0013):** o plugin `SamsungHealthPlugin.kt` lê o Samsung Health Data SDK (modo desenvolvedor) → `web/src/sync/sincronizar.ts` envia em lotes para `POST /api/saude/treinos` (a marca da última leitura e os treinos já enviados ficam no aparelho) → `services.receive_app_workouts()` → `ingest/treinos_app.converter()` (cálculo puro; ignora GPS (0, 0) de esteira) → `gravar()` (idempotente pelo par fonte e id) → `streams_store.save_streams()` → `recompute()` → notificação dos treinos novos que não são duplicata.
 
@@ -59,18 +59,22 @@ Em uso normal, `treino servico` serve o build (`web/dist`) na raiz e a API em `/
 
 | Tabela | O que guarda | Recalculável? |
 |---|---|---|
-| `activities` | Um treino por fonte (`source`, `source_id`), totais, métricas, duplicata | sim, reimportando |
+| `users` | Conta: e-mail, senha (hash), Google, FC máxima, FC de repouso, fuso | **não** |
+| `auth_sessions`, `auth_pending` | Sessões de login (tokens só como hash) e passos do login com Google | não precisa |
+| `activities` | Um treino por conta e fonte (`user_id`, `source`, `source_id`), totais, métricas, duplicata | sim, reimportando |
 | `samples` | Leituras ao longo do treino (1/s) | sim |
 | `splits` | Parciais por km | sim |
 | `daily_load` | Carga diária, fitness, fadiga, forma | sim, `treino recalcular` |
-| `sync_state` | Última sincronização por fonte | não |
+| `sync_state` | Última sincronização por conta e fonte | não |
 | `sensations` | Como o usuário se sentiu (via chat) | **não** |
 | `conversations`, `chat_messages` | Histórico do chat | **não** |
 | `training_plans`, `planned_sessions` | Planos e sessões com metas (o casamento com treinos é calculado) | **não** |
 
 Tabelas marcadas "não" têm dados que nenhum export recupera: nunca apagar, e fazer backup antes de migração arriscada.
 
-Datas sempre em UTC com fuso (`UTCDateTime`); o fuso local (`TIMEZONE`) só é usado para agrupar por dia e semana e para mostrar.
+Cada dado tem dono (ADR 0018): `activities`, `sensations`, `conversations`, `training_plans`, `sync_state` e `daily_load` têm `user_id`; as outras herdam pelo registro pai. O `services` recebe a `Conta` (`treino/conta.py`) e filtra toda consulta por ela; a API usa a conta do login, e os comandos do PC e o MCP local usam a do dono (a primeira do banco).
+
+Datas sempre em UTC com fuso (`UTCDateTime`); o fuso da conta só é usado para agrupar por dia e semana e para mostrar.
 
 ## Configuração
 
@@ -78,7 +82,7 @@ Tudo em `.env` (modelo em `.env.example`), lido por `config.Settings`. O `.env` 
 
 ## Qualidade e entrega
 
-Pastas: `server/` (Python), `web/` (painel), `android/` (app), `scripts/`. Todo trabalho entra na `main` por pull request com o CI verde (`.github/workflows/ci.yml`: ruff, mypy e pytest; oxlint, build e vitest; checagens do projeto e gitleaks); Dependabot propõe atualizações. Processo em [processo.md](processo.md), ferramentas no [ADR 0016](decisions/0016-qualidade-de-codigo.md), segurança em [seguranca.md](seguranca.md).
+Pastas: `server/` (Python), `web/` (painel), `android/` (app), `scripts/`. Todo trabalho entra na `main` por pull request com o CI verde (`.github/workflows/ci.yml`: ruff, mypy e pytest; pytest de novo em Postgres; oxlint, build e vitest; checagens do projeto e gitleaks); Dependabot propõe atualizações. Processo em [processo.md](processo.md), ferramentas no [ADR 0016](decisions/0016-qualidade-de-codigo.md), segurança em [seguranca.md](seguranca.md).
 
 ## Como escalar
 

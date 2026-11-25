@@ -74,6 +74,24 @@ def criar_usuario(
     return u
 
 
+CONTA_PROVISORIA = "dono@pacelab.local"  # criada pela migração 0006 quando havia dados e nenhuma conta
+
+
+def assumir_provisoria(s: Session, email: str, senha: str | None, nome: str | None = None) -> User | None:
+    """Se existe a conta provisória do dono, ela vira a conta de `email` (com os dados antigos). Senão, None."""
+    u = s.scalar(select(User).where(User.email == CONTA_PROVISORIA))
+    if u is None:
+        return None
+    email = normaliza_email(email)
+    if "@" not in email or s.scalar(select(User.id).where(User.email == email)) is not None:
+        raise ErroConta("e-mail inválido ou já usado por outra conta")
+    if senha is not None and (motivo := senhas.problema(senha)):
+        raise ErroConta(motivo)
+    u.email, u.name = email, (nome or "").strip()[:120] or None
+    u.password_hash = senhas.gerar_hash(senha) if senha is not None else None
+    return u
+
+
 def entrar_com_senha(s: Session, email: str, senha: str) -> User | None:
     """Usuário se o e-mail e a senha conferem; None em qualquer outro caso (mesmo tempo e mesma resposta)."""
     u = s.scalar(select(User).where(User.email == normaliza_email(email)))

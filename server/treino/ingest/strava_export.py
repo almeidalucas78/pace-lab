@@ -2,7 +2,6 @@
 
 from __future__ import annotations
 
-import gzip
 import json
 import zipfile
 from collections import Counter
@@ -12,7 +11,7 @@ from sqlalchemy import select
 from sqlalchemy.orm import Session
 
 from ..db.models import Activity
-from .files import UnsupportedFormat, parse_activity_file
+from .files import LIMITE_DESCOMPACTADO, ArquivoGrande, UnsupportedFormat, gunzip, parse_activity_file
 from .strava_csv import CsvActivity, read_activities_csv
 from .streams_store import save_streams
 
@@ -30,18 +29,26 @@ class ExportSource:
             names = self.zip.namelist()
             csv_name = next((n for n in names if n.endswith("activities.csv")), None)
             if csv_name is None:
+                self.zip.close()
                 raise FileNotFoundError("activities.csv não encontrado dentro do zip")
             self.prefix = csv_name[: -len("activities.csv")]
         elif not (self.path / "activities.csv").exists():
             raise FileNotFoundError(f"activities.csv não encontrado em {self.path}")
 
+    def close(self) -> None:
+        if self.zip:
+            self.zip.close()
+
     def read(self, rel: str) -> bytes | None:
         rel = rel.replace("\\", "/")
         if self.zip:
             try:
-                return self.zip.read(self.prefix + rel)
+                info = self.zip.getinfo(self.prefix + rel)
             except KeyError:
                 return None
+            if info.file_size > LIMITE_DESCOMPACTADO:
+                raise ArquivoGrande(f"{rel}: passa de {LIMITE_DESCOMPACTADO} bytes descompactado")
+            return self.zip.read(info)
         p = self.path / rel
         return p.read_bytes() if p.exists() else None
 
@@ -61,7 +68,7 @@ def _store_streams(session: Session, a: Activity, raw: bytes, nome: str) -> None
 
 
 def _store_json(a: Activity, raw: bytes, name: str) -> None:
-    data = gzip.decompress(raw) if name.endswith(".gz") else raw
+    data = gunzip(raw) if name.endswith(".gz") else raw
     extra = dict(a.extra or {})
     if len(data) <= MAX_JSON_BYTES:
         extra["detalhe_bruto"] = json.loads(data)
@@ -72,8 +79,18 @@ def _store_json(a: Activity, raw: bytes, name: str) -> None:
     a.file_status = "ok"
 
 
-def import_strava_export(session: Session, path: str | Path, with_streams: bool = True, progress=None) -> dict:
+def import_strava_export(
+    session: Session, user_id: int, path: str | Path, with_streams: bool = True, progress=None
+) -> dict:
+    """Importa o export do Strava na conta `user_id` (rodar de novo só atualiza)."""
     src = ExportSource(path)
+    try:
+        return _importar(session, user_id, src, with_streams, progress)
+    finally:
+        src.close()
+
+
+def _importar(session: Session, user_id: int, src: ExportSource, with_streams: bool, progress) -> dict:
     raw_csv = src.read("activities.csv")
     if raw_csv is None:
         raise ValueError("activities.csv não encontrado no export")
@@ -82,10 +99,12 @@ def import_strava_export(session: Session, path: str | Path, with_streams: bool 
     errors: list[str] = []
 
     for n, c in enumerate(rows, 1):
-        a = session.scalar(select(Activity).where(Activity.source == "strava", Activity.source_id == c.id))
+        a = session.scalar(
+            select(Activity).where(Activity.user_id == user_id, Activity.source == "strava", Activity.source_id == c.id)
+        )
         is_new = a is None
         if a is None:
-            a = Activity(source="strava", source_id=c.id)
+            a = Activity(user_id=user_id, source="strava", source_id=c.id)
             session.add(a)
         _apply_summary(a, c)
         a.file_error = None
@@ -96,8 +115,15 @@ def import_strava_export(session: Session, path: str | Path, with_streams: bool 
         elif not with_streams:
             pass
         else:
-            raw = src.read(c.file)
-            if raw is None:
+            try:
+                raw = src.read(c.file)
+                grande = None
+            except ArquivoGrande as e:
+                raw, grande = None, e
+            if grande is not None:
+                a.file_status, a.file_error = "erro", str(grande)
+                errors.append(f"{c.file}: {grande}")
+            elif raw is None:
                 a.file_status = "ausente"
             else:
                 try:

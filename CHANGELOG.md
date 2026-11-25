@@ -6,6 +6,9 @@ O que mudou em cada fase, escrito para o usuário. Formato inspirado no [Keep a 
 
 ### Adicionado
 - Contas e login (fase 9, etapa 2): cadastro e login por e-mail e senha (Argon2id, senhas comuns recusadas, limite de tentativas), login com Google, sessões com renovação e detecção de reuso, sair e sair de todos os aparelhos, troca de senha; cadastro fechado pela lista `CADASTRO_EMAILS`; comando `treino criar-usuario` (ADR 0017). O `API_TOKEN` continua valendo até o painel e o app mudarem.
+- Dados por usuário (fase 9, etapa 3): cada treino, sensação, conversa, plano, sincronização e dia de carga tem dono; uma conta não vê nem altera nada de outra (API e ferramentas da IA). FC máxima, FC de repouso e fuso passam do `.env` para a conta (comando `treino ajustar-conta`). Migração 0006 leva os dados existentes para a primeira conta (ADR 0018).
+- Painel com contas (fase 9, etapa 7): telas de entrar e criar conta, **Entrar com Google** (quando configurado), página **Conta** com FC máxima, FC de repouso, fuso, troca de senha, sair e sair de todos os aparelhos. O navegador não pede mais o `API_TOKEN`: o login fica num cookie seguro e se renova sozinho. Importação do export do Strava pelo painel (envio do `.zip`). O app Android continua com o token até a etapa 8.
+- Postgres (fase 9, etapa 4): driver `psycopg`; os testes rodam também em Postgres 18, no CI (job novo) e no PC pelo Docker (`infra/teste/docker-compose.yml`).
 
 ## [0.8.0] - 2026-11-12 (fase 8)
 

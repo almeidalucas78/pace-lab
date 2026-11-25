@@ -20,7 +20,7 @@ copy .env.example .env
 Se o PowerShell bloquear o `Activate.ps1`, rode uma vez:
 `Set-ExecutionPolicy -Scope CurrentUser RemoteSigned`.
 
-Depois edite o `.env`: troque o `API_TOKEN` e, se souber, preencha `FC_MAX` e `FC_REPOUSO`.
+Depois edite o `.env` (troque o `API_TOKEN`), crie a sua conta com `treino criar-usuario seu@email` e, se souber, ajuste a FC máxima e a de repouso com `treino ajustar-conta --fc-max N --fc-repouso N`.
 
 ### Painel web (uma vez, e de novo quando o front mudar)
 
@@ -34,7 +34,7 @@ npm run build
 
 ## Usar no dia a dia
 
-Dois cliques em `scripts\iniciar-treino.bat`. Ele sobe o serviço e abre o painel em http://127.0.0.1:8000. Na primeira vez o painel pede o `API_TOKEN` do `.env` (fica salvo no navegador). Feche a janela do serviço para parar.
+Dois cliques em `scripts\iniciar-treino.bat`. Ele sobe o serviço e abre o painel em http://127.0.0.1:8000. Na primeira vez, entre com o e-mail e a senha da conta criada por `treino criar-usuario` (o login fica num cookie seguro do navegador; ou **Entrar com Google**, quando configurado). Em **Conta** ficam FC máxima, FC de repouso, fuso, troca de senha e sair. Feche a janela do serviço para parar.
 
 - **Visão geral:** fitness, fadiga e forma; gráfico de 90 dias; volume semanal; última corrida; semana do plano.
 - **Treinos:** lista por esporte e, em cada treino, mapa, gráficos de FC, ritmo e altitude, parciais, zonas e sensações.
@@ -55,7 +55,7 @@ Dois terminais: `.\.venv\Scripts\treino.exe api` e, na pasta `web`, `npm run dev
 
 ## Importar o histórico do Strava
 
-Pode apontar para o `.zip` do export direto, sem descompactar:
+Pelo painel: **Conta > Importar do Strava**, escolha o `.zip` do export e toque em **Enviar**. Ou pelo PC, apontando para o `.zip` direto, sem descompactar:
 
 ```powershell
 treino importar-strava "C:\Users\voce\Downloads\export_12345.zip"
@@ -138,7 +138,7 @@ O `.env` e o banco são encontrados pela pasta do projeto, então não importa d
 - **Horários:** o export vem em UTC; o sistema guarda em UTC e mostra no fuso do `.env`.
 - **Cadência:** o Strava exporta a de corrida por perna; aqui ela aparece em passos por minuto totais.
 - **FC:** leituras fora de 30 a 230 bpm e picos isolados são descartados (o valor original fica guardado). Quando a FC parece "colada" na cadência, o treino é marcado como `suspeita_cadencia`, sem apagar nada.
-- **FC máxima:** se `FC_MAX` estiver vazio, o sistema estima pelo maior valor sustentado por 30 s nos seus treinos. É só uma estimativa: zonas e carga dependem dela.
+- **FC máxima:** sem valor na conta (`treino ajustar-conta --fc-max N`), o sistema estima pelo maior valor sustentado por 30 s nos seus treinos. É só uma estimativa: zonas e carga dependem dela.
 - **Carga (TRIMP de Edwards):** minutos em cada zona x peso da zona (1 a 5). Treinos sem arquivo usam a FC média. Fitness = média exponencial de 42 dias, fadiga = 7 dias, forma = fitness menos fadiga. Só corrida, caminhada e pedalada entram na carga diária.
 - **Duplicatas:** dois treinos do mesmo esporte com menos de 10 min de diferença são marcados; o que fica fora dos totais é o de fonte menos confiável (Health Connect perde para o Strava) ou, na mesma fonte, o segundo.
 - **Banco:** o esquema é versionado com Alembic. Os comandos atualizam o banco sozinhos ao iniciar; um banco da fase 1 é reconhecido e migrado sem perder dados.
@@ -156,11 +156,11 @@ server/              backend Python (pyproject.toml, alembic.ini)
     services.py      regras e consultas usadas pela CLI, pela API, pelo MCP e pelo chat
     ia/              ferramentas da IA (registro único), servidor MCP, provedores Claude e Gemini, chat
     notify.py        notificações do Windows (só log em servidor)
-    api/             FastAPI com token (rotas em /api) e o painel compilado na raiz
+    api/             FastAPI com login (rotas em /api, contas em /api/auth) e o painel compilado na raiz
     cli.py           comandos `treino ...`
   tests/             testes com dados sintéticos (`pytest -q server`)
 web/                 painel React + TypeScript + Vite (só fala com a API)
-  src/api/           cliente com o token, tipos das respostas, consultas
+  src/api/           cliente (cookie de login e renovação), sessão, tipos das respostas, consultas
   src/paginas/       Visão geral, Treinos, Treino, Plano
   src/componentes/   gráficos, mapa, semanas do plano, chat lateral
 android/             app Android (Capacitor) com o plugin do Samsung Health

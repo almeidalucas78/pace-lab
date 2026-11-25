@@ -3,7 +3,7 @@
 Como o servidor do Pace Lab é criado e mantido (fase 9, etapa 1; decisões nos ADRs 0014 e 0015). Tudo pelo terminal com a OCI CLI, exceto o login.
 
 ## O que é
-- Máquina `pacelab` na Oracle Always Free, região São Paulo (`sa-saopaulo-1`): `VM.Standard.A1.Flex` (ARM) com 2 OCPUs e 12 GB de memória (ou 1 OCPU e 6 GB, se só esse tamanho estiver disponível) e disco de 50 GB (dos 200 GB grátis; dá para aumentar depois, nunca diminuir).
+- Máquina `pacelab` na Oracle Always Free, região São Paulo (`sa-saopaulo-1`): `VM.Standard.A1.Flex` (ARM) com 2 OCPUs e 12 GB de memória (ou 1 OCPU e 6 GB, se só esse tamanho estiver disponível) e disco de 50 GB (dos 200 GB grátis; dá para aumentar depois, nunca diminuir). Enquanto não há A1 livre, começa numa `VM.Standard.E2.1.Micro` (AMD, 1/8 de OCPU e 1 GB de memória, também Always Free), com 2 GB de memória de troca no disco. A conta fica no Free Tier, sem o upgrade para Pay As You Go: a Oracle não cobra nada sem upgrade (decisão do usuário em 25/11/2026).
 - Ubuntu 26.04 LTS. O primeiro boot (`infra/oracle/cloud-init.yaml`) liga as atualizações de segurança automáticas (com reinício às 4h quando preciso), instala o Docker e o Tailscale, e proíbe login por senha e como root.
 - Rede `pacelab-vcn` com uma sub-rede pública e o firewall `pacelab-firewall`: nenhuma porta aberta para a internet, a não ser o SSH a partir do IP de casa durante a instalação (depois fechado).
 - Acesso administrativo só pelo Tailscale. O endereço público do Pace Lab (Tailscale Funnel) entra numa etapa seguinte.
@@ -33,7 +33,12 @@ O script cria a rede, o firewall, a sub-rede e a máquina, e imprime o comando d
 Quando a Oracle está sem máquina A1 livre ("Out of host capacity", comum em São Paulo), deixe tentando enquanto o PC estiver ligado, alternando 2 OCPUs/12 GB e 1 OCPU/6 GB (a sessão da CLI renova sozinha até 24 h depois do login):
 ```bash
 TENTATIVAS=60 INTERVALO=600 infra/oracle/criar-servidor.sh "$(curl -s https://api.ipify.org)"
-``` Ele recusa rodar se já houver uma máquina `pacelab` ligada. O IP impresso não vai para o repositório: ponha em `data/checagens-locais.txt`.
+```
+Máquina pequena (E2.1.Micro), que costuma ter vaga:
+```bash
+TIPO=micro infra/oracle/criar-servidor.sh "$(curl -s https://api.ipify.org)"
+```
+Ele recusa rodar se já houver uma máquina `pacelab` ligada. O IP impresso não vai para o repositório: ponha em `data/checagens-locais.txt`.
 
 ## Primeiro acesso e Tailscale
 1. Espere uns minutos (o cloud-init termina depois de a máquina ligar) e entre:

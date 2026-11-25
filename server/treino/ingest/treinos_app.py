@@ -172,14 +172,18 @@ def _aplicar(a: Activity, t: TreinoRecebido) -> None:
     a.extra = {"fonte_app": t.fonte, **t.extras}
 
 
-def gravar(session: Session, treinos: list[TreinoRecebido], apagados: list[tuple[str, str]] | None = None) -> dict:
-    """Grava ou atualiza cada treino; `apagados` = pares (fonte, id) removidos no celular."""
+def gravar(
+    session: Session, user_id: int, treinos: list[TreinoRecebido], apagados: list[tuple[str, str]] | None = None
+) -> dict:
+    """Grava ou atualiza cada treino da conta; `apagados` = pares (fonte, id) removidos no celular."""
     novos, atualizados = [], 0
     for t in treinos:
-        a = session.scalar(select(Activity).where(Activity.source == t.fonte, Activity.source_id == t.id))
+        a = session.scalar(
+            select(Activity).where(Activity.user_id == user_id, Activity.source == t.fonte, Activity.source_id == t.id)
+        )
         novo = a is None
         if a is None:
-            a = Activity(source=t.fonte, source_id=t.id)
+            a = Activity(user_id=user_id, source=t.fonte, source_id=t.id)
             session.add(a)
         _aplicar(a, t)
         session.flush()
@@ -193,7 +197,9 @@ def gravar(session: Session, treinos: list[TreinoRecebido], apagados: list[tuple
             atualizados += 1
     removidos = 0
     for fonte, id_ in apagados or []:
-        r = session.execute(delete(Activity).where(Activity.source == fonte, Activity.source_id == id_))
+        r = session.execute(
+            delete(Activity).where(Activity.user_id == user_id, Activity.source == fonte, Activity.source_id == id_)
+        )
         removidos += r.rowcount  # type: ignore[attr-defined]  # DELETE devolve CursorResult
     session.flush()
     return {"novos_ids": novos, "atualizados": atualizados, "apagados": removidos}
