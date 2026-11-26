@@ -20,11 +20,11 @@ dependencies = [
     "argon2-cffi>=25.1",        # hash das senhas (Argon2id)
     "google-auth>=2.40",        # confere o id_token do login com Google
     "requests>=2.32",           # transporte HTTP que o google-auth usa para baixar as chaves do Google
-    "psycopg[binary]==3.3.8",   # Postgres no servidor (postgresql+psycopg://); 3.3.9 tinha menos de 2 semanas
+    "psycopg[binary]==3.3.9",   # Postgres no servidor (postgresql+psycopg://); 3.3.9 tinha menos de 2 semanas
 ]
 
 [project.optional-dependencies]
-dev = ["pytest>=8", "ruff==0.17.4", "mypy>=2.4", "pre-commit>=4.7"]
+dev = ["pytest>=8", "ruff==0.17.5", "mypy>=2.4", "pre-commit>=4.7"]
 
 [project.scripts]
 treino = "treino.cli:app"
