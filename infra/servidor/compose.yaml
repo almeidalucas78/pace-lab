@@ -1,0 +1,60 @@
+# Pace Lab no servidor (fase 9, etapa 10; guia em docs/servidor.md). Fica em /opt/pacelab junto com o .env.
+#
+#   cd /opt/pacelab && docker compose pull && docker compose up -d
+#
+# O .env (permissão 600, nunca no git) leva POSTGRES_PASSWORD, API_TOKEN e as outras variáveis do .env.example.
+# VERSAO escolhe a imagem (ex.: VERSAO=0.9.0); sem ela, a mais recente.
+name: pacelab
+
+services:
+  api:
+    image: ghcr.io/almeidalucas78/pace-lab:${VERSAO:-latest}
+    restart: unless-stopped
+    env_file: .env
+    environment:
+      DATABASE_URL: postgresql+psycopg://pacelab:${POSTGRES_PASSWORD:?defina POSTGRES_PASSWORD no .env}@banco:5432/pacelab
+      # O Tailscale do servidor recebe o HTTPS e repassa aqui avisando no X-Forwarded-Proto; dentro do Docker a
+      # conexão chega pela rede interna, então o uvicorn precisa confiar nela para ver "https" (cookies, origem).
+      # Seguro porque a porta só abre em 127.0.0.1 do servidor.
+      FORWARDED_ALLOW_IPS: "*"
+    ports:
+      - "127.0.0.1:8000:8000"
+    volumes:
+      - dados:/app/data
+    depends_on:
+      banco:
+        condition: service_healthy
+
+  banco:
+    image: postgres:18-alpine
+    restart: unless-stopped
+    environment:
+      POSTGRES_USER: pacelab
+      POSTGRES_DB: pacelab
+      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD:?defina POSTGRES_PASSWORD no .env}
+    # Ajustado para a máquina pequena (1 GB de memória); sobra para a API e o sistema.
+    command:
+      - postgres
+      - -c
+      - shared_buffers=64MB
+      - -c
+      - effective_cache_size=256MB
+      - -c
+      - work_mem=4MB
+      - -c
+      - maintenance_work_mem=32MB
+      - -c
+      - max_connections=20
+    shm_size: 128mb
+    # Sem "ports": o banco não abre porta nem no servidor; só a API fala com ele, pela rede interna.
+    volumes:
+      - banco:/var/lib/postgresql  # no Postgres 18 o volume vai aqui (os dados ficam em 18/docker)
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U pacelab -d pacelab"]
+      interval: 5s
+      timeout: 5s
+      retries: 10
+
+volumes:
+  dados:
+  banco:

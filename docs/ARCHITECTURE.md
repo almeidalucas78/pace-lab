@@ -82,7 +82,7 @@ Tudo em `.env` (modelo em `.env.example`), lido por `config.Settings`. O `.env` 
 
 ## Qualidade e entrega
 
-Pastas: `server/` (Python), `web/` (painel), `android/` (app), `scripts/`. Todo trabalho entra na `main` por pull request com o CI verde (`.github/workflows/ci.yml`: ruff, mypy e pytest; pytest de novo em Postgres; oxlint, build e vitest; checagens do projeto e gitleaks); Dependabot propõe atualizações. Processo em [processo.md](processo.md), ferramentas no [ADR 0016](decisions/0016-qualidade-de-codigo.md), segurança em [seguranca.md](seguranca.md).
+Pastas: `server/` (Python), `web/` (painel), `android/` (app), `scripts/`. Todo trabalho entra na `main` por pull request com o CI verde (`.github/workflows/ci.yml`: ruff, mypy e pytest; pytest de novo em Postgres; oxlint, build e vitest; checagens do projeto e gitleaks); Dependabot propõe atualizações. Imagem do servidor: o `Dockerfile` da raiz compila o painel (Node) e instala o pacote Python (`PACELAB_RAIZ=/app`, usuário sem root); `.github/workflows/imagem.yml` monta e testa a imagem em todo pull request que mexe no servidor ou no painel (sobe `infra/servidor/compose.yaml` com Postgres e roda `infra/servidor/conferir.py`: saúde, painel, login por cookie atrás do proxy) e, numa tag `vX.Y.Z`, publica para amd64 e arm64 em `ghcr.io/almeidalucas78/pace-lab`. No servidor, a API só abre em `127.0.0.1:8000` (o Tailscale recebe o HTTPS e repassa) e o Postgres não abre porta. Processo em [processo.md](processo.md), ferramentas no [ADR 0016](decisions/0016-qualidade-de-codigo.md), segurança em [seguranca.md](seguranca.md).
 
 ## Como escalar
 

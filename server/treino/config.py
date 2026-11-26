@@ -1,3 +1,4 @@
+import os
 from functools import lru_cache
 from pathlib import Path
 from zoneinfo import ZoneInfo
@@ -8,7 +9,9 @@ from pydantic_settings import BaseSettings, SettingsConfigDict
 # Raiz do repositório (acima de server/): o .env, a pasta data/ e o painel compilado (web/dist) são
 # resolvidos daqui, de qualquer pasta que o comando seja chamado (o Claude Desktop e o agy abrem o MCP
 # a partir de outra pasta).
-ROOT = Path(__file__).resolve().parents[2]
+# Raiz do projeto (.env, data/, web/dist). No contêiner o pacote fica instalado fora do repositório, então a imagem
+# define PACELAB_RAIZ=/app.
+ROOT = Path(os.environ["PACELAB_RAIZ"]) if os.environ.get("PACELAB_RAIZ") else Path(__file__).resolve().parents[2]
 
 
 class Settings(BaseSettings):
