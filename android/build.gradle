@@ -8,7 +8,7 @@ buildscript {
     }
     dependencies {
         classpath 'com.android.tools.build:gradle:8.13.0'
-        classpath 'com.google.gms:google-services:4.4.4'
+        classpath 'com.google.gms:google-services:4.6.0'
         // Kotlin: o Samsung Health Data SDK é Kotlin com corrotinas (ADR 0013). 2.4.21 aceita Gradle 8.14 e AGP 8.13.
         classpath 'org.jetbrains.kotlin:kotlin-gradle-plugin:2.4.21'
 
