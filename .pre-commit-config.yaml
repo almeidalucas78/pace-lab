@@ -2,7 +2,7 @@
 # As lentas (mypy, testes, build) rodam no CI em cada pull request.
 repos:
   - repo: https://github.com/astral-sh/ruff-pre-commit
-    rev: v0.17.4  # igual ao ruff do server/pyproject.toml
+    rev: v0.17.5  # igual ao ruff do server/pyproject.toml
     hooks:
       - id: ruff-check
         args: [--fix]
