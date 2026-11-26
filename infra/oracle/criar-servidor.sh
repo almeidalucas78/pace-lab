@@ -57,6 +57,10 @@ if [[ -n "$(primeiro compute instance list -c "$TENANCY" --display-name pacelab 
 fi
 
 TMP="$(mktemp -d)"; trap 'rm -rf "$TMP"' EXIT
+# A OCI CLI do Windows às vezes erra caminhos com acento (a pasta do projeto tem "ç" e "ã"):
+# cópias numa pasta temporária, que tem nome simples.
+cp "$AQUI/cloud-init.yaml" "$TMP/cloud-init.yaml"
+cp "$CHAVE_PUB" "$TMP/chave.pub"
 
 echo "1/6 Rede pacelab-vcn"
 VCN="$(primeiro network vcn list -c "$TENANCY" --display-name pacelab-vcn --lifecycle-state AVAILABLE)"
@@ -123,8 +127,8 @@ for ((t = 1; t <= TENTATIVAS; t++)); do
       --shape "$FORMA" "${CONFIG[@]}" \
       --image-id "$IMAGEM" --subnet-id "$SUBNET" --assign-public-ip true --hostname-label pacelab \
       --boot-volume-size-in-gbs "$DISCO_GB" \
-      --ssh-authorized-keys-file "$(caminho "$CHAVE_PUB")" \
-      --user-data-file "$(caminho "$AQUI/cloud-init.yaml")" \
+      --ssh-authorized-keys-file "$(caminho "$TMP/chave.pub")" \
+      --user-data-file "$(caminho "$TMP/cloud-init.yaml")" \
       --wait-for-state RUNNING --query 'data.id' --raw-output 2>&1)"; then
     INST="$(grep -m1 -o 'ocid1\.instance[^" ]*' <<<"$SAIDA")"
     break
