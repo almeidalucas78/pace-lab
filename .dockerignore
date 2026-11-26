@@ -1,0 +1,11 @@
+# Só entram na imagem server/ (sem testes) e web/ (sem node_modules nem build). Nada de dados pessoais.
+*
+!server/
+!web/
+server/tests/
+server/**/__pycache__/
+server/**/*.egg-info/
+web/node_modules/
+web/dist/
+**/.env
+**/*.db
