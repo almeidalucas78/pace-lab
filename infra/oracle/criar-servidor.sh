@@ -10,8 +10,9 @@
 #   (ou "TooManyRequests", e aí espera o dobro),
 #   espera e tenta de novo, renovando a sessão da CLI a cada volta (a sessão renova até 24 h após o login).
 # - TIPO (padrão "a1"): "a1" é a VM.Standard.A1.Flex (ARM, até 2 OCPUs e 12 GB grátis), que vive em falta;
-#   "micro" é a VM.Standard.E2.1.Micro (AMD, 1/8 de OCPU e 1 GB), também Always Free e mais fácil de achar.
-# - TAMANHOS (só A1, padrão "2:12 1:6"): OCPUs:GB de memória pedidos em rodízio, uma opção por tentativa
+#   "micro" é a VM.Standard.E2.1.Micro (AMD, 1/8 de OCPU e 1 GB), também Always Free;
+#   "ambos" alterna as duas (estoques separados: dobra a chance), A1 primeiro.
+# - TAMANHOS (A1, padrão "2:12 1:6"): OCPUs:GB de memória pedidos em rodízio
 #   (o menor às vezes sai quando o maior está em falta).
 # Pode rodar de novo: reaproveita a rede, o firewall e a sub-rede que já existirem com os mesmos nomes.
 # Nada de IP, OCID ou chave é gravado no repositório; o script só imprime no terminal.
@@ -26,18 +27,20 @@ INTERVALO="${INTERVALO:-600}"
 AQUI="$(cd "$(dirname "$0")" && pwd)"
 
 # Formas e tamanhos (Always Free: até 2 OCPUs e 12 GB de A1, duas E2.1.Micro; 200 GB de disco no total).
+# Cada opção é "a1:OCPUs:GB" ou "micro"; as tentativas passam por elas em rodízio.
 TIPO="${TIPO:-a1}"
+read -r -a TAMANHOS <<<"${TAMANHOS:-2:12 1:6}"
+OPCOES=()
 case "$TIPO" in
-  a1)
-    FORMA="VM.Standard.A1.Flex"
-    IMAGEM_PREFIXO="Canonical-Ubuntu-26.04-aarch64-"
-    read -r -a TAMANHOS <<<"${TAMANHOS:-2:12 1:6}" ;;
-  micro)
-    FORMA="VM.Standard.E2.1.Micro"  # forma fixa: sem --shape-config
-    IMAGEM_PREFIXO="${IMAGEM_PREFIXO:-Canonical-Ubuntu-26.04-Minimal-}"  # a versão mínima gasta menos dos 1 GB
-    TAMANHOS=("fixa") ;;
-  *) echo "TIPO deve ser a1 ou micro" >&2; exit 1 ;;
+  a1) for t in "${TAMANHOS[@]}"; do OPCOES+=("a1:$t"); done ;;
+  micro) OPCOES=("micro") ;;
+  ambos) for t in "${TAMANHOS[@]}"; do OPCOES+=("a1:$t" "micro"); done ;;
+  *) echo "TIPO deve ser a1, micro ou ambos" >&2; exit 1 ;;
 esac
+FORMA_A1="VM.Standard.A1.Flex"
+FORMA_MICRO="VM.Standard.E2.1.Micro"  # forma fixa: sem --shape-config
+PREFIXO_A1="Canonical-Ubuntu-26.04-aarch64-"
+PREFIXO_MICRO="${IMAGEM_PREFIXO:-Canonical-Ubuntu-26.04-Minimal-}"  # a versão mínima gasta menos dos 1 GB
 DISCO_GB=50
 
 [[ "$IP_CASA" =~ ^[0-9]+\.[0-9]+\.[0-9]+\.[0-9]+$ ]] || { echo "IP inválido: $IP_CASA" >&2; exit 1; }
@@ -105,26 +108,34 @@ SUBNET="$(primeiro network subnet list -c "$TENANCY" --vcn-id "$VCN" --display-n
   --wait-for-state AVAILABLE --query 'data.id' --raw-output)"
 
 echo "5/6 Imagem do Ubuntu e domínio de disponibilidade"
-IMAGEM="$(oci_ compute image list -c "$TENANCY" --operating-system "Canonical Ubuntu" --shape "$FORMA" \
-  --sort-by TIMECREATED --sort-order DESC --all \
-  --query "data[?starts_with(\"display-name\", '$IMAGEM_PREFIXO')] | [0].id" --raw-output)"
-[[ "$IMAGEM" == ocid1.* ]] || { echo "Imagem $IMAGEM_PREFIXO* não encontrada" >&2; exit 1; }
+imagem() {
+  local v
+  v="$(oci_ compute image list -c "$TENANCY" --operating-system "Canonical Ubuntu" --shape "$1" \
+    --sort-by TIMECREATED --sort-order DESC --all \
+    --query "data[?starts_with(\"display-name\", '$2')] | [0].id" --raw-output)"
+  [[ "$v" == ocid1.* ]] || { echo "Imagem $2* não encontrada" >&2; exit 1; }
+  echo "$v"
+}
+IMAGEM_A1=""; IMAGEM_MICRO=""
+if [[ " ${OPCOES[*]}" == *" a1:"* ]]; then IMAGEM_A1="$(imagem "$FORMA_A1" "$PREFIXO_A1")"; fi
+if [[ " ${OPCOES[*]} " == *" micro "* ]]; then IMAGEM_MICRO="$(imagem "$FORMA_MICRO" "$PREFIXO_MICRO")"; fi
 AD="$(oci_ iam availability-domain list -c "$TENANCY" --query 'data[0].name' --raw-output)"
 
-echo "6/6 Máquina pacelab ($FORMA, disco de $DISCO_GB GB)"
+echo "6/6 Máquina pacelab (rodízio: ${OPCOES[*]}; disco de $DISCO_GB GB)"
 INST=""
 for ((t = 1; t <= TENTATIVAS; t++)); do
-  TAM="${TAMANHOS[$(((t - 1) % ${#TAMANHOS[@]}))]}"
-  CONFIG=()
-  if [[ "$TAM" == *:* ]]; then
-    OCPUS="${TAM%%:*}"; MEMORIA_GB="${TAM##*:}"
+  OPCAO="${OPCOES[$(((t - 1) % ${#OPCOES[@]}))]}"
+  if [[ "$OPCAO" == a1:* ]]; then
+    IFS=: read -r _ OCPUS MEMORIA_GB <<<"$OPCAO"
+    FORMA="$FORMA_A1"; IMAGEM="$IMAGEM_A1"
     CONFIG=(--shape-config "{\"ocpus\":$OCPUS,\"memoryInGBs\":$MEMORIA_GB}")
-    echo "  tentativa $t de $TENTATIVAS ($(date '+%d/%m %H:%M')): $OCPUS OCPUs, $MEMORIA_GB GB"
+    echo "  tentativa $t de $TENTATIVAS ($(date '+%d/%m %H:%M')): A1 com $OCPUS OCPUs e $MEMORIA_GB GB"
   else
+    FORMA="$FORMA_MICRO"; IMAGEM="$IMAGEM_MICRO"; CONFIG=()
     echo "  tentativa $t de $TENTATIVAS ($(date '+%d/%m %H:%M')): $FORMA"
   fi
   if SAIDA="$(oci_ compute instance launch -c "$TENANCY" --availability-domain "$AD" --display-name pacelab \
-      --shape "$FORMA" "${CONFIG[@]}" \
+      --shape "$FORMA" ${CONFIG[@]+"${CONFIG[@]}"} \
       --image-id "$IMAGEM" --subnet-id "$SUBNET" --assign-public-ip true --hostname-label pacelab \
       --boot-volume-size-in-gbs "$DISCO_GB" \
       --ssh-authorized-keys-file "$(caminho "$TMP/chave.pub")" \

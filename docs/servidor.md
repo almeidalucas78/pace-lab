@@ -3,7 +3,7 @@
 Como o servidor do Pace Lab é criado e mantido (fase 9, etapa 1; decisões nos ADRs 0014 e 0015). Tudo pelo terminal com a OCI CLI, exceto o login.
 
 ## O que é
-- Máquina `pacelab` na Oracle Always Free, região São Paulo (`sa-saopaulo-1`): `VM.Standard.A1.Flex` (ARM) com 2 OCPUs e 12 GB de memória (ou 1 OCPU e 6 GB, se só esse tamanho estiver disponível) e disco de 50 GB (dos 200 GB grátis; dá para aumentar depois, nunca diminuir). Enquanto não há A1 livre, começa numa `VM.Standard.E2.1.Micro` (AMD, 1/8 de OCPU e 1 GB de memória, também Always Free), com 2 GB de memória de troca no disco. A conta fica no Free Tier, sem o upgrade para Pay As You Go: a Oracle não cobra nada sem upgrade (decisão do usuário em 25/11/2026).
+- Máquina `pacelab` na Oracle Always Free, região São Paulo (`sa-saopaulo-1`): `VM.Standard.A1.Flex` (ARM) com 2 OCPUs e 12 GB de memória (ou 1 OCPU e 6 GB, se só esse tamanho estiver disponível) e disco de 50 GB (dos 200 GB grátis; dá para aumentar depois, nunca diminuir). Enquanto não há A1 livre, começa numa `VM.Standard.E2.1.Micro` (AMD, 1/8 de OCPU e 1 GB de memória, também Always Free), com 2 GB de memória de troca no disco. A conta passou para Pay As You Go em 28/11/2026 (decisão do usuário, para ter mais chance de achar máquina livre); os recursos Always Free continuam grátis e só o que passar do limite é cobrado. Proteções: um orçamento de US$ 1 por mês com alertas por e-mail de gasto real e previsto (Billing > Budgets) e o script só pede tamanhos dentro do grátis. Uma vez por mês, conferir em Billing > Cost Analysis que o gasto é zero.
 - Ubuntu 26.04 LTS. O primeiro boot (`infra/oracle/cloud-init.yaml`) liga as atualizações de segurança automáticas (com reinício às 4h quando preciso), instala o Docker e o Tailscale, e proíbe login por senha e como root.
 - Rede `pacelab-vcn` com uma sub-rede pública e o firewall `pacelab-firewall`: nenhuma porta aberta para a internet, a não ser o SSH a partir do IP de casa durante a instalação (depois fechado).
 - Acesso administrativo só pelo Tailscale. O endereço público do Pace Lab (Tailscale Funnel) entra numa etapa seguinte.
@@ -30,14 +30,11 @@ infra/oracle/criar-servidor.sh "$(curl -s https://api.ipify.org)"
 ```
 O script cria a rede, o firewall, a sub-rede e a máquina, e imprime o comando de SSH. Pode rodar de novo: reaproveita o que já existe.
 
-Quando a Oracle está sem máquina A1 livre ("Out of host capacity", comum em São Paulo), deixe tentando enquanto o PC estiver ligado, alternando 2 OCPUs/12 GB e 1 OCPU/6 GB (a sessão da CLI renova sozinha até 24 h depois do login):
+Quando a Oracle está sem máquina livre ("Out of host capacity", comum em São Paulo), deixe tentando enquanto o PC estiver ligado, alternando A1 (2 OCPUs/12 GB e 1 OCPU/6 GB) e a máquina pequena E2.1.Micro, uma tentativa a cada 15 minutos (a sessão da CLI renova sozinha até 24 h depois do login):
 ```bash
-TENTATIVAS=60 INTERVALO=600 infra/oracle/criar-servidor.sh "$(curl -s https://api.ipify.org)"
+TIPO=ambos TENTATIVAS=60 INTERVALO=900 infra/oracle/criar-servidor.sh "$(curl -s https://api.ipify.org)"
 ```
-Máquina pequena (E2.1.Micro), que costuma ter vaga:
-```bash
-TIPO=micro infra/oracle/criar-servidor.sh "$(curl -s https://api.ipify.org)"
-```
+Só a A1 é o padrão (`TIPO=a1`); só a pequena, `TIPO=micro`.
 Ele recusa rodar se já houver uma máquina `pacelab` ligada. O IP impresso não vai para o repositório: ponha em `data/checagens-locais.txt`.
 
 ## Primeiro acesso e Tailscale
@@ -69,7 +66,7 @@ Para abrir de novo numa emergência (Tailscale fora do ar), rode o mesmo comando
 - Atualizações maiores (versão do Docker, do Ubuntu): à mão, com backup antes.
 
 ## Riscos conhecidos
-- **A Oracle pode recolher a máquina parada:** CPU, rede e memória abaixo de 20% por 7 dias. Decisão de 16/11/2026: ficar no Always Free e aceitar o risco; a defesa é o backup diário fora da máquina (etapa 6) e a máquina recriável por este guia. Se a Oracle avisar, reavaliar a conta Pay As You Go.
+- **A Oracle pode recolher a máquina parada:** CPU, rede e memória abaixo de 20% por 7 dias. Decisão de 16/11/2026: ficar no Always Free e aceitar o risco; a defesa é o backup diário fora da máquina (etapa 6) e a máquina recriável por este guia. Se a Oracle avisar, reavaliar (a conta já é Pay As You Go desde 28/11/2026).
 - **Falta de máquina A1 na região** ("Out of host capacity"): São Paulo tem um só domínio de disponibilidade. Em 16/11/2026, 9 tentativas em 1h30 falharam; em 18/11, 11 tentativas (alternando os tamanhos) falharam e a Oracle passou a responder "TooManyRequests" (429), que o script agora trata esperando o dobro. Tentar com o rodízio acima; sem login por chave de API (decisão do usuário), cada dia de tentativas começa com o login da CLI.
 
 ## Nunca vai para o repositório
