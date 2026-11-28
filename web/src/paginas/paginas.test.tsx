@@ -128,7 +128,7 @@ describe('páginas', { timeout: 30_000 }, () => {
   it('conectar celular mostra o endereço e o QR do navegador, sem token', async () => {
     const txt = await renderizar('/conectar')
     expect(txt).toContain('https://pacelab.teste.ts.net')
-    expect(txt).toContain('QR do navegador')
+    expect(txt).toContain('Mostrar QR code')
     expect(txt).toContain('entre com a sua conta')
     expect(txt).not.toContain('QR do app Android') // o navegador não tem token para passar ao app
   })
@@ -162,6 +162,23 @@ describe('páginas', { timeout: 30_000 }, () => {
     salvarSessao(null) // o cookie existe, mas o navegador ainda não marcou quem entrou
     const txt = await renderizar('/')
     expect(txt).toContain('Fitness')
+  })
+
+  it('login pedido pelo app: entra no navegador e confirma a volta ao app', async () => {
+    sessionStorage.setItem('pace-lab.desafio-app', 'E9Melhoa2OwvFrEMTJguCHaoeK1t8URWbuGJSstw-cM')
+    logadoNoServidor = false
+    salvarSessao(null)
+    let txt = await renderizar('/')
+    expect(txt).toContain('para usar no app Pace Lab')
+    act(() => raiz?.unmount())
+    document.body.innerHTML = ''
+    logadoNoServidor = true
+    salvarSessao(USUARIO)
+    txt = await renderizar('/')
+    expect(txt).toContain('Conectar o app')
+    expect(txt).toContain('bia@exemplo.com')
+    expect(txt).not.toContain('Fitness')
+    sessionStorage.clear()
   })
 
   it('treinos têm cartões para o celular e tabela para o PC', async () => {

@@ -273,12 +273,12 @@ class AuthSession(Base):
 
 
 class AuthPending(Base):
-    """Passo de login em andamento e de uso único: estado do login com Google (e, na etapa 8, o código do app)."""
+    """Passo de login em andamento e de uso único: estado do login com Google e código que leva o login ao app."""
 
     __tablename__ = "auth_pending"
 
     id: Mapped[int] = mapped_column(primary_key=True)
-    kind: Mapped[str] = mapped_column(String(20))  # google
+    kind: Mapped[str] = mapped_column(String(20))  # google ou app
     key_hash: Mapped[str] = mapped_column(String(64), unique=True)
     data: Mapped[dict] = mapped_column(JSON)
     expires_utc: Mapped[datetime] = mapped_column(UTCDateTime)

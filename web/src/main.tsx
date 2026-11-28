@@ -4,20 +4,15 @@ import { StrictMode } from 'react'
 import { createRoot } from 'react-dom/client'
 import { BrowserRouter } from 'react-router'
 import { App as AppNativo } from '@capacitor/app'
-import { conectarPorLink, ErroApi, salvarToken } from './api/cliente'
+import { carregarTokens, ErroApi } from './api/cliente'
+import { concluirLoginApp } from './api/loginApp'
 import { opcoesPersistencia } from './api/persistencia'
 import { App } from './App'
 import { ErroTela } from './componentes/ErroTela'
 import { ProvedorContexto } from './contexto'
 import './estilo.css'
+import { guardarDesafioDaUrl } from './paginas/ConectarApp'
 import { ehApp } from './plataforma'
-
-if (!ehApp()) salvarToken(null) // no navegador o login agora é por conta, em cookie; o token antigo sai daqui
-else {
-  // app aberto pelo link pacelab://conectar (página /abrir-app): guarda endereço do PC e token
-  AppNativo.getLaunchUrl().then((l) => { if (l?.url) conectarPorLink(l.url) })
-  AppNativo.addListener('appUrlOpen', (e) => { conectarPorLink(e.url) })
-}
 
 const queryClient = new QueryClient({
   defaultOptions: {
@@ -32,7 +27,15 @@ const queryClient = new QueryClient({
   },
 })
 
-createRoot(document.getElementById('root')!).render(
+if (!ehApp()) guardarDesafioDaUrl() // navegador do celular aberto pelo app para entrar (/entrar-app)
+else {
+  // volta do login feito no navegador: pacelab://entrou?codigo=...
+  AppNativo.getLaunchUrl().then((l) => { if (l?.url) void concluirLoginApp(l.url, queryClient) })
+  AppNativo.addListener('appUrlOpen', (e) => { void concluirLoginApp(e.url, queryClient) })
+}
+
+// No app, os tokens vêm do cofre do Android antes da primeira tela (senão ela pediria login à toa).
+void carregarTokens().finally(() => createRoot(document.getElementById('root')!).render(
   <StrictMode>
     <PersistQueryClientProvider client={queryClient} persistOptions={opcoesPersistencia()}>
       <BrowserRouter>
@@ -44,4 +47,4 @@ createRoot(document.getElementById('root')!).render(
       </BrowserRouter>
     </PersistQueryClientProvider>
   </StrictMode>,
-)
+))

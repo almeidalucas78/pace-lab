@@ -210,7 +210,7 @@ def url_retorno_google(settings: Settings) -> str:
 def iniciar_google(s: Session, settings: Settings, destino: str) -> tuple[str, str]:
     """URL do Google para onde mandar o navegador e o vínculo que vai num cookie (prende o login a este navegador)."""
     state, nonce, verificador, vinculo = (secrets.token_urlsafe(32) for _ in range(4))
-    desafio = base64.urlsafe_b64encode(hashlib.sha256(verificador.encode()).digest()).rstrip(b"=").decode()
+    desafio = desafio_pkce(verificador)
     s.add(
         AuthPending(
             kind="google",
@@ -291,3 +291,36 @@ def trocar_codigo_google(settings: Settings, codigo: str, verificador: str, nonc
     if not secrets.compare_digest(str(dados.get("nonce", "")), nonce):
         raise ErroConta("resposta do Google inválida", 502)
     return dados
+
+
+# ---------- login do app Android pelo navegador (ADR 0015): código de uso único com PKCE ----------
+
+
+def desafio_pkce(verificador: str) -> str:
+    """S256 do PKCE (RFC 7636): base64url sem "=" do SHA-256 do verificador."""
+    return base64.urlsafe_b64encode(hashlib.sha256(verificador.encode()).digest()).rstrip(b"=").decode()
+
+
+def criar_codigo_app(s: Session, user_id: int, desafio: str) -> str:
+    """Quem já entrou no navegador gera um código que só o app que criou o desafio consegue trocar por tokens."""
+    codigo = secrets.token_urlsafe(32)
+    s.add(
+        AuthPending(
+            kind="app",
+            key_hash=hash_token(codigo),
+            data={"user_id": user_id, "desafio": desafio},
+            expires_utc=agora() + timedelta(minutes=PENDENCIA_MIN),
+        )
+    )
+    return codigo
+
+
+def usar_codigo_app(s: Session, codigo: str, verificador: str) -> User | None:
+    """Dono do código, se ele vale e o verificador confere. Uso único: errar o verificador também gasta o código."""
+    p = s.scalar(select(AuthPending).where(AuthPending.kind == "app", AuthPending.key_hash == hash_token(codigo)))
+    if p is None or p.used_utc is not None or p.expires_utc <= agora():
+        return None
+    p.used_utc = agora()
+    if not secrets.compare_digest(desafio_pkce(verificador), str(p.data["desafio"])):
+        return None
+    return s.get(User, int(p.data["user_id"]))

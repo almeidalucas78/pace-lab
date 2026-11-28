@@ -32,8 +32,8 @@ O painel web (`web/`, ADR 0011) é um app React separado que fala só com a API,
 
 | Pasta | Papel |
 |---|---|
-| `web/src/api/` | `cliente.ts` (prefixo `/api`; no navegador, login em cookie HttpOnly com uma renovação automática quando o acesso vence e volta para a tela de entrar se ela falhar; no app, token no cabeçalho), `sessao.ts` (entrar e sair; apaga os dados guardados quando outra conta entra), `tipos.ts` (tipos das respostas, escritos à mão), `consultas.ts` (TanStack Query) |
-| `web/src/paginas/` | Visão geral, Treinos, Treino, Plano, Token |
+| `web/src/api/` | `cliente.ts` (prefixo `/api`; no navegador, login em cookie HttpOnly com uma renovação automática quando o acesso vence e volta para a tela de entrar se ela falhar; no app, token de acesso no cabeçalho e renovação pelo token guardado no cofre do Android), `cofre.ts` (plugin `Cofre`: tokens cifrados com chave do Android Keystore), `loginApp.ts` (login do app pelo navegador do celular, volta por `pacelab://entrou` com código de uso único e PKCE), `sessao.ts` (entrar e sair; apaga os dados guardados quando outra conta entra), `tipos.ts` (tipos das respostas, escritos à mão), `consultas.ts` (TanStack Query) |
+| `web/src/paginas/` | Visão geral, Treinos, Treino, Plano, Conta, Conectar celular, Entrar (navegador), EntrarApp (app Android), ConectarApp (navegador devolvendo o login ao app) |
 | `web/src/componentes/` | gráficos (Recharts), mapa (Leaflet + OpenStreetMap), semanas do plano, chat lateral |
 | `web/src/contexto.tsx` | o que está aberto na tela; o chat manda como `contexto` para a IA |
 
@@ -60,7 +60,7 @@ Em uso normal, `treino servico` serve o build (`web/dist`) na raiz e a API em `/
 | Tabela | O que guarda | Recalculável? |
 |---|---|---|
 | `users` | Conta: e-mail, senha (hash), Google, FC máxima, FC de repouso, fuso | **não** |
-| `auth_sessions`, `auth_pending` | Sessões de login (tokens só como hash) e passos do login com Google | não precisa |
+| `auth_sessions`, `auth_pending` | Sessões de login (tokens só como hash) e passos de login de uso único (Google e código do app) | não precisa |
 | `activities` | Um treino por conta e fonte (`user_id`, `source`, `source_id`), totais, métricas, duplicata | sim, reimportando |
 | `samples` | Leituras ao longo do treino (1/s) | sim |
 | `splits` | Parciais por km | sim |

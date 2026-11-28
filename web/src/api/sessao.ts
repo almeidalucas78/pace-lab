@@ -1,8 +1,8 @@
-// Entrar e sair no navegador: marca quem entrou e cuida dos dados guardados no aparelho (ADR 0012).
+// Entrar e sair (navegador e app): marca quem entrou e cuida dos dados guardados no aparelho (ADR 0012).
 
 import type { QueryClient } from '@tanstack/react-query'
 import { ehApp } from '../plataforma'
-import { api, salvarSessao, salvarToken, ultimaConta } from './cliente'
+import { api, salvarSessao, salvarTokens, ultimaConta } from './cliente'
 import { apagarDadosGuardados } from './persistencia'
 import type { Usuario } from './tipos'
 
@@ -13,16 +13,14 @@ export async function entrouComo(qc: QueryClient, u: Usuario): Promise<void> {
   salvarSessao(u)
 }
 
-/** Encerra a sessão no servidor (apaga os cookies) e os dados guardados neste aparelho. */
+/** Encerra a sessão no servidor (cookies no navegador, tokens no app) e apaga os dados guardados no aparelho. */
 export async function sair(qc: QueryClient, todos = false): Promise<void> {
-  if (!ehApp()) {
-    try {
-      await api(todos ? '/auth/sair-de-todos' : '/auth/sair', { method: 'POST' })
-    } catch {
-      // sem rede ou sessão já vencida: sai deste aparelho mesmo assim
-    }
+  try {
+    await api(todos ? '/auth/sair-de-todos' : '/auth/sair', { method: 'POST' })
+  } catch {
+    // sem rede ou sessão já vencida: sai deste aparelho mesmo assim
   }
   await apagarDadosGuardados(qc)
-  if (ehApp()) salvarToken(null)
-  else salvarSessao(null)
+  if (ehApp()) salvarTokens(null)
+  salvarSessao(null)
 }

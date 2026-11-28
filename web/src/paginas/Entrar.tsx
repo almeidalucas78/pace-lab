@@ -25,8 +25,11 @@ function erroDaUrl(): string | null {
 
 interface Resposta { usuario: Usuario }
 
-/** Tela de entrar e de criar conta no navegador (fase 9, ADR 0017). O login fica num cookie seguro. */
-export function Entrar() {
+/**
+ * Tela de entrar e de criar conta no navegador (fase 9, ADR 0017). O login fica num cookie seguro.
+ * `paraApp`: aberta pelo app Android; depois de entrar, o login volta para ele (ConectarApp).
+ */
+export function Entrar({ paraApp = false }: { paraApp?: boolean }) {
   const qc = useQueryClient()
   const [criando, setCriando] = useState(false)
   const [email, setEmail] = useState('')
@@ -89,7 +92,9 @@ export function Entrar() {
           <img src="/favicon.svg" width={28} height={28} alt="" />
           <h1 style={{ margin: 0 }}>Pace Lab</h1>
         </div>
-        <p className="fraco" style={{ margin: 0 }}>{criando ? 'Criar conta' : 'Entre na sua conta'}</p>
+        <p className="fraco" style={{ margin: 0 }}>
+          {criando ? 'Criar conta' : 'Entre na sua conta'}{paraApp && ' para usar no app Pace Lab'}
+        </p>
 
         {opcoes.data?.google && (
           <>

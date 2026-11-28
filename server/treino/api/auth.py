@@ -226,6 +226,42 @@ def trocar_senha(body: TrocarSenhaIn, request: Request, u: User = Depends(usuari
     return {"ok": True}
 
 
+# ---------- app Android: login feito no navegador do celular, levado ao app por pacelab:// ----------
+
+
+class CodigoAppIn(BaseModel):
+    desafio: str = Field(pattern=r"^[A-Za-z0-9_-]{43}$")  # S256 do verificador que ficou no app
+
+
+class TrocarAppIn(BaseModel):
+    codigo: str = Field(min_length=1, max_length=200)
+    verificador: str = Field(min_length=43, max_length=128)
+
+
+@router.post("/app/codigo")
+def codigo_app(body: CodigoAppIn, u: User = Depends(usuario_atual)):
+    """Navegador já logado (cookie; a origem é conferida em usuario_atual) gera o código de uso único."""
+    with session_scope() as s:
+        return {"codigo": contas.criar_codigo_app(s, u.id, body.desafio)}
+
+
+@router.post("/app/trocar")
+def trocar_app(body: TrocarAppIn, request: Request, response: Response, settings: Settings = Depends(get_settings)):
+    """O app troca o código e o verificador do PKCE pelos tokens (guardados no cofre do Android)."""
+    ip = _ip(request)
+    if espera := limite.espera(ip, "app"):
+        raise HTTPException(429, f"muitas tentativas; espere {espera} s", headers={"Retry-After": str(espera)})
+    with session_scope() as s:
+        u = contas.usar_codigo_app(s, body.codigo, body.verificador)
+        if u is not None:
+            t = contas.criar_sessao(s, settings, u, "app")
+            usuario = contas.usuario_dict(u)
+    if u is None:
+        limite.falhou(ip, "app")
+        raise HTTPException(400, "código de login expirado ou inválido; entre de novo pelo app")
+    return {"usuario": usuario} | _entregar(response, settings, t, "app")
+
+
 # ---------- Google ----------
 
 
