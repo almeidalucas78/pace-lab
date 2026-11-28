@@ -1,10 +1,10 @@
-// Atualização do app Android pelo próprio app (fase 7, etapa 4b). O PC publica o APK com
+// Atualização do app Android pelo próprio app (fase 7, etapa 4b). O servidor publica o APK com
 // `treino publicar-app`; o app compara a versão dele com /api/app/versao e, se houver nova, baixa
 // e chama o instalador do Android pelo plugin próprio (android/.../AtualizacaoPlugin.kt).
 
 import { App as AppNativo } from '@capacitor/app'
 import { registerPlugin, type PluginListenerHandle } from '@capacitor/core'
-import { api, baseApi, lerToken } from './api/cliente'
+import { acessoFresco, api, baseApi } from './api/cliente'
 
 export interface VersaoPublicada {
   codigo: number | null
@@ -41,6 +41,7 @@ export function urlDoApk(): string {
   return `${baseApi()}/api/app/apk`
 }
 
-export function tokenAtual(): string {
-  return lerToken() ?? ''
+/** Token para o Android baixar o APK: o acesso vence em 15 min, então renova antes se estiver no fim. */
+export function tokenAtual(): Promise<string> {
+  return acessoFresco()
 }

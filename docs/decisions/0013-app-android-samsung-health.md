@@ -15,6 +15,7 @@ O usuário quer treinos entrando sozinhos, com GPS, e um app só no celular. Ver
 - A leitura fica atrás de uma **"fonte de treinos"** com formato próprio (no app e na API), para trocar por parceria Samsung ou acrescentar o Health Connect quando o app for para outras pessoas.
 - O **celular envia** os treinos para `POST /api/saude/treinos` pelo Tailscale: ao abrir o app, ao voltar para ele e no botão Sincronizar. Leitura com o app fechado fica para depois.
 - Conexão por QR com link `pacelab://conectar` (endereço e token). Atualização: o app consulta a versão no PC, baixa o APK novo e abre o instalador do Android.
+  - Atualizado em 28/11/2026 (fase 9, etapa 8): o QR com token saiu; o app entra pela conta, com a tela de entrar do servidor aberta no navegador e volta por `pacelab://entrou` com código de uso único e PKCE, como decidido no ADR 0015. Tokens no cofre do Android (Keystore).
 - O cliente do HC Webhook e o agendador do serviço saem quando o app estiver funcionando. O painel no navegador do PC continua.
 - O SDK da Samsung (`.aar`) não vai para o git; fica com o usuário.
 

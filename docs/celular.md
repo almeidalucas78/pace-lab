@@ -48,7 +48,7 @@ PAINEL_URL_CELULAR=https://pacelab.nome-da-rede.ts.net
 2. No celular, com o Tailscale ligado, aponte a câmera para o QR do navegador, abra o link e entre com a sua conta.
 3. No Chrome do celular: menu ⋮, **Instalar app** (ou **Adicionar à tela inicial**).
 
-O QR do navegador só tem o endereço. O do app Android (aparece quando o painel roda no app) ainda leva o token de acesso: não compartilhe nem tire foto dele; se vazar, troque o `API_TOKEN` no `.env` e conecte de novo.
+O QR só tem o endereço; o login é sempre pela conta. No app Android, o mesmo endereço vai na tela de entrar do app (seção abaixo).
 
 ## Como funciona no dia a dia
 
@@ -65,7 +65,7 @@ O QR do navegador só tem o endereço. O do app Android (aparece quando o painel
 | "PC fora do ar" com o PC ligado | Confira se o Tailscale está ligado no celular e se a janela do Treino está aberta no PC. |
 | O link não abre | Rode `tailscale serve --bg 8000` de novo no PC e confira o endereço no `.env`. |
 | Não aparece "Instalar app" | Só aparece em HTTPS (endereço `https://...ts.net`), não pelo IP. Use o Chrome. |
-| Pede para entrar de novo | A sessão venceu (30 dias sem abrir) ou alguém usou **Sair de todos os aparelhos**: entre com a conta. No app Android, o `API_TOKEN` do `.env` mudou: conecte de novo. |
+| Pede para entrar de novo | A sessão venceu (30 dias sem abrir) ou alguém usou **Sair de todos os aparelhos**: entre com a conta (no app Android, pelo botão **Entrar**). |
 
 ## App Android (fase 7, ADR 0013)
 
@@ -75,7 +75,9 @@ O app **Pace Lab** é o mesmo painel dentro de um aplicativo Android, e é ele q
 1. No celular: ative as opções do desenvolvedor e a **Depuração USB** (não confundir com Ancoragem USB).
 2. No Samsung Health: Configurações, Sobre o Samsung Health, toque várias vezes na versão para ligar o **modo desenvolvedor** do Health Data SDK e libere o acesso aos dados.
 3. No PC, na pasta `web`: `npm run build`, `npx cap sync android`; em `android/`, `./gradlew.bat assembleDebug` e `adb install -r app/build/outputs/apk/debug/app-debug.apk` (precisa do JDK 21 e do Android SDK; o `.aar` do Samsung Health Data SDK fica em `android/app/libs`, fora do git).
-4. No painel do PC, em **Conectar celular**, o QR do app abre o Pace Lab já conectado ao servidor e ao token.
+4. Abra o Pace Lab, digite o endereço do servidor (o mesmo de **Conectar celular**) e toque em **Entrar**. O login abre no navegador do celular, com senha ou Google; depois de entrar, toque em **Conectar o app** e o Chrome devolve você ao app já dentro da conta.
+
+**Login no app (fase 9, etapa 8; ADR 0015):** a tela de entrar é a do servidor, para existir uma só (navegador, app e, depois, desktop). O navegador devolve ao app um código de uso único por `pacelab://entrou`, que só vale junto com um segredo que nunca saiu do app (PKCE) e vence em 10 minutos. Os tokens ficam no cofre do Android: cifrados com uma chave do Android Keystore, que não sai do aparelho. Se o cofre não puder ser lido (backup restaurado em outro celular, por exemplo), o app pede para entrar de novo. **Sair** encerra a sessão no servidor e apaga tudo do aparelho.
 
 **Atualizar sem cabo:** depois de compilar, rode `treino publicar-app`. Ao abrir o Pace Lab (ou voltar para ele) aparece "Versão nova do app" com o botão **Atualizar**: o app baixa o APK do PC e o Android pede para confirmar. Na primeira vez o Android pede também a permissão "instalar apps desconhecidos" para o Pace Lab. O Play Protect pode avisar que o app não é verificado; é seu app, compilado no seu PC, e dá para instalar mesmo assim (pendência no ROADMAP).
 

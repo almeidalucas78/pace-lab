@@ -22,12 +22,12 @@
                 <category android:name="android.intent.category.LAUNCHER" />
             </intent-filter>
 
-            <!-- pacelab://conectar?servidor=...&token=... (página /abrir-app do painel, ADR 0013) -->
+            <!-- pacelab://entrou?codigo=... : volta do login feito no navegador do celular (página /entrar-app, ADR 0015) -->
             <intent-filter>
                 <action android:name="android.intent.action.VIEW" />
                 <category android:name="android.intent.category.DEFAULT" />
                 <category android:name="android.intent.category.BROWSABLE" />
-                <data android:scheme="pacelab" android:host="conectar" />
+                <data android:scheme="pacelab" android:host="entrou" />
             </intent-filter>
 
         </activity>

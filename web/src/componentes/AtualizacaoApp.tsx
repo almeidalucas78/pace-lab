@@ -67,7 +67,7 @@ export function AtualizacaoApp({ plugin = pluginAtualizacao, instalada = versaoI
         return
       }
       setEstado({ tipo: 'baixando', versao: v, pct: null })
-      await plugin.instalar({ url: urlDoApk(), token: tokenAtual(), sha256: v.sha256 })
+      await plugin.instalar({ url: urlDoApk(), token: await tokenAtual(), sha256: v.sha256 })
       setEstado((e) => (e.tipo === 'baixando' ? { tipo: 'confirmar', versao: v } : e))
     } catch (e) {
       setEstado({ tipo: 'erro', versao: v, mensagem: e instanceof Error ? e.message : String(e) })

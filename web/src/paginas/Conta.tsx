@@ -6,7 +6,6 @@ import { sair } from '../api/sessao'
 import type { Perfil, RelatorioImportacao } from '../api/tipos'
 import { Estado } from '../componentes/Estado'
 import { useDescreverPagina } from '../contexto'
-import { ehApp } from '../plataforma'
 
 const SENHA_MINIMA = 8
 
@@ -17,20 +16,19 @@ const mensagem = (e: unknown) =>
 /** Conta: quem entrou, FC e fuso, importação do Strava, senha e sair (fase 9, etapa 7). */
 export function Conta() {
   useDescreverPagina('o usuário está na página da conta (FC, fuso, importação do Strava, senha)')
-  const app = ehApp()
-  const usuario = app ? null : lerSessao()
+  const usuario = lerSessao()
   return (
     <div className="pilha" style={{ maxWidth: 680 }}>
       <div>
         <h1>Conta</h1>
         <p className="subtitulo">
-          {usuario ? <>{usuario.nome ? `${usuario.nome} · ` : ''}{usuario.email}</> : 'Conectado ao PC pelo token.'}
+          {usuario ? <>{usuario.nome ? `${usuario.nome} · ` : ''}{usuario.email}</> : 'Conectado.'}
         </p>
       </div>
       <Coracao />
       <ImportarStrava />
       {usuario && <TrocarSenha temSenha={usuario.senha} />}
-      <Saida app={app} />
+      <Saida />
     </div>
   )
 }
@@ -232,7 +230,7 @@ function TrocarSenha({ temSenha }: { temSenha: boolean }) {
   )
 }
 
-function Saida({ app }: { app: boolean }) {
+function Saida() {
   const qc = useQueryClient()
   const [saindo, setSaindo] = useState(false)
   async function fazer(todos: boolean) {
@@ -245,9 +243,7 @@ function Saida({ app }: { app: boolean }) {
       <p className="fraco" style={{ margin: 0 }}>Sair apaga também os dados guardados neste aparelho.</p>
       <div className="linha">
         <button className="botao-sec" disabled={saindo} onClick={() => fazer(false)}>Sair deste aparelho</button>
-        {!app && (
-          <button className="botao-sec" disabled={saindo} onClick={() => fazer(true)}>Sair de todos os aparelhos</button>
-        )}
+        <button className="botao-sec" disabled={saindo} onClick={() => fazer(true)}>Sair de todos os aparelhos</button>
       </div>
     </section>
   )

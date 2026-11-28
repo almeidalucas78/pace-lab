@@ -1,4 +1,4 @@
-import { lazy, Suspense, useEffect, useState } from 'react'
+import { lazy, Suspense, useEffect, useReducer, useState } from 'react'
 import { NavLink, Route, Routes } from 'react-router'
 import { entrou, lerSessao } from './api/cliente'
 import { AvisoConexao, BotaoAtualizar } from './componentes/Conexao'
@@ -6,9 +6,9 @@ import { ErroTela } from './componentes/ErroTela'
 import { AtualizacaoApp } from './componentes/AtualizacaoApp'
 import { Sincronizacao } from './componentes/Sincronizacao'
 import { VersaoNova } from './componentes/VersaoNova'
-import { AbrirApp } from './paginas/AbrirApp'
+import { ConectarApp, desafioPendente } from './paginas/ConectarApp'
 import { Entrar } from './paginas/Entrar'
-import { Token } from './paginas/Token'
+import { EntrarApp } from './paginas/EntrarApp'
 import { ehApp } from './plataforma'
 
 // Cada página (e o chat) vira um arquivo separado: gráficos, mapa e markdown só carregam quando abertos.
@@ -22,7 +22,7 @@ const Chat = lazy(() => import('./componentes/Chat').then((m) => ({ default: m.C
 
 const carregando = <div className="carregando">Carregando...</div>
 
-/** Se há alguém logado: token no app, marca da sessão no navegador (o login em si fica no cookie). */
+/** Se há alguém logado: tokens no app, marca da sessão no navegador (o login em si fica no cookie). */
 function useEntrou() {
   const [sim, setSim] = useState(entrou)
   useEffect(() => {
@@ -40,10 +40,12 @@ function useEntrou() {
 export function App() {
   const logado = useEntrou()
   const [chatAberto, setChatAberto] = useState(false)
-  // página pública: leva endereço e token do navegador do celular para o app Android
-  if (window.location.pathname === '/abrir-app' && !ehApp()) return <AbrirApp />
-  if (!logado) return ehApp() ? <Token /> : <Entrar />
-  const usuario = ehApp() ? null : lerSessao()
+  const [, refazer] = useReducer((n: number) => n + 1, 0)
+  // navegador do celular aberto pelo app para entrar: depois do login, devolve ao app (ConectarApp)
+  const desafio = ehApp() ? null : desafioPendente()
+  if (!logado) return ehApp() ? <EntrarApp /> : <Entrar paraApp={desafio !== null} />
+  if (desafio) return <ConectarApp desafio={desafio} aoTerminar={refazer} />
+  const usuario = lerSessao()
 
   return (
     <div className={`app ${chatAberto ? 'com-chat' : ''}`}>
@@ -101,7 +103,7 @@ export function App() {
         <NavLink to="/plano">Plano</NavLink>
         <NavLink to="/chat">Chat</NavLink>
       </nav>
-      {ehApp() ? <AtualizacaoApp /> : <VersaoNova /> /* no app os arquivos vêm no APK; atualização baixa um APK novo do PC */}
+      {ehApp() ? <AtualizacaoApp /> : <VersaoNova /> /* no app os arquivos vêm no APK; atualização baixa um APK novo do servidor */}
     </div>
   )
 }
